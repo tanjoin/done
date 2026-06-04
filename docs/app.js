@@ -232,7 +232,10 @@ function renderCards() {
             const card = document.createElement('div');
             card.className = `card`;
 
-            if (!todayStatus && !timeCheck.valid) {
+            // 【追加】今日すでに処理済みであれば属性を付与してカード全体を減光させる
+            if (todayStatus) {
+                card.setAttribute('data-done', 'true');
+            } else if (!timeCheck.valid) {
                 card.setAttribute('data-out-of-time', 'true');
             }
 

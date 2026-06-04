@@ -3,7 +3,7 @@
     --bg-color: #f4f5f7;         /* 初期の親しみやすいプレーンな背景 */
     --card-bg: #ffffff;          /* くっきり目立つ純白のカード */
     
-    /* テキストカラー（可読性を維持した標準ダークトーン） */
+    /* テキストカラー */
     --text-primary: #1a1a1a;     /* パキッとした黒 */
     --text-secondary: #4a5568;   /* 読みやすい濃いグレー */
     --text-muted: #718096;       /* 補助的なグレー */
@@ -12,43 +12,29 @@
     --accent-color: #1a73e8;     /* 初期の鮮やかなカレンダーブルー */
     --border-color: #e2e8f0;     /* 輪郭がはっきりわかる境界線 */
     
-    /* ボタン（初期のソリッドな配色） */
+    /* ボタン */
     --btn-primary-bg: #1a73e8;
     --btn-primary-text: #ffffff;
     --btn-secondary-bg: #edf2f7;
     --btn-secondary-text: #4a5568;
     
-    /* ステータス（初期のハッキリした色合い） */
-    --status-success-bg: #e6f4ea;
-    --status-success-text: #137333;
-    --status-error-bg: #fce8e6;
-    --status-error-text: #c5221f;
-    
     --border-radius: 8px;
 }
 
-/* --- ダークモード（初期のトーンに合わせたディープネイビー） --- */
+/* --- ダークモード --- */
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
         --bg-color: #0f172a;
         --card-bg: #1e293b;
-        
         --text-primary: #f8fafc;
         --text-secondary: #cbd5e1;
         --text-muted: #94a3b8;
-        
         --border-color: #334155;
         --accent-color: #38bdf8;
-        
         --btn-primary-bg: #38bdf8;
         --btn-primary-text: #0f172a;
         --btn-secondary-bg: #334155;
         --btn-secondary-text: #f8fafc;
-        
-        --status-success-bg: #064e3b;
-        --status-success-text: #a7f3d0;
-        --status-error-bg: #4c0519;
-        --status-error-text: #fecdd3;
     }
 }
 
@@ -64,10 +50,6 @@
     --btn-primary-text: #0f172a;
     --btn-secondary-bg: #334155;
     --btn-secondary-text: #f8fafc;
-    --status-success-bg: #064e3b;
-    --status-success-text: #a7f3d0;
-    --status-error-bg: #4c0519;
-    --status-error-text: #fecdd3;
 }
 
 :root[data-theme="light"] {
@@ -82,10 +64,6 @@
     --btn-primary-text: #ffffff;
     --btn-secondary-bg: #edf2f7;
     --btn-secondary-text: #4a5568;
-    --status-success-bg: #e6f4ea;
-    --status-success-text: #137333;
-    --status-error-bg: #fce8e6;
-    --status-error-text: #c5221f;
 }
 
 /* --- 基礎レイアウト --- */
@@ -179,7 +157,7 @@ body {
     .grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* --- カードデザイン（メリハリ重視） --- */
+/* --- カードデザイン --- */
 .card {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -189,7 +167,14 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* 視認性を上げる微細な影 */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: opacity 0.15s ease;
+}
+
+/* 【追加・変更】処理済み（追加・キャンセル）タスクはカード全体をフェードアウト */
+.card[data-done="true"] {
+    opacity: 0.5;
+    box-shadow: none;
 }
 
 .card-title {
@@ -200,7 +185,7 @@ body {
     line-height: 1.3;
 }
 
-/* 取り消し（リセット）ボタン */
+/* 取り消しボタン */
 .btn-undo {
     position: absolute;
     top: 20px;
@@ -223,7 +208,7 @@ body {
     margin-bottom: 12px;
 }
 
-/* 説明文（読みやすさ重視の行間） */
+/* 説明文 */
 .task-description {
     font-size: 14px;
     color: var(--text-secondary);
@@ -261,14 +246,15 @@ body {
     font-weight: 600;
     background-color: var(--btn-secondary-bg);
     color: var(--text-secondary);
+    border: 1px solid transparent;
 }
-.status-completed {
-    background-color: var(--status-success-bg);
-    color: var(--status-success-text);
-}
-.status-cancelled {
-    background-color: var(--status-error-bg);
-    color: var(--status-error-text);
+
+/* 【変更】追加・キャンセルバッジは色を抜いて完全に存在感を消す */
+.status-completed, .status-cancelled {
+    background-color: transparent !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-muted) !important;
+    font-weight: 500;
 }
 
 /* アクションボタン */
@@ -303,10 +289,6 @@ body {
 }
 .btn-cancel:hover:not(:disabled) {
     background-color: #e2e8f0;
-}
-.btn-menu {
-    background-color: var(--btn-primary-bg);
-    color: var(--btn-primary-text);
 }
 
 .btn:disabled {
