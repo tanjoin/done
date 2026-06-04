@@ -23,11 +23,9 @@ function applyTheme(theme) {
 
 // --- アプリ初期起動 ---
 async function initApp() {
-    // 1. テーマの復元
     const savedTheme = localStorage.getItem('calendar_app_theme') || 'system';
     applyTheme(savedTheme);
 
-    // 2. タスクデータの読み込み（LocalStorage なければ 外部JSONから）
     const savedTasks = localStorage.getItem('calendar_tasks_v3');
     if (savedTasks) {
         try {
@@ -39,14 +37,10 @@ async function initApp() {
         await loadDefaultTasksFromJSON();
     }
 
-    // 3. 読み込み後の各ページ専用セットアップ
     setupPageSpecifics(savedTheme);
-
-    // 4. プッシュ通知タイマーの始動（全ページ共通）
     initNotificationTimer();
 }
 
-// 外部JSONから初期データをフェッチ
 async function loadDefaultTasksFromJSON() {
     try {
         const response = await fetch('tasks.json');
@@ -59,7 +53,6 @@ async function loadDefaultTasksFromJSON() {
     }
 }
 
-// 各HTMLページ特有の処理分岐
 function setupPageSpecifics(currentTheme) {
     if (document.getElementById('taskContainer')) {
         renderCards();
@@ -71,23 +64,18 @@ function setupPageSpecifics(currentTheme) {
     }
 }
 
-// --- プッシュ通知ロジック（時間になったら通知する機能は維持） ---
+// --- プッシュ通知 ---
 function checkNotificationPermission() {
     const banner = document.getElementById('notificationBanner');
     if (!banner) return;
-
-    if (Notification.permission === 'default') {
-        banner.style.display = 'flex';
-    } else {
-        banner.style.display = 'none';
-    }
+    banner.style.display = (Notification.permission === 'default') ? 'flex' : 'none';
 }
 
 function requestPermission() {
     Notification.requestPermission().then(permission => {
         checkNotificationPermission();
         if (permission === 'granted') {
-            alert('プッシュ通知が有効になりました！時間になるとお知らせします。');
+            alert('プッシュ通知が有効になりました！');
         }
     });
 }
@@ -103,22 +91,18 @@ function checkAndSendNotifications() {
     const today = getFormattedDate(0);
     const now = new Date();
     const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
-
     let isUpdated = false;
 
     tasks.forEach(task => {
         if (!shouldShowTask(task) || !task.startTime) return;
         if (task.notifiedDate === today) return;
-
-        // すでに今日「完了」または「キャンセル」のアクション済みの場合は通知しない
         if (task.history[today]) return;
 
         if (currentStr >= task.startTime) {
             new Notification("タスクの時間です！", {
-                body: `「${task.text}」が実施可能な時間になりました。(${task.startTime}〜)`,
+                body: `「${task.text}」が実施可能な時間になりました。`,
                 icon: "https://calendar.google.com/calendar/images/favicon_v2014_3.ico"
             });
-
             task.notifiedDate = today;
             isUpdated = true;
         }
@@ -129,11 +113,10 @@ function checkAndSendNotifications() {
     }
 }
 
-// --- スケジュール表示条件判定 ---
-function shouldShowTask(task) {
-    const now = new Date();
-    const currentDayOfWeek = now.getDay();  
-    const currentDayOfMonth = now.getDate(); 
+// --- 【リファクタリング】特定の日付にタスクがスケジュールされているか判定 ---
+function isTaskScheduledOnDate(task, date) {
+    const currentDayOfWeek = date.getDay();  
+    const currentDayOfMonth = date.getDate(); 
 
     const noWeekRestriction = !task.daysOfWeek || task.daysOfWeek.length === 0;
     const noMonthRestriction = !task.daysOfMonth || task.daysOfMonth.length === 0;
@@ -145,7 +128,56 @@ function shouldShowTask(task) {
     return false;
 }
 
-// --- メイン描画（index.html用） ---
+// 今日の表示判定（上記関数を流用）
+function shouldShowTask(task) {
+    return isTaskScheduledOnDate(task, new Date());
+}
+
+// 時間制限チェック
+function isWithinTime(task) {
+    if (!task.startTime && !task.endTime) return { valid: true, msg: "" };
+    const now = new Date();
+    const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+    
+    if (task.startTime && currentStr < task.startTime) return { valid: false, msg: `時間外 (${task.startTime}から)` };
+    if (task.endTime && currentStr > task.endTime) return { valid: false, msg: `時間外 (${task.endTime}まで)` };
+    return { valid: true, msg: "" };
+}
+
+// --- 【ロジック刷新】スケジュール合致日ベースでの放置回数計算 ---
+function calculateNeglectLevel(task, todayStr) {
+    // 今日すでに完了またはキャンセルされている場合は、スルーではないので通常色(0)
+    if (task.history[todayStr]) return 0;
+
+    let missedCount = 0;
+    const maxRetroDays = 30; // 過去30日前まで遡ってチェック
+
+    for (let i = 1; i <= maxRetroDays; i++) {
+        const testDate = new Date();
+        testDate.setDate(testDate.getDate() - i);
+        const checkStr = `${testDate.getFullYear()}-${String(testDate.getMonth() + 1).padStart(2, '0')}-${String(testDate.getDate()).padStart(2, '0')}`;
+        
+        // その日がこのタスクの「実行すべきスケジュール日」だった場合のみ判定
+        if (isTaskScheduledOnDate(task, testDate)) {
+            const status = task.history[checkStr];
+            
+            if (status === 'completed' || status === 'cancelled') {
+                // 直近のスケジュール日に「完了」または「キャンセル」のログがあれば、そこでサボり判定の遡りをストップ
+                break;
+            } else {
+                // スケジュール日だったのに履歴にデータがない（＝スルーして放置された）
+                missedCount++;
+            }
+        }
+    }
+
+    if (missedCount === 0) return 0;
+    if (missedCount === 1) return 1; // 1回スルー（ほんのり赤）
+    if (missedCount === 2) return 2; // 2回スルー（中くらいの赤）
+    return 3; // 3回以上連続スルー（最大値の赤）
+}
+
+// --- メイン描画 ---
 function renderCards() {
     const container = document.getElementById('taskContainer');
     if (!container) return;
@@ -168,6 +200,13 @@ function renderCards() {
     }
 
     for (const groupName in groups) {
+        // よく押されている順（completedの累計数が多い順）にグループ内ソート
+        groups[groupName].sort((a, b) => {
+            const countA = Object.values(a.history || {}).filter(v => v === 'completed').length;
+            const countB = Object.values(b.history || {}).filter(v => v === 'completed').length;
+            return countB - countA;
+        });
+
         const groupSection = document.createElement('div');
         groupSection.className = 'group-section';
         
@@ -183,9 +222,18 @@ function renderCards() {
             const taskIndex = tasks.findIndex(t => t.id === task.id);
             const todayStatus = task.history[today];
             const yesterdayStatus = task.history[yesterday];
+            const timeCheck = isWithinTime(task);
+            
+            const totalCompleted = Object.values(task.history || {}).filter(v => v === 'completed').length;
 
             const card = document.createElement('div');
             card.className = `card`;
+            
+            // 刷新された放置度ロジックの適用
+            const neglectLevel = calculateNeglectLevel(task, today);
+            if (neglectLevel > 0) {
+                card.setAttribute('data-neglect', neglectLevel);
+            }
 
             let badgeHtml = `<span class="status-badge status-uncompleted">未実施</span>`;
             let isLocked = false;
@@ -203,12 +251,27 @@ function renderCards() {
 
             let timeInfoHtml = "";
             if (task.startTime || task.endTime) {
-                timeInfoHtml = `<div class="time-restriction">⏰ ${task.startTime || '00:00'} 〜 ${task.endTime || '23:59'}</div>`;
+                const modeLabel = task.strictMode ? " [厳格]" : " [通常]";
+                timeInfoHtml = `<div class="time-restriction">⏰ ${task.startTime || '00:00'} 〜 ${task.endTime || '23:59'}${modeLabel}</div>`;
             }
 
             const undoButtonHtml = todayStatus ? `<button class="btn-undo" onclick="undoTask(${taskIndex})">×</button>` : '';
 
-            // 【変更点】ロック条件は「今日すでにアクション済みか否か」のみ。時間によるdisabledは完全撤廃。
+            let buttonDisabled = false;
+            let actionButtonText = "追加";
+
+            if (isLocked) {
+                buttonDisabled = true;
+            } else if (!timeCheck.valid) {
+                if (task.strictMode) {
+                    buttonDisabled = true;
+                    actionButtonText = timeCheck.msg;
+                } else {
+                    buttonDisabled = false;
+                    actionButtonText = `追加 (${timeCheck.msg})`;
+                }
+            }
+
             card.innerHTML = `
                 ${undoButtonHtml}
                 <div>
@@ -216,9 +279,10 @@ function renderCards() {
                     ${badgeHtml}
                     ${timeInfoHtml}
                     <div class="history-status">${yesterdayHtml}</div>
+                    <div class="total-count">📊 累計完了: ${totalCompleted}回</div>
                 </div>
                 <div class="card-actions">
-                    <button class="btn btn-action" ${isLocked ? 'disabled' : ''} onclick="executeTask(${taskIndex}, false)">追加</button>
+                    <button class="btn btn-action" ${buttonDisabled ? 'disabled' : ''} onclick="executeTask(${taskIndex}, false)">${actionButtonText}</button>
                     <button class="btn btn-cancel" ${isLocked ? 'disabled' : ''} onclick="executeTask(${taskIndex}, true)">キャンセル</button>
                 </div>
             `;
@@ -230,7 +294,7 @@ function renderCards() {
     }
 }
 
-// --- タスク実行（Googleカレンダー連携） ---
+// --- タスク実行 ---
 function executeTask(index, isCancel) {
     const today = getFormattedDate(0);
     tasks[index].history[today] = isCancel ? 'cancelled' : 'completed';
@@ -241,14 +305,12 @@ function executeTask(index, isCancel) {
     const startTime = formatDateTimeUTC(now);
     const endTime = formatDateTimeUTC(new Date(now.getTime() + 60 * 60 * 1000));
     
-    // 【変更点】カレンダーのタイトルにグループ名を埋め込む設定
     const groupName = tasks[index].group || "その他";
     let displayTitle = `[${groupName}] ${tasks[index].text}`;
     let details = "タスクログから自動生成されました。";
-    
     if (isCancel) {
         displayTitle = `【未実施】[${groupName}] ${tasks[index].text}`;
-        details = "※保存時に手動で「フラミンゴ」カラー（薄い赤）へ変更してください。";
+        details = "※保存時に手動で「フラミンゴ」カラーへ変更してください。";
     }
     
     const baseUrl = "https://calendar.google.com/calendar/render?action=TEMPLATE";
@@ -264,13 +326,13 @@ function undoTask(index) {
     }
 }
 
-// --- テーマ変更（settings.html用） ---
+// --- テーマ変更 ---
 function handleThemeChange(theme) {
     applyTheme(theme);
     localStorage.setItem('calendar_app_theme', theme);
 }
 
-// --- データ管理（data.html用） ---
+// --- データ管理 ---
 function exportJSON() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tasks, null, 2));
     const downloadAnchor = document.createElement('a');
@@ -294,7 +356,7 @@ function importJSON(event) {
             if (Array.isArray(importedData)) {
                 tasks = importedData;
                 localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
-                alert('インポートが完了しました。タスク一覧ページでご確認ください。');
+                alert('インポートが完了しました。');
             } else {
                 alert('無効なJSONフォーマットです。');
             }
@@ -315,5 +377,4 @@ async function resetToDefault() {
     }
 }
 
-// 起動
 initApp();
