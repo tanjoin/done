@@ -18,16 +18,16 @@
             
             <div class="data-box">
                 <h3 class="group-title">カレンダー連携設定</h3>
-                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+                <p class="setting-desc">
                     特定のカレンダーに登録したい場合は、Googleカレンダーの「設定と共有」から確認できる<strong>カレンダーID</strong>（例: <code>xxx@gmail.com</code> や <code>xxx@group.calendar.google.com</code>）を入力してください。<br>
                     空欄のままにすると、通常通りお使いのメインカレンダーに登録されます。
                 </p>
                 
-                <form id="calendarIdForm" style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
-                    <input type="text" id="calendarIdInput" placeholder="カレンダーIDを入力（例: xxx@group.calendar.google.com）" style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg); color: var(--text-primary); box-sizing: border-box; font-size: 14px;">
-                    <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
-                        <button type="submit" class="btn btn-action" style="width: auto; padding: 10px 24px;">設定を保存する</button>
-                        <span id="saveStatus" style="color: #0f9d58; font-size: 14px; font-weight: bold; display: none;">✔ 変更をブラウザに保存しました</span>
+                <form id="calendarIdForm" class="setting-form">
+                    <input type="text" id="calendarIdInput" placeholder="カレンダーIDを入力（例: xxx@group.calendar.google.com）" class="setting-input">
+                    <div class="form-actions-row">
+                        <button type="submit" class="btn btn-action">設定を保存する</button>
+                        <span id="saveStatus" class="save-status-msg">✔ 変更をブラウザに保存しました</span>
                     </div>
                 </form>
             </div>
@@ -52,20 +52,20 @@
 
             <div class="data-box">
                 <h3 class="group-title">データ管理</h3>
-                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                <p class="setting-desc">
                     タスクの設定内容や、これまでの実施・キャンセル履歴をJSONファイルとして保存・復元できます。
                 </p>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <div class="btn-group-wrap">
                     <button class="btn btn-cancel" onclick="exportJSON()">データエクスポート (書き出し)</button>
                     <button class="btn btn-cancel" onclick="triggerImport()">データインポート (読み込み)</button>
-                    <button class="btn btn-action" style="background-color: #c5221f;" onclick="resetToDefault()">全て初期状態に戻す</button>
+                    <button class="btn btn-action" style="background-color: #ef4444;" onclick="resetToDefault()">全て初期状態に戻す</button>
                 </div>
                 <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)">
             </div>
 
         </main>
 
-        <footer style="text-align: center; margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--border-color); font-size: 12px; color: var(--text-muted);">
+        <footer class="app-footer">
             &copy; 2026 ルーティンカレンダー連携アプリ
         </footer>
     </div>

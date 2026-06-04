@@ -64,18 +64,44 @@ async function loadDefaultTasksFromJSON() {
 function setupPageSpecifics(currentTheme) {
     // --- タスク一覧画面用の初期化 ---
     if (document.getElementById('taskContainer')) {
-        // フィルターチェックボックスの復元とイベント紐付け
+        const toggleFilterBtn = document.getElementById('toggleFilterBtn');
+        const filterControls = document.getElementById('filterControls');
         const hideOutOfTimeCheckbox = document.getElementById('hideOutOfTimeCheckbox');
         const hideCompletedCheckbox = document.getElementById('hideCompletedCheckbox');
         const hideCancelledCheckbox = document.getElementById('hideCancelledCheckbox');
 
+        // 1. フィルタースイッチ自体の開閉状態を復元・制御するロジック
+        if (toggleFilterBtn && filterControls) {
+            const isFilterPanelVisible = localStorage.getItem('filter_panel_visible') === 'true';
+            
+            if (isFilterPanelVisible) {
+                filterControls.style.display = 'flex';
+                toggleFilterBtn.innerText = 'フィルターを隠す ▲';
+            } else {
+                filterControls.style.display = 'none';
+                toggleFilterBtn.innerText = 'フィルターを開く ▼';
+            }
+
+            toggleFilterBtn.addEventListener('click', () => {
+                const isCurrentlyHidden = filterControls.style.display === 'none';
+                if (isCurrentlyHidden) {
+                    filterControls.style.display = 'flex';
+                    toggleFilterBtn.innerText = 'フィルターを隠す ▲';
+                    localStorage.setItem('filter_panel_visible', 'true');
+                } else {
+                    filterControls.style.display = 'none';
+                    toggleFilterBtn.innerText = 'フィルターを開く ▼';
+                    localStorage.setItem('filter_panel_visible', 'false');
+                }
+            });
+        }
+
+        // 2. 各フィルタースイッチのON/OFF状態の復元とイベント紐付け
         if (hideOutOfTimeCheckbox && hideCompletedCheckbox && hideCancelledCheckbox) {
-            // ローカルストレージから状態を復元（デフォルトは false = 全表示）
             hideOutOfTimeCheckbox.checked = localStorage.getItem('filter_hide_out_of_time') === 'true';
             hideCompletedCheckbox.checked = localStorage.getItem('filter_hide_completed') === 'true';
             hideCancelledCheckbox.checked = localStorage.getItem('filter_hide_cancelled') === 'true';
 
-            // チェックボックスが切り替わったら保存して再描画
             const handleFilterChange = () => {
                 localStorage.setItem('filter_hide_out_of_time', hideOutOfTimeCheckbox.checked);
                 localStorage.setItem('filter_hide_completed', hideCompletedCheckbox.checked);
@@ -175,6 +201,7 @@ function shouldShowTask(task) {
     return false;
 }
 
+// タイマーと通知判定（60000ミリ秒周期）
 function initNotificationTimer() {
     checkAndSendNotifications();
     setInterval(checkAndSendNotifications, 60000);
@@ -241,7 +268,6 @@ function renderCards() {
     const today = getFormattedDate(0);
     const yesterday = getFormattedDate(-1);
 
-    // フィルター状態をLocalStorageから取得
     const hideOutOfTime = localStorage.getItem('filter_hide_out_of_time') === 'true';
     const hideCompleted = localStorage.getItem('filter_hide_completed') === 'true';
     const hideCancelled = localStorage.getItem('filter_hide_cancelled') === 'true';
@@ -253,7 +279,6 @@ function renderCards() {
         const todayStatus = task.history[today];
         const timeCheck = isWithinTime(task);
 
-        // スイッチがONのとき、合致するステータスのタスクをスキップ（非表示）
         if (todayStatus === 'completed' && hideCompleted) return;
         if (todayStatus === 'cancelled' && hideCancelled) return;
         if (!todayStatus && !timeCheck.valid && hideOutOfTime) return;
@@ -264,7 +289,7 @@ function renderCards() {
     });
 
     if (Object.keys(groups).length === 0) {
-        container.innerHTML = '<p style="text-align:center; color:var(--text-secondary); font-size: 14px; margin-top: 40px;">表示可能なタスクはありません（フィルターが適用されている可能性があります）。</p>';
+        container.innerHTML = '<p class="empty-task-msg">表示可能なタスクはありません（フィルターが適用されている可能性があります）。</p>';
         return;
     }
 
@@ -437,7 +462,6 @@ function exportJSON() {
     downloadAnchor.remove();
 }
 
-// --- インポート処理用 ---
 function triggerImport() { document.getElementById('fileInput').click(); }
 
 function importJSON(event) {

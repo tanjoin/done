@@ -332,3 +332,109 @@ body {
     color: var(--text-primary);
 }
 #fileInput { display: none; }
+
+/* ==========================================================================
+   【ここから新規追加】既存デザインシステムを崩さない、トグル式フィルタースタイル
+   ========================================================================== */
+.filter-wrapper {
+    margin-bottom: 32px;
+}
+
+/* スイッチ本体を格納するアコーディオンパネル */
+.filter-controls {
+    display: none; /* JS側で flex と none を切り替え */
+    gap: 8px;
+    flex-wrap: wrap;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 12px;
+    margin-top: 12px;
+    width: fit-content;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* ボタン型のカスタムチップ */
+.filter-chip {
+    cursor: pointer;
+    user-select: none;
+}
+
+.filter-chip input {
+    display: none; /* ダサい生のチェックボックスを完全に消去 */
+}
+
+.filter-chip .chip-text {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    background-color: var(--btn-secondary-bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    transition: all 0.15s ease;
+}
+
+/* フィルターがON（非表示設定が有効）になった時のアクティブカラー */
+.filter-chip input:checked + .chip-text {
+    background-color: var(--accent-color);
+    color: var(--btn-primary-text);
+    border-color: var(--accent-color);
+}
+
+/* 設定画面の細かいパーツ調整用の汎用クラス */
+.setting-desc {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+.setting-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+    width: 100%;
+}
+.setting-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    box-sizing: border-box;
+    font-size: 14px;
+}
+.form-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+}
+.save-status-msg {
+    color: #10b981;
+    font-size: 14px;
+    font-weight: 700;
+    display: none;
+}
+.btn-group-wrap {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.empty-task-msg {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-top: 48px;
+}
+.app-footer {
+    text-align: center;
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-color);
+    font-size: 12px;
+    color: var(--text-muted);
+}
