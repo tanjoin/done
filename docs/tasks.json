@@ -304,5 +304,84 @@
     "endTime": "",
     "history": {},
     "notifiedDate": ""
+  },
+  {
+    "id": "task-28",
+    "text": "ゴミ捨て（資源ごみ）",
+    "group": "家事",
+    "daysOfWeek": [5],
+    "daysOfMonth": [],
+    "startTime": "7:00",
+    "endTime": "6:00",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-29",
+    "text": "ゴミ捨て（燃えるゴミ）",
+    "group": "家事",
+    "daysOfWeek": [0, 3],
+    "daysOfMonth": [],
+    "startTime": "7:00",
+    "endTime": "6:00",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-30",
+    "text": "掃除",
+    "group": "家事",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "18:00",
+    "endTime": "19:00",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-31",
+    "text": "ビューカード締日",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [5],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-32",
+    "text": "ログイン",
+    "group": "遊戯王マスターデュエル",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "description": "遊戯王デュエリストポイント公式サイト",
+    "link": "https://yugioh-duelist-point.konami.net/",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-33",
+    "text": "毎月1回のジェム",
+    "group": "ドラクエウォーク",
+    "daysOfWeek": [],
+    "daysOfMonth": [1],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-34",
+    "text": "医療費計算",
+    "group": "家事",
+    "daysOfWeek": [],
+    "daysOfMonth": [1],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": ""
   }
 ]

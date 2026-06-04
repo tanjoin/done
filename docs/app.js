@@ -124,13 +124,11 @@ function shouldShowTask(task) {
     return false;
 }
 
-// タイマーによる通知
 function initNotificationTimer() {
     checkAndSendNotifications();
     setInterval(checkAndSendNotifications, 60000);
 }
 
-// 【アップデート】通知に group と description を反映
 function checkAndSendNotifications() {
     if (Notification.permission !== 'granted') return;
 
@@ -183,33 +181,6 @@ function isWithinTime(task) {
     return { valid: true, msg: "" };
 }
 
-function calculateNeglectLevel(task, todayStr) {
-    if (task.history[todayStr]) return 0;
-
-    let missedCount = 0;
-    const maxRetroDays = 30;
-
-    for (let i = 1; i <= maxRetroDays; i++) {
-        const testDate = new Date();
-        testDate.setDate(testDate.getDate() - i);
-        const checkStr = `${testDate.getFullYear()}-${String(testDate.getMonth() + 1).padStart(2, '0')}-${String(testDate.getDate()).padStart(2, '0')}`;
-        
-        if (isTaskScheduledOnDate(task, testDate)) {
-            const status = task.history[checkStr];
-            if (status === 'completed' || status === 'cancelled') {
-                break;
-            } else {
-                missedCount++;
-            }
-        }
-    }
-
-    if (missedCount === 0) return 0;
-    if (missedCount === 1) return 1;
-    if (missedCount === 2) return 2;
-    return 3;
-}
-
 // --- メイン描画 ---
 function renderCards() {
     const container = document.getElementById('taskContainer');
@@ -228,7 +199,7 @@ function renderCards() {
     });
 
     if (Object.keys(groups).length === 0) {
-        container.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size: 13px;">今日スケジュールされているタスクはありません。</p>';
+        container.innerHTML = '<p style="text-align:center; color:var(--text-secondary); font-size: 14px; margin-top: 40px;">今日スケジュールされているタスクはありません。</p>';
         return;
     }
 
@@ -260,17 +231,12 @@ function renderCards() {
 
             const card = document.createElement('div');
             card.className = `card`;
-            
-            const neglectLevel = calculateNeglectLevel(task, today);
-            if (neglectLevel > 0) {
-                card.setAttribute('data-neglect', neglectLevel);
-            }
 
             if (!todayStatus && !timeCheck.valid) {
                 card.setAttribute('data-out-of-time', 'true');
             }
 
-            let badgeHtml = `<span class="status-badge status-uncompleted">未実施</span>`;
+            let badgeHtml = `<span class="status-badge">未実施</span>`;
             let isLocked = false;
             if (todayStatus === 'completed') {
                 badgeHtml = `<span class="status-badge status-completed">追加済み</span>`;
@@ -280,7 +246,7 @@ function renderCards() {
                 isLocked = true;
             }
 
-            let yesterdayHtml = "昨日: データなし";
+            let yesterdayHtml = "昨日: 履歴なし";
             if (yesterdayStatus === 'completed') yesterdayHtml = "昨日: 完了";
             if (yesterdayStatus === 'cancelled') yesterdayHtml = "昨日: キャンセル";
 
@@ -288,7 +254,7 @@ function renderCards() {
             if (task.startTime || task.endTime) {
                 const startNorm = normalizeTime(task.startTime || "00:00");
                 const endNorm = normalizeTime(task.endTime || "23:59");
-                const modeLabel = task.strictMode ? " [厳格]" : " [通常]";
+                const modeLabel = task.strictMode ? " (厳格)" : "";
                 
                 const displayEnd = (startNorm > endNorm) ? `翌${task.endTime}` : task.endTime;
                 timeInfoHtml = `<div class="time-restriction">${task.startTime || '00:00'} 〜 ${displayEnd || '23:59'}${modeLabel}</div>`;
@@ -301,10 +267,10 @@ function renderCards() {
 
             let linkHtml = "";
             if (task.link) {
-                linkHtml = `<a href="${task.link}" target="_blank" rel="noopener noreferrer" class="task-link">関連リンク</a>`;
+                linkHtml = `<a href="${task.link}" target="_blank" rel="noopener noreferrer" class="task-link">関連リンク ↗</a>`;
             }
 
-            const undoButtonHtml = todayStatus ? `<button class="btn-undo" onclick="undoTask(${taskIndex})">×</button>` : '';
+            const undoButtonHtml = todayStatus ? `<button class="btn-undo" onclick="undoTask(${taskIndex})">✕</button>` : '';
 
             let buttonDisabled = false;
             const isStrict = task.strictMode === true || task.strictMode === 'true';
@@ -330,7 +296,7 @@ function renderCards() {
                     <button class="btn btn-cancel" ${isLocked ? 'disabled' : ''} onclick="executeTask(${taskIndex}, true)">キャンセル</button>
                 </div>
                 <div class="card-footer">
-                    累計完了: ${totalCompleted}回
+                    累計実績: ${totalCompleted} 回
                 </div>
             `;
 
