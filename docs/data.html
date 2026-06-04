@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タスクカレンダーログ - データ管理</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <nav class="nav-bar">
+            <a href="index.html" class="nav-link">タスク一覧</a>
+            <a href="settings.html" class="nav-link">テーマ設定</a>
+            <a href="data.html" class="nav-link active">データ管理</a>
+        </nav>
+
+        <div class="data-box">
+            <h3>エクスポート</h3>
+            <p>現在のカスタム設定や過去の実行ログを含むJSONファイルを保存します。</p>
+            <button class="btn btn-menu" onclick="exportJSON()">JSONエクスポート</button>
+        </div>
+
+        <div class="data-box">
+            <h3>インポート</h3>
+            <p>保存したJSONファイルから設定とログ履歴を復元します。</p>
+            <button class="btn btn-menu" onclick="triggerImport()">JSONインポート</button>
+            <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)">
+        </div>
+
+        <div class="data-box" style="border-color: var(--danger-color);">
+            <h3 style="color: var(--danger-color);">設定の初期化</h3>
+            <p>インポートしたデータや今日の実行履歴を完全に消去し、初期状態の <code>tasks.json</code> の内容に巻き戻します。</p>
+            <button class="btn btn-danger" onclick="resetToDefault()">カスタム設定を初期化（デフォルトに戻す）</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

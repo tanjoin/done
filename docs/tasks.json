@@ -1,0 +1,35 @@
+[
+  {
+    "id": "task-1",
+    "text": "スクワット＆ストレッチ",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [1, 2, 3, 4, 5],
+    "daysOfMonth": [],
+    "startTime": "06:00",
+    "endTime": "10:00",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-2",
+    "text": "英語のリスニング",
+    "group": "自己啓発",
+    "daysOfWeek": [],
+    "daysOfMonth": [1, 15, 20],
+    "startTime": "12:00",
+    "endTime": "13:00",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-3",
+    "text": "部屋の掃除・ゴミ出し",
+    "group": "家事",
+    "daysOfWeek": [2, 5],
+    "daysOfMonth": [],
+    "startTime": "08:30",
+    "endTime": "23:59",
+    "history": {},
+    "notifiedDate": ""
+  }
+]

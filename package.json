@@ -1,0 +1,17 @@
+{
+  "name": "done",
+  "version": "2026.06.05.0002",
+  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "git@tanjoin:tanjoin/done.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "app.js",
+  "scripts": {
+    "start": "node tools/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

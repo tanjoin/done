@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タスクカレンダーログ - 一覧</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <nav class="nav-bar">
+            <a href="index.html" class="nav-link active">タスク一覧</a>
+            <a href="settings.html" class="nav-link">テーマ設定</a>
+            <a href="data.html" class="nav-link">データ管理</a>
+        </nav>
+
+        <div id="notificationBanner" class="notification-banner" style="display: none;">
+            <span>タスクの開始時間になったらプッシュ通知を受け取りますか？</span>
+            <button class="btn btn-action" style="flex:none;" onclick="requestPermission()">通知を有効にする</button>
+        </div>
+
+        <main id="taskContainer">
+            </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

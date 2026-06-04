@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タスクカレンダーログ - 設定</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <nav class="nav-bar">
+            <a href="index.html" class="nav-link">タスク一覧</a>
+            <a href="settings.html" class="nav-link active">テーマ設定</a>
+            <a href="data.html" class="nav-link">データ管理</a>
+        </nav>
+
+        <section id="themeForm" class="theme-options">
+            <h2>テーマ設定</h2>
+            <p>サイトのデザイン表示を切り替えます。</p>
+            <label class="theme-option">
+                <input type="radio" name="theme" value="system" onchange="handleThemeChange('system')">
+                <span>システム設定に従う (デフォルト)</span>
+            </label>
+            <label class="theme-option">
+                <input type="radio" name="theme" value="light" onchange="handleThemeChange('light')">
+                <span>ホワイト</span>
+            </label>
+            <label class="theme-option">
+                <input type="radio" name="theme" value="dark" onchange="handleThemeChange('dark')">
+                <span>ダーク</span>
+            </label>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
