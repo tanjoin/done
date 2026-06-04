@@ -3,34 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>タスクカレンダーログ - 設定</title>
+    <title>ルーティンカレンダー連携アプリ - 設定</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div class="container">
-        <nav class="nav-bar">
+        <header class="nav-bar">
             <a href="index.html" class="nav-link">タスク一覧</a>
-            <a href="settings.html" class="nav-link active">テーマ設定</a>
-            <a href="data.html" class="nav-link">データ管理</a>
-        </nav>
+            <a href="settings.html" class="nav-link active">設定・データ管理</a>
+        </header>
 
-        <section id="themeForm" class="theme-options">
-            <h2>テーマ設定</h2>
-            <p>サイトのデザイン表示を切り替えます。</p>
-            <label class="theme-option">
-                <input type="radio" name="theme" value="system" onchange="handleThemeChange('system')">
-                <span>システム設定に従う (デフォルト)</span>
-            </label>
-            <label class="theme-option">
-                <input type="radio" name="theme" value="light" onchange="handleThemeChange('light')">
-                <span>ホワイト</span>
-            </label>
-            <label class="theme-option">
-                <input type="radio" name="theme" value="dark" onchange="handleThemeChange('dark')">
-                <span>ダーク</span>
-            </label>
-        </section>
+        <main>
+            
+            <div class="data-box">
+                <h3 class="group-title">カレンダー連携設定</h3>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+                    特定のカレンダーに登録したい場合は、Googleカレンダーの「設定と共有」から確認できる<strong>カレンダーID</strong>（例: <code>xxx@gmail.com</code> や <code>xxx@group.calendar.google.com</code>）を入力してください。<br>
+                    空欄のままにすると、通常通りお使いのメインカレンダーに登録されます。
+                </p>
+                <input type="text" id="calendarIdInput" placeholder="カレンダーIDを入力（例: xxx@group.calendar.google.com）" style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg); color: var(--text-primary); box-sizing: border-box; font-size: 14px;">
+            </div>
+
+            <div class="theme-options">
+                <h3 class="group-title">テーマ設定</h3>
+                <form id="themeForm">
+                    <label class="theme-option">
+                        <input type="radio" name="theme" value="system" checked onchange="handleThemeChange(this.value)">
+                        <span>システム設定に従う</span>
+                    </label>
+                    <label class="theme-option">
+                        <input type="radio" name="theme" value="light" onchange="handleThemeChange(this.value)">
+                        <span>ライトモード</span>
+                    </label>
+                    <label class="theme-option">
+                        <input type="radio" name="theme" value="dark" onchange="handleThemeChange(this.value)">
+                        <span>ダークモード</span>
+                    </label>
+                </form>
+            </div>
+
+            <div class="data-box">
+                <h3 class="group-title">データ管理</h3>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                    タスクの設定内容や、これまでの実施・キャンセル履歴をJSONファイルとして保存・復元できます。
+                </p>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-cancel" onclick="exportJSON()">データエクスポート (書き出し)</button>
+                    <button class="btn btn-cancel" onclick="triggerImport()">データインポート (読み込み)</button>
+                    <button class="btn btn-action" style="background-color: #c5221f;" onclick="resetToDefault()">全て初期状態に戻す</button>
+                </div>
+                <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)">
+            </div>
+
+        </main>
+
+        <footer style="text-align: center; margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--border-color); font-size: 12px; color: var(--text-muted);">
+            &copy; 2026 ルーティンカレンダー連携アプリ
+        </footer>
     </div>
 
     <script src="app.js"></script>

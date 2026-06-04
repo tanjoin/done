@@ -62,13 +62,25 @@ async function loadDefaultTasksFromJSON() {
 }
 
 function setupPageSpecifics(currentTheme) {
+    // タスク一覧画面用の処理（存在するときだけ実行）
     if (document.getElementById('taskContainer')) {
         renderCards();
         checkNotificationPermission();
     }
+    
+    // 設定画面用の処理（存在するときだけ実行）
     if (document.getElementById('themeForm')) {
         const radio = document.querySelector(`input[name="theme"][value="${currentTheme}"]`);
         if (radio) radio.checked = true;
+    }
+    
+    // カレンダーID入力欄の処理（存在するときだけ実行）
+    const calendarIdInput = document.getElementById('calendarIdInput');
+    if (calendarIdInput) {
+        calendarIdInput.value = localStorage.getItem('calendar_target_id') || '';
+        calendarIdInput.addEventListener('input', (e) => {
+            localStorage.setItem('calendar_target_id', e.target.value.trim());
+        });
     }
 }
 
@@ -184,7 +196,7 @@ function isWithinTime(task) {
 // --- メイン描画 ---
 function renderCards() {
     const container = document.getElementById('taskContainer');
-    if (!container) return;
+    if (!container) return; // 画面に対象コンテナがない（設定画面など）ならスキップ
     container.innerHTML = '';
 
     const today = getFormattedDate(0);
@@ -232,7 +244,6 @@ function renderCards() {
             const card = document.createElement('div');
             card.className = `card`;
 
-            // 【追加】今日すでに処理済みであれば属性を付与してカード全体を減光させる
             if (todayStatus) {
                 card.setAttribute('data-done', 'true');
             } else if (!timeCheck.valid) {
@@ -338,7 +349,12 @@ function executeTask(index, isCancel) {
         details += "※保存時に手動で「フラミンゴ」カラーへ変更してください。";
     }
     
-    const baseUrl = "https://calendar.google.com/calendar/render?action=TEMPLATE";
+    const calendarId = localStorage.getItem('calendar_target_id') || '';
+    let baseUrl = "https://calendar.google.com/calendar/render?action=TEMPLATE";
+    if (calendarId) {
+        baseUrl += `&src=${encodeURIComponent(calendarId)}`;
+    }
+    
     window.open(`${baseUrl}&text=${encodeURIComponent(displayTitle)}&dates=${startTime}/${endTime}&details=${encodeURIComponent(details)}`, '_blank');
 }
 
@@ -382,6 +398,8 @@ function importJSON(event) {
                 tasks = importedData;
                 localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
                 alert('インポートが完了しました。');
+                // もし一覧画面にいれば再描画
+                if (document.getElementById('taskContainer')) renderCards();
             } else {
                 alert('無効なJSONフォーマットです。');
             }

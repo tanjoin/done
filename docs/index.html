@@ -3,25 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>タスクカレンダーログ - 一覧</title>
+    <title>ルーティンカレンダー連携アプリ - タスク一覧</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div class="container">
-        <nav class="nav-bar">
+        <header class="nav-bar">
             <a href="index.html" class="nav-link active">タスク一覧</a>
-            <a href="settings.html" class="nav-link">テーマ設定</a>
-            <a href="data.html" class="nav-link">データ管理</a>
-        </nav>
+            <a href="settings.html" class="nav-link">設定・データ管理</a>
+        </header>
 
         <div id="notificationBanner" class="notification-banner" style="display: none;">
-            <span>タスクの開始時間になったらプッシュ通知を受け取りますか？</span>
-            <button class="btn btn-action" style="flex:none;" onclick="requestPermission()">通知を有効にする</button>
+            <span>タスクの時間になったらプッシュ通知でお知らせします。</span>
+            <button class="btn btn-menu" onclick="requestPermission()">通知を有効にする</button>
         </div>
 
-        <main id="taskContainer">
-            </main>
+        <main>
+            <div id="taskContainer">
+                </div>
+        </main>
+
+        <footer style="text-align: center; margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--border-color); font-size: 12px; color: var(--text-muted);">
+            &copy; 2026 ルーティンカレンダー連携アプリ
+        </footer>
     </div>
 
     <script src="app.js"></script>
