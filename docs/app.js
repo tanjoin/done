@@ -62,36 +62,57 @@ async function loadDefaultTasksFromJSON() {
 }
 
 function setupPageSpecifics(currentTheme) {
-    // タスク一覧画面用の初期化
+    // --- タスク一覧画面用の初期化 ---
     if (document.getElementById('taskContainer')) {
+        // フィルターチェックボックスの復元とイベント紐付け
+        const hideOutOfTimeCheckbox = document.getElementById('hideOutOfTimeCheckbox');
+        const hideCompletedCheckbox = document.getElementById('hideCompletedCheckbox');
+        const hideCancelledCheckbox = document.getElementById('hideCancelledCheckbox');
+
+        if (hideOutOfTimeCheckbox && hideCompletedCheckbox && hideCancelledCheckbox) {
+            // ローカルストレージから状態を復元（デフォルトは false = 全表示）
+            hideOutOfTimeCheckbox.checked = localStorage.getItem('filter_hide_out_of_time') === 'true';
+            hideCompletedCheckbox.checked = localStorage.getItem('filter_hide_completed') === 'true';
+            hideCancelledCheckbox.checked = localStorage.getItem('filter_hide_cancelled') === 'true';
+
+            // チェックボックスが切り替わったら保存して再描画
+            const handleFilterChange = () => {
+                localStorage.setItem('filter_hide_out_of_time', hideOutOfTimeCheckbox.checked);
+                localStorage.setItem('filter_hide_completed', hideCompletedCheckbox.checked);
+                localStorage.setItem('filter_hide_cancelled', hideCancelledCheckbox.checked);
+                renderCards();
+            };
+
+            hideOutOfTimeCheckbox.addEventListener('change', handleFilterChange);
+            hideCompletedCheckbox.addEventListener('change', handleFilterChange);
+            hideCancelledCheckbox.addEventListener('change', handleFilterChange);
+        }
+
         renderCards();
         checkNotificationPermission();
     }
     
-    // 設定画面用の初期化
+    // --- 設定画面用の初期化 ---
     if (document.getElementById('themeForm')) {
         const radio = document.querySelector(`input[name="theme"][value="${currentTheme}"]`);
         if (radio) radio.checked = true;
     }
     
-    // カレンダーID設定フォームの初期化（入力フォームの暴発を防ぐガード処理）
     const calendarIdForm = document.getElementById('calendarIdForm');
     const calendarIdInput = document.getElementById('calendarIdInput');
     const saveStatus = document.getElementById('saveStatus');
 
     if (calendarIdInput) {
-        // 保存されているIDを復元して入力欄に入れる
         calendarIdInput.value = localStorage.getItem('calendar_target_id') || '';
     }
 
     if (calendarIdForm && calendarIdInput) {
         calendarIdForm.addEventListener('submit', (e) => {
-            e.preventDefault(); // ページが勝手にリロードされるのを確実に阻止
+            e.preventDefault(); 
             
             const inputVal = calendarIdInput.value.trim();
             localStorage.setItem('calendar_target_id', inputVal);
             
-            // 保存完了メッセージをフワッと表示
             if (saveStatus) {
                 saveStatus.style.display = 'inline';
                 setTimeout(() => {
@@ -220,16 +241,30 @@ function renderCards() {
     const today = getFormattedDate(0);
     const yesterday = getFormattedDate(-1);
 
+    // フィルター状態をLocalStorageから取得
+    const hideOutOfTime = localStorage.getItem('filter_hide_out_of_time') === 'true';
+    const hideCompleted = localStorage.getItem('filter_hide_completed') === 'true';
+    const hideCancelled = localStorage.getItem('filter_hide_cancelled') === 'true';
+
     const groups = {};
     tasks.forEach(task => {
         if (!shouldShowTask(task)) return;
+
+        const todayStatus = task.history[today];
+        const timeCheck = isWithinTime(task);
+
+        // スイッチがONのとき、合致するステータスのタスクをスキップ（非表示）
+        if (todayStatus === 'completed' && hideCompleted) return;
+        if (todayStatus === 'cancelled' && hideCancelled) return;
+        if (!todayStatus && !timeCheck.valid && hideOutOfTime) return;
+
         const groupName = task.group || "その他";
         if (!groups[groupName]) groups[groupName] = [];
         groups[groupName].push(task);
     });
 
     if (Object.keys(groups).length === 0) {
-        container.innerHTML = '<p style="text-align:center; color:var(--text-secondary); font-size: 14px; margin-top: 40px;">今日スケジュールされているタスクはありません。</p>';
+        container.innerHTML = '<p style="text-align:center; color:var(--text-secondary); font-size: 14px; margin-top: 40px;">表示可能なタスクはありません（フィルターが適用されている可能性があります）。</p>';
         return;
     }
 
@@ -367,7 +402,6 @@ function executeTask(index, isCancel) {
         details += "※保存時に手動で「フラミンゴ」カラーへ変更してください。";
     }
     
-    // 保存されているカレンダーIDを取得してURLに結合
     const calendarId = localStorage.getItem('calendar_target_id') || '';
     let baseUrl = "https://calendar.google.com/calendar/render?action=TEMPLATE";
     if (calendarId) {
@@ -403,6 +437,7 @@ function exportJSON() {
     downloadAnchor.remove();
 }
 
+// --- インポート処理用 ---
 function triggerImport() { document.getElementById('fileInput').click(); }
 
 function importJSON(event) {
