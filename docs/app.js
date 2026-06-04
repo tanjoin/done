@@ -42,7 +42,7 @@ async function initApp() {
     // 3. 読み込み後の各ページ専用セットアップ
     setupPageSpecifics(savedTheme);
 
-    // 4. プッシュ通知タイマーの始動（全ページ共通で裏で動かす）
+    // 4. プッシュ通知タイマーの始動（全ページ共通）
     initNotificationTimer();
 }
 
@@ -55,26 +55,23 @@ async function loadDefaultTasksFromJSON() {
         localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
     } catch (error) {
         console.error('デフォルトタスクJSONの読み込みに失敗しました:', error);
-        tasks = []; // フォールバック
+        tasks = [];
     }
 }
 
 // 各HTMLページ特有の処理分岐
 function setupPageSpecifics(currentTheme) {
-    // A. タスク一覧ページ (index.html)
     if (document.getElementById('taskContainer')) {
         renderCards();
         checkNotificationPermission();
     }
-
-    // B. テーマ設定ページ (settings.html)
     if (document.getElementById('themeForm')) {
         const radio = document.querySelector(`input[name="theme"][value="${currentTheme}"]`);
         if (radio) radio.checked = true;
     }
 }
 
-// --- [新機能] プッシュ通知ロジック ---
+// --- プッシュ通知ロジック（時間になったら通知する機能は維持） ---
 function checkNotificationPermission() {
     const banner = document.getElementById('notificationBanner');
     if (!banner) return;
@@ -96,7 +93,6 @@ function requestPermission() {
 }
 
 function initNotificationTimer() {
-    // 起動時に一度チェックし、その後は1分（60000ms）ごとに巡回
     checkAndSendNotifications();
     setInterval(checkAndSendNotifications, 60000);
 }
@@ -111,20 +107,19 @@ function checkAndSendNotifications() {
     let isUpdated = false;
 
     tasks.forEach(task => {
-        // 今日表示するタスクかつ、startTimeが設定されているか
         if (!shouldShowTask(task) || !task.startTime) return;
-
-        // すでに今日このタスクを通知済みであればスキップ
         if (task.notifiedDate === today) return;
 
-        // 現在時刻が設定されたstartTime以降になったら通知
+        // すでに今日「完了」または「キャンセル」のアクション済みの場合は通知しない
+        if (task.history[today]) return;
+
         if (currentStr >= task.startTime) {
             new Notification("タスクの時間です！", {
                 body: `「${task.text}」が実施可能な時間になりました。(${task.startTime}〜)`,
-                icon: "https://calendar.google.com/calendar/images/favicon_v2014_3.ico" // 仮のアイコン
+                icon: "https://calendar.google.com/calendar/images/favicon_v2014_3.ico"
             });
 
-            task.notifiedDate = today; // 通知済みフラグを今日の日付に
+            task.notifiedDate = today;
             isUpdated = true;
         }
     });
@@ -134,7 +129,7 @@ function checkAndSendNotifications() {
     }
 }
 
-// --- 条件判定ロジック ---
+// --- スケジュール表示条件判定 ---
 function shouldShowTask(task) {
     const now = new Date();
     const currentDayOfWeek = now.getDay();  
@@ -148,16 +143,6 @@ function shouldShowTask(task) {
     if (task.daysOfMonth && task.daysOfMonth.includes(currentDayOfMonth)) return true;
 
     return false;
-}
-
-function isWithinTime(task) {
-    if (!task.startTime && !task.endTime) return { valid: true, msg: "" };
-    const now = new Date();
-    const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
-    
-    if (task.startTime && currentStr < task.startTime) return { valid: false, msg: `時間外 (${task.startTime}から)` };
-    if (task.endTime && currentStr > task.endTime) return { valid: false, msg: `時間外 (${task.endTime}まで)` };
-    return { valid: true, msg: "" };
 }
 
 // --- メイン描画（index.html用） ---
@@ -198,7 +183,6 @@ function renderCards() {
             const taskIndex = tasks.findIndex(t => t.id === task.id);
             const todayStatus = task.history[today];
             const yesterdayStatus = task.history[yesterday];
-            const timeCheck = isWithinTime(task);
 
             const card = document.createElement('div');
             card.className = `card`;
@@ -223,9 +207,8 @@ function renderCards() {
             }
 
             const undoButtonHtml = todayStatus ? `<button class="btn-undo" onclick="undoTask(${taskIndex})">×</button>` : '';
-            const buttonDisabled = isLocked || !timeCheck.valid;
-            const actionButtonText = !isLocked && !timeCheck.valid ? timeCheck.msg : "追加";
 
+            // 【変更点】ロック条件は「今日すでにアクション済みか否か」のみ。時間によるdisabledは完全撤廃。
             card.innerHTML = `
                 ${undoButtonHtml}
                 <div>
@@ -235,8 +218,8 @@ function renderCards() {
                     <div class="history-status">${yesterdayHtml}</div>
                 </div>
                 <div class="card-actions">
-                    <button class="btn btn-action" ${buttonDisabled ? 'disabled' : ''} onclick="executeTask(${taskIndex}, false)">${actionButtonText}</button>
-                    <button class="btn btn-cancel" ${buttonDisabled ? 'disabled' : ''} onclick="executeTask(${taskIndex}, true)">キャンセル</button>
+                    <button class="btn btn-action" ${isLocked ? 'disabled' : ''} onclick="executeTask(${taskIndex}, false)">追加</button>
+                    <button class="btn btn-cancel" ${isLocked ? 'disabled' : ''} onclick="executeTask(${taskIndex}, true)">キャンセル</button>
                 </div>
             `;
             grid.appendChild(card);
@@ -247,6 +230,7 @@ function renderCards() {
     }
 }
 
+// --- タスク実行（Googleカレンダー連携） ---
 function executeTask(index, isCancel) {
     const today = getFormattedDate(0);
     tasks[index].history[today] = isCancel ? 'cancelled' : 'completed';
@@ -257,10 +241,13 @@ function executeTask(index, isCancel) {
     const startTime = formatDateTimeUTC(now);
     const endTime = formatDateTimeUTC(new Date(now.getTime() + 60 * 60 * 1000));
     
-    let displayTitle = tasks[index].text;
+    // 【変更点】カレンダーのタイトルにグループ名を埋め込む設定
+    const groupName = tasks[index].group || "その他";
+    let displayTitle = `[${groupName}] ${tasks[index].text}`;
     let details = "タスクログから自動生成されました。";
+    
     if (isCancel) {
-        displayTitle = `【未実施】${tasks[index].text}`;
+        displayTitle = `【未実施】[${groupName}] ${tasks[index].text}`;
         details = "※保存時に手動で「フラミンゴ」カラー（薄い赤）へ変更してください。";
     }
     
@@ -319,13 +306,12 @@ function importJSON(event) {
     event.target.value = '';
 }
 
-// [移動完了] カスタムJSONの初期化
 async function resetToDefault() {
     if (confirm('すべてのカスタム設定と履歴を削除し、デフォルトのtasks.jsonから再読み込みしますか？')) {
         localStorage.removeItem('calendar_tasks_v3');
         await loadDefaultTasksFromJSON();
         alert('初期設定に戻しました。');
-        // データ管理ページにいる場合はそのまま完了通知
+        if (document.getElementById('taskContainer')) renderCards();
     }
 }
 
