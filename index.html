@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タスクカレンダーロガー</title>
+    <link rel="stylesheet" href="main.css">
+    <script src="main.js" defer></script>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>タスクログ (Googleカレンダー連携)</h1>
+        <div class="menu-buttons">
+            <button class="btn btn-menu" onclick="exportJSON()">JSONエクスポート</button>
+            <button class="btn btn-menu" onclick="triggerImport()">JSONインポート</button>
+            <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)">
+        </div>
+    </header>
+    <div class="grid" id="taskGrid"></div>
+    <footer>
+        <div class="menu-buttons">
+            <button class="btn btn-clear" onclick="clearAllTasks()">全てのタスクをクリア</button>
+        </div>
+    </footer>
+</div>
+</body>
+</html>

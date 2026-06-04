@@ -1,0 +1,169 @@
+:root {
+    --bg-color: #f4f6f9;
+    --card-bg: #ffffff;
+    --text-color: #333333;
+    --primary-color: #34a853; /* Google Green */
+    --flamingo-color: #ff8b8b; /* フラミンゴカラー風 */
+    --disabled-color: #cccccc;
+    --border-radius: 12px;
+}
+
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 20px;
+}
+
+footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 20px;
+}
+
+h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.menu-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    transition: background-color 0.2s, opacity 0.2s;
+}
+
+.btn-menu {
+    background-color: #e0e0e0;
+    color: #333;
+}
+
+.btn-menu:hover {
+    background-color: #d0d0d0;
+}
+
+.btn-action {
+    background-color: var(--primary-color);
+    color: white;
+    flex: 1;
+}
+
+.btn-action:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.btn-cancel {
+    background-color: var(--flamingo-color);
+    color: white;
+    flex: 1;
+}
+
+.btn-cancel:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.btn:disabled {
+    background-color: var(--disabled-color);
+    color: #888888;
+    cursor: not-allowed;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 160px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+}
+
+.card.done {
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    box-shadow: none;
+}
+
+.card.done :not(.status-badge) {
+    opacity: 0.6;
+}
+
+.card-title {
+    font-size: 18px;
+    margin: 0 0 10px 0;
+    font-weight: 600;
+}
+
+.status-badge {
+    display: inline-block;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 20px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    width: fit-content;
+}
+
+.status-uncompleted {
+    background-color: #e8f0fe;
+    color: #1a73e8;
+}
+
+.status-completed {
+    background-color: #e6f4ea;
+    color: #137333;
+}
+
+.status-cancelled {
+    background-color: #fce8e6;
+    color: #c5221f;
+}
+
+.card-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+}
+
+#fileInput {
+    display: none;
+}
