@@ -3,27 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>タスクカレンダーロガー</title>
-    <link rel="stylesheet" href="main.css">
-    <script src="main.js" defer></script>
+    <title>高度なタスクカレンダーロガー</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="container">
-    <header>
-        <h1>タスクログ (Googleカレンダー連携)</h1>
-        <div class="menu-buttons">
-            <button class="btn btn-menu" onclick="exportJSON()">JSONエクスポート</button>
-            <button class="btn btn-menu" onclick="triggerImport()">JSONインポート</button>
-            <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)">
-        </div>
-    </header>
-    <div class="grid" id="taskGrid"></div>
-    <footer>
-        <div class="menu-buttons">
-            <button class="btn btn-clear" onclick="clearAllTasks()">全てのタスクをクリア</button>
-        </div>
-    </footer>
-</div>
+    <div class="container">
+        <nav class="nav-bar">
+            <button class="nav-btn active" onclick="switchPage('main')">タスク一覧</button>
+            <button class="nav-btn" onclick="switchPage('settings')">テーマ設定</button>
+            <button class="nav-btn" onclick="switchPage('data')">データ管理</button>
+        </nav>
+
+        <main id="page-main" class="page active">
+            <div id="taskContainer">
+                </div>
+        </main>
+
+        <section id="page-settings" class="page">
+            <h2>テーマ設定</h2>
+            <p>サイトのデザイン表示を切り替えます。</p>
+            <div class="theme-options">
+                <label class="theme-option">
+                    <input type="radio" name="theme" value="system" checked onchange="changeTheme('system')">
+                    <span>システム設定に従う (デフォルト)</span>
+                </label>
+                <label class="theme-option">
+                    <input type="radio" name="theme" value="light" onchange="changeTheme('light')">
+                    <span>ホワイト (ライトモード)</span>
+                </label>
+                <label class="theme-option">
+                    <input type="radio" name="theme" value="dark" onchange="changeTheme('dark')">
+                    <span>ダーク (ダークモード)</span>
+                </label>
+            </div>
+        </section>
+
+        <section id="page-data" class="page">
+            <h2>データ管理</h2>
+            <div class="data-actions">
+                <div class="data-box">
+                    <h3>エクスポート</h3>
+                    <p>現在のタスク設定とすべての実行履歴をJSONファイルとして保存します。</p>
+                    <button class="btn btn-menu" onclick="exportJSON()">JSONエクスポート</button>
+                </div>
+                <div class="data-box">
+                    <h3>インポート</h3>
+                    <p>JSONファイルを読み込んでタスクと履歴を復元します。</p>
+                    <button class="btn btn-menu" onclick="triggerImport()">JSONインポート</button>
+                    <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)">
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <button class="btn btn-reset" onclick="resetToDefault()">カスタム設定を初期化（デフォルトに戻す）</button>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
 </body>
 </html>

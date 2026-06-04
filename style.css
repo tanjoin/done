@@ -1,0 +1,264 @@
+/* --- カラーパレット定義 --- */
+:root {
+    /* デフォルト：ライトテーマの配色 */
+    --bg-color: #f4f6f9;
+    --card-bg: #ffffff;
+    --text-color: #202124;
+    --text-muted: #5f6368;
+    --border-color: #dadce0;
+    --nav-bg: #ffffff;
+    
+    --primary-color: #34a853;    /* Google Green */
+    --flamingo-color: #ff8b8b;   /* フラミンゴ */
+    --disabled-color: #f1f3f4;
+    --disabled-text: #9aa0a6;
+    --danger-color: #d93025;
+    
+    --border-radius: 12px;
+}
+
+/* システムがダークモード、かつユーザーが「ホワイト」を明示的に選んでいない場合 */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg-color: #121212;
+        --card-bg: #1e1e1e;
+        --text-color: #e8eaed;
+        --text-muted: #9aa0a6;
+        --border-color: #3c4043;
+        --nav-bg: #1e1e1e;
+        --disabled-color: #2d2d2d;
+        --disabled-text: #5f6368;
+    }
+}
+
+/* ユーザーが明示的にダークモードを選んだ場合 */
+:root[data-theme="dark"] {
+    --bg-color: #121212;
+    --card-bg: #1e1e1e;
+    --text-color: #e8eaed;
+    --text-muted: #9aa0a6;
+    --border-color: #3c4043;
+    --nav-bg: #1e1e1e;
+    --disabled-color: #2d2d2d;
+    --disabled-text: #5f6368;
+}
+
+/* ユーザーが明示的にライトモードを選んだ場合 */
+:root[data-theme="light"] {
+    --bg-color: #f4f6f9;
+    --card-bg: #ffffff;
+    --text-color: #202124;
+    --text-muted: #5f6368;
+    --border-color: #dadce0;
+    --nav-bg: #ffffff;
+    --disabled-color: #f1f3f4;
+    --disabled-text: #9aa0a6;
+}
+
+/* --- 全体レイアウト --- */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 20px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 90vh;
+}
+
+/* --- ナビゲーションバー --- */
+.nav-bar {
+    display: flex;
+    background-color: var(--nav-bg);
+    padding: 6px;
+    border-radius: var(--border-radius);
+    margin-bottom: 25px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-color);
+}
+
+.nav-btn {
+    flex: 1;
+    padding: 12px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-weight: bold;
+    font-size: 15px;
+    cursor: pointer;
+    border-radius: calc(var(--border-radius) - 4px);
+    transition: all 0.2s;
+}
+
+.nav-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* --- ページ（画面切り替え） --- */
+.page {
+    display: none;
+    flex: 1;
+}
+
+.page.active {
+    display: block;
+}
+
+/* --- タスクグループ＆カード --- */
+.group-section {
+    margin-bottom: 30px;
+}
+
+.group-title {
+    font-size: 18px;
+    margin-bottom: 15px;
+    padding-left: 8px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-color);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 180px;
+}
+
+.card-title {
+    font-size: 16px;
+    margin: 0 0 8px 0;
+    padding-right: 25px; /* バツボタンと被らないように */
+}
+
+/* 取り消すバツボタン */
+.btn-undo {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    border-radius: 50%;
+}
+.btn-undo:hover {
+    background-color: var(--disabled-color);
+    color: var(--danger-color);
+}
+
+/* 各種ステータス・情報表示 */
+.time-restriction, .history-status {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.status-badge {
+    display: inline-block;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+    font-weight: bold;
+}
+.status-uncompleted { background-color: #e8f0fe; color: #1a73e8; }
+.status-completed { background-color: #e6f4ea; color: #137333; }
+.status-cancelled { background-color: #fce8e6; color: #c5221f; }
+
+.card-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+}
+
+/* --- ボタン類 --- */
+.btn {
+    padding: 10px 14px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 13px;
+    transition: opacity 0.2s;
+}
+.btn:hover:not(:disabled) { opacity: 0.9; }
+
+.btn-action { background-color: var(--primary-color); color: white; flex: 1; }
+.btn-cancel { background-color: var(--flamingo-color); color: white; flex: 1; }
+.btn-menu { background-color: var(--primary-color); color: white; padding: 12px 20px; }
+
+.btn:disabled {
+    background-color: var(--disabled-color);
+    color: var(--disabled-text);
+    cursor: not-allowed;
+}
+
+/* --- 設定・データ管理UI --- */
+.theme-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+.theme-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.data-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+.data-box {
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+#fileInput { display: none; }
+
+/* --- フッター --- */
+footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+}
+.btn-reset {
+    background-color: transparent;
+    color: var(--danger-color);
+    border: 1px solid var(--danger-color);
+}
+.btn-reset:hover {
+    background-color: var(--danger-color);
+    color: white;
+}
