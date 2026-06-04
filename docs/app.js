@@ -62,24 +62,42 @@ async function loadDefaultTasksFromJSON() {
 }
 
 function setupPageSpecifics(currentTheme) {
-    // タスク一覧画面用の処理（存在するときだけ実行）
+    // タスク一覧画面用の初期化
     if (document.getElementById('taskContainer')) {
         renderCards();
         checkNotificationPermission();
     }
     
-    // 設定画面用の処理（存在するときだけ実行）
+    // 設定画面用の初期化
     if (document.getElementById('themeForm')) {
         const radio = document.querySelector(`input[name="theme"][value="${currentTheme}"]`);
         if (radio) radio.checked = true;
     }
     
-    // カレンダーID入力欄の処理（存在するときだけ実行）
+    // カレンダーID設定フォームの初期化（入力フォームの暴発を防ぐガード処理）
+    const calendarIdForm = document.getElementById('calendarIdForm');
     const calendarIdInput = document.getElementById('calendarIdInput');
+    const saveStatus = document.getElementById('saveStatus');
+
     if (calendarIdInput) {
+        // 保存されているIDを復元して入力欄に入れる
         calendarIdInput.value = localStorage.getItem('calendar_target_id') || '';
-        calendarIdInput.addEventListener('input', (e) => {
-            localStorage.setItem('calendar_target_id', e.target.value.trim());
+    }
+
+    if (calendarIdForm && calendarIdInput) {
+        calendarIdForm.addEventListener('submit', (e) => {
+            e.preventDefault(); // ページが勝手にリロードされるのを確実に阻止
+            
+            const inputVal = calendarIdInput.value.trim();
+            localStorage.setItem('calendar_target_id', inputVal);
+            
+            // 保存完了メッセージをフワッと表示
+            if (saveStatus) {
+                saveStatus.style.display = 'inline';
+                setTimeout(() => {
+                    saveStatus.style.display = 'none';
+                }, 3000);
+            }
         });
     }
 }
@@ -196,7 +214,7 @@ function isWithinTime(task) {
 // --- メイン描画 ---
 function renderCards() {
     const container = document.getElementById('taskContainer');
-    if (!container) return; // 画面に対象コンテナがない（設定画面など）ならスキップ
+    if (!container) return; 
     container.innerHTML = '';
 
     const today = getFormattedDate(0);
@@ -349,6 +367,7 @@ function executeTask(index, isCancel) {
         details += "※保存時に手動で「フラミンゴ」カラーへ変更してください。";
     }
     
+    // 保存されているカレンダーIDを取得してURLに結合
     const calendarId = localStorage.getItem('calendar_target_id') || '';
     let baseUrl = "https://calendar.google.com/calendar/render?action=TEMPLATE";
     if (calendarId) {
@@ -398,7 +417,6 @@ function importJSON(event) {
                 tasks = importedData;
                 localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
                 alert('インポートが完了しました。');
-                // もし一覧画面にいれば再描画
                 if (document.getElementById('taskContainer')) renderCards();
             } else {
                 alert('無効なJSONフォーマットです。');
