@@ -725,6 +725,50 @@ function exportJSON() {
     downloadAnchor.remove();
 }
 
+async function copyJSONToClipboard() {
+    if (!navigator.clipboard || !window.isSecureContext) {
+        alert('この環境ではクリップボード操作が利用できません。https環境またはlocalhostでお試しください。');
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(JSON.stringify(tasks, null, 2));
+        alert('JSONをクリップボードにコピーしました。');
+    } catch (error) {
+        console.error('クリップボードへのコピーに失敗しました:', error);
+        alert('クリップボードへのコピーに失敗しました。');
+    }
+}
+
+async function importJSONFromClipboard() {
+    if (!navigator.clipboard || !window.isSecureContext) {
+        alert('この環境ではクリップボード操作が利用できません。https環境またはlocalhostでお試しください。');
+        return;
+    }
+
+    try {
+        const clipboardText = await navigator.clipboard.readText();
+        if (!clipboardText || !clipboardText.trim()) {
+            alert('クリップボードが空です。');
+            return;
+        }
+
+        const importedData = JSON.parse(clipboardText);
+        if (!Array.isArray(importedData)) {
+            alert('無効なJSONフォーマットです。');
+            return;
+        }
+
+        tasks = importedData;
+        localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
+        alert('クリップボードからインポートが完了しました。');
+        if (document.getElementById('taskContainer')) renderCards();
+    } catch (error) {
+        console.error('クリップボードからのインポートに失敗しました:', error);
+        alert('クリップボードの読み込みまたはJSON解析に失敗しました。');
+    }
+}
+
 function triggerImport() { document.getElementById('fileInput').click(); }
 
 function importJSON(event) {

@@ -626,6 +626,16 @@ body.table-view-mode .container {
     gap: 8px;
     flex-wrap: wrap;
 }
+
+.btn-group-vertical {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.btn-group-vertical .btn {
+    width: 100%;
+}
+
 .empty-task-msg {
     text-align: center;
     color: var(--text-secondary);
