@@ -340,6 +340,193 @@ body {
     margin-bottom: 32px;
 }
 
+.view-mode-switch {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.view-mode-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.switch-pill {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.switch-pill input {
+    display: none;
+}
+
+.switch-track {
+    position: relative;
+    width: 170px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    background-color: var(--btn-secondary-bg);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    padding: 0 8px;
+    box-sizing: border-box;
+}
+
+.switch-text-left,
+.switch-text-right {
+    z-index: 2;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.switch-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: calc(50% - 6px);
+    height: 26px;
+    border-radius: 999px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    transition: transform 0.18s ease;
+}
+
+.switch-pill input:checked + .switch-track .switch-thumb {
+    transform: translateX(100%);
+}
+
+.table-wrapper {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: auto;
+    background-color: var(--card-bg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.task-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+}
+
+.task-table th,
+.task-table td {
+    border-bottom: 1px solid var(--border-color);
+    padding: 10px 12px;
+    font-size: 13px;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.task-table th {
+    background-color: var(--btn-secondary-bg);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.task-table tr:last-child td {
+    border-bottom: none;
+}
+
+.task-table tr[data-done="true"] {
+    opacity: 0.6;
+}
+
+.task-index {
+    color: var(--text-muted);
+    width: 40px;
+}
+
+.task-name {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.chip {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+
+.chip-status-todo {
+    background-color: #dcfce7;
+    color: #166534;
+    border-color: #86efac;
+}
+
+.chip-status-active {
+    background-color: #fef3c7;
+    color: #92400e;
+    border-color: #fcd34d;
+}
+
+.chip-status-done {
+    background-color: #e0e7ff;
+    color: #3730a3;
+    border-color: #a5b4fc;
+}
+
+.chip-status-cancel {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border-color: #fca5a5;
+}
+
+.chip-group {
+    background-color: #e0f2fe;
+    color: #0c4a6e;
+    border-color: #7dd3fc;
+    max-width: 170px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.table-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.table-btn {
+    padding: 4px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--card-bg);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.table-btn-primary {
+    background-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border-color: transparent;
+}
+
+.table-btn-danger {
+    background-color: #ef4444;
+    color: #ffffff;
+    border-color: transparent;
+}
+
+.table-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 /* スイッチ本体を格納するアコーディオンパネル */
 .filter-controls {
     display: none; /* JS側で flex と none を切り替え */

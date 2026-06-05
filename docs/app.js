@@ -64,11 +64,22 @@ async function loadDefaultTasksFromJSON() {
 function setupPageSpecifics(currentTheme) {
     // --- タスク一覧画面用の初期化 ---
     if (document.getElementById('taskContainer')) {
+        const viewModeToggle = document.getElementById('viewModeToggle');
         const toggleFilterBtn = document.getElementById('toggleFilterBtn');
         const filterControls = document.getElementById('filterControls');
         const hideOutOfTimeCheckbox = document.getElementById('hideOutOfTimeCheckbox');
         const hideCompletedCheckbox = document.getElementById('hideCompletedCheckbox');
         const hideCancelledCheckbox = document.getElementById('hideCancelledCheckbox');
+
+        if (viewModeToggle) {
+            const savedViewMode = localStorage.getItem('task_view_mode') || 'card';
+            viewModeToggle.checked = savedViewMode === 'table';
+            viewModeToggle.addEventListener('change', () => {
+                const mode = viewModeToggle.checked ? 'table' : 'card';
+                localStorage.setItem('task_view_mode', mode);
+                renderCards();
+            });
+        }
 
         // 1. フィルタースイッチ自体の開閉状態を復元・制御するロジック
         if (toggleFilterBtn && filterControls) {
@@ -343,6 +354,100 @@ function isWithinTime(task) {
     return { valid: true, msg: "" };
 }
 
+function getTaskStatusInfo(task, todayStatus, timeCheck) {
+    if (todayStatus === 'completed') {
+        return { label: '追加済み', className: 'chip-status-done', locked: true };
+    }
+    if (todayStatus === 'cancelled') {
+        return { label: 'キャンセル済', className: 'chip-status-cancel', locked: true };
+    }
+    if (timeCheck.valid) {
+        return { label: 'In progress', className: 'chip-status-active', locked: false };
+    }
+    return { label: 'Todo', className: 'chip-status-todo', locked: false };
+}
+
+function getScheduleLabel(task) {
+    if (task.specificDate) return task.specificDate;
+    if (task.daysOfWeek && task.daysOfWeek.length) {
+        const labels = ['日', '月', '火', '水', '木', '金', '土'];
+        return task.daysOfWeek.map(day => labels[day] + '曜').join(', ');
+    }
+    if (task.daysOfMonth && task.daysOfMonth.length) {
+        return task.daysOfMonth.map(day => `${day}日`).join(', ');
+    }
+    return '毎日';
+}
+
+function renderTableView(container, filteredTasks, today) {
+    const tableWrapper = document.createElement('div');
+    tableWrapper.className = 'table-wrapper';
+
+    const table = document.createElement('table');
+    table.className = 'task-table';
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>タスク</th>
+                <th>ステータス</th>
+                <th>カテゴリ</th>
+                <th>日付</th>
+                <th>時間</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    `;
+
+    const tbody = table.querySelector('tbody');
+
+    filteredTasks.forEach((task, idx) => {
+        const taskIndex = tasks.findIndex(t => t.id === task.id);
+        const todayStatus = task.history[today];
+        const timeCheck = isWithinTime(task);
+        const statusInfo = getTaskStatusInfo(task, todayStatus, timeCheck);
+        const isStrict = task.strictMode === true || task.strictMode === 'true';
+        const addDisabled = statusInfo.locked || (!timeCheck.valid && isStrict);
+        const row = document.createElement('tr');
+
+        if (todayStatus) {
+            row.setAttribute('data-done', 'true');
+        }
+
+        const timeLabel = task.startTime || task.endTime
+            ? `${task.startTime || '00:00'} - ${task.endTime || '23:59'}`
+            : '-';
+
+        const actionSecondary = task.specificDate
+            ? `<button class="table-btn table-btn-danger" ${statusInfo.locked ? 'disabled' : ''} onclick="deleteActualTask('${task.id}')">削除</button>`
+            : `<button class="table-btn" ${statusInfo.locked ? 'disabled' : ''} onclick="executeTask(${taskIndex}, true)">キャンセル</button>`;
+
+        const actionMain = todayStatus
+            ? `<button class="table-btn" onclick="undoTask(${taskIndex})">戻す</button>`
+            : `<button class="table-btn table-btn-primary" ${addDisabled ? 'disabled' : ''} onclick="executeTask(${taskIndex}, false)">追加</button>`;
+
+        row.innerHTML = `
+            <td class="task-index">${idx + 1}</td>
+            <td class="task-name">${task.text}</td>
+            <td><span class="chip ${statusInfo.className}">${statusInfo.label}</span></td>
+            <td><span class="chip chip-group">${task.group || 'その他'}</span></td>
+            <td>${getScheduleLabel(task)}</td>
+            <td>${timeLabel}</td>
+            <td>
+                <div class="table-actions">
+                    ${actionMain}
+                    ${todayStatus ? '' : actionSecondary}
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    tableWrapper.appendChild(table);
+    container.appendChild(tableWrapper);
+}
+
 // --- メイン描画 ---
 function renderCards() {
     const container = document.getElementById('taskContainer');
@@ -356,6 +461,7 @@ function renderCards() {
     const hideCompleted = localStorage.getItem('filter_hide_completed') === 'true';
     const hideCancelled = localStorage.getItem('filter_hide_cancelled') === 'true';
 
+    const filteredTasks = [];
     const groups = {};
     tasks.forEach(task => {
         if (!shouldShowTask(task)) return;
@@ -368,12 +474,19 @@ function renderCards() {
         if (!todayStatus && !timeCheck.valid && hideOutOfTime) return;
 
         const groupName = task.group || "その他";
+        filteredTasks.push(task);
         if (!groups[groupName]) groups[groupName] = [];
         groups[groupName].push(task);
     });
 
-    if (Object.keys(groups).length === 0) {
+    if (filteredTasks.length === 0) {
         container.innerHTML = '<p class="empty-task-msg">表示可能なタスクはありません（フィルターが適用されている可能性があります）。</p>';
+        return;
+    }
+
+    const currentViewMode = localStorage.getItem('task_view_mode') || 'card';
+    if (currentViewMode === 'table') {
+        renderTableView(container, filteredTasks, today);
         return;
     }
 
