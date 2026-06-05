@@ -352,13 +352,12 @@
   },
   {
     "id": "task-32",
-    "text": "ログイン",
+    "text": "遊戯王デュエリストポイント公式サイト　ログイン",
     "group": "遊戯王マスターデュエル",
     "daysOfWeek": [],
     "daysOfMonth": [],
     "startTime": "3:00",
     "endTime": "2:59",
-    "description": "遊戯王デュエリストポイント公式サイト",
     "link": "https://yugioh-duelist-point.konami.net/",
     "history": {},
     "notifiedDate": ""
