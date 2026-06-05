@@ -45,22 +45,27 @@ async function initApp() {
         await loadDefaultTasksFromJSON();
     }
 
-    setupPageSpecifics(savedTheme);
-    initNotificationTimer();
+    const currentTheme = localStorage.getItem('calendar_app_theme') || 'system';
+    setupPageSpecifics(currentTheme);
 }
 
 async function loadDefaultTasksFromJSON() {
     try {
         const response = await fetch('tasks.json');
-        if (!response.ok) throw new Error('Network error');
         tasks = await response.json();
         localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
-    } catch (error) {
-        console.error('デフォルトタスクJSONの読み込みに失敗しました:', error);
+    } catch (e) {
+        console.error('Failed to load default tasks:', e);
         tasks = [];
     }
 }
 
+function handleThemeChange(theme) {
+    localStorage.setItem('calendar_app_theme', theme);
+    applyTheme(theme);
+}
+
+// --- ページ個別設定初期化 ---
 function setupPageSpecifics(currentTheme) {
     // --- タスク一覧画面用の初期化 ---
     if (document.getElementById('taskContainer')) {
@@ -70,7 +75,7 @@ function setupPageSpecifics(currentTheme) {
         const hideCompletedCheckbox = document.getElementById('hideCompletedCheckbox');
         const hideCancelledCheckbox = document.getElementById('hideCancelledCheckbox');
 
-        // 1. フィルタースイッチ自体の開閉状態を復元・制御するロジック
+        // 1. フィルタースイッチ自体の開閉状態を復元・制御
         if (toggleFilterBtn && filterControls) {
             const isFilterPanelVisible = localStorage.getItem('filter_panel_visible') === 'true';
             
@@ -82,7 +87,7 @@ function setupPageSpecifics(currentTheme) {
                 toggleFilterBtn.innerText = 'フィルターを開く ▼';
             }
 
-            toggleFilterBtn.addEventListener('click', () => {
+            toggleFilterBtn.onclick = () => {
                 const isCurrentlyHidden = filterControls.style.display === 'none';
                 if (isCurrentlyHidden) {
                     filterControls.style.display = 'flex';
@@ -93,10 +98,10 @@ function setupPageSpecifics(currentTheme) {
                     toggleFilterBtn.innerText = 'フィルターを開く ▼';
                     localStorage.setItem('filter_panel_visible', 'false');
                 }
-            });
+            };
         }
 
-        // 2. 各フィルタースイッチのON/OFF状態の復元とイベント紐付け
+        // 2. 各フィルタースイッチのON/OFF状態の復元とイベント紐付け (安全な上書き方式)
         if (hideOutOfTimeCheckbox && hideCompletedCheckbox && hideCancelledCheckbox) {
             hideOutOfTimeCheckbox.checked = localStorage.getItem('filter_hide_out_of_time') === 'true';
             hideCompletedCheckbox.checked = localStorage.getItem('filter_hide_completed') === 'true';
@@ -109,13 +114,27 @@ function setupPageSpecifics(currentTheme) {
                 renderCards();
             };
 
-            hideOutOfTimeCheckbox.addEventListener('change', handleFilterChange);
-            hideCompletedCheckbox.addEventListener('change', handleFilterChange);
-            hideCancelledCheckbox.addEventListener('change', handleFilterChange);
+            hideOutOfTimeCheckbox.onchange = handleFilterChange;
+            hideCompletedCheckbox.onchange = handleFilterChange;
+            hideCancelledCheckbox.onchange = handleFilterChange;
+        }
+
+        // 3. 表示モード（グリッド / バックログ）の切り替えロジック
+        const toggleViewModeBtn = document.getElementById('toggleViewModeBtn');
+        if (toggleViewModeBtn) {
+            const currentMode = localStorage.getItem('calendar_view_mode') || 'grid';
+            toggleViewModeBtn.innerText = currentMode === 'grid' ? '表示: グリッド ⊞' : '表示: バックログ ＝';
+            
+            toggleViewModeBtn.onclick = () => {
+                const mode = localStorage.getItem('calendar_view_mode') || 'grid';
+                const nextMode = mode === 'grid' ? 'backlog' : 'grid';
+                localStorage.setItem('calendar_view_mode', nextMode);
+                toggleViewModeBtn.innerText = nextMode === 'grid' ? '表示: グリッド ⊞' : '表示: バックログ ＝';
+                renderCards();
+            };
         }
 
         renderCards();
-        checkNotificationPermission();
     }
     
     // --- 設定画面用の初期化 ---
@@ -133,9 +152,8 @@ function setupPageSpecifics(currentTheme) {
     }
 
     if (calendarIdForm && calendarIdInput) {
-        calendarIdForm.addEventListener('submit', (e) => {
+        calendarIdForm.onsubmit = (e) => {
             e.preventDefault(); 
-            
             const inputVal = calendarIdInput.value.trim();
             localStorage.setItem('calendar_target_id', inputVal);
             
@@ -145,205 +163,58 @@ function setupPageSpecifics(currentTheme) {
                     saveStatus.style.display = 'none';
                 }, 3000);
             }
-        });
+        };
     }
 }
 
-// --- プッシュ通知 ---
-function checkNotificationPermission() {
-    const banner = document.getElementById('notificationBanner');
-    if (!banner) return;
-    banner.style.display = (Notification.permission === 'default') ? 'flex' : 'none';
-}
-
-function requestPermission() {
-    Notification.requestPermission().then(permission => {
-        checkNotificationPermission();
-        if (permission === 'granted') {
-            alert('プッシュ通知が有効になりました！');
-        }
-    });
-}
-
-// --- スケジュール合致判定 ---
-function isTaskScheduledOnDate(task, date) {
-
-    if (task.specificDate) {
-        const dStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        return task.specificDate === dStr;
-    }
-
-    const currentDayOfWeek = date.getDay();  
-    const currentDayOfMonth = date.getDate(); 
-
-    const noWeekRestriction = !task.daysOfWeek || task.daysOfWeek.length === 0;
-    const noMonthRestriction = !task.daysOfMonth || task.daysOfMonth.length === 0;
-    if (noWeekRestriction && noMonthRestriction) return true;
-
-    if (task.daysOfWeek && task.daysOfWeek.includes(currentDayOfWeek)) return true;
-    if (task.daysOfMonth && task.daysOfMonth.includes(currentDayOfMonth)) return true;
-
-    return false;
-}
-
+// --- 曜日・日にち判定ヘルパー ---
 function shouldShowTask(task) {
-    const now = new Date();
-    if (isTaskScheduledOnDate(task, now)) return true;
+    const d = new Date();
+    const dayOfWeek = d.getDay(); 
+    const dayOfMonth = d.getDate();
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (isTaskScheduledOnDate(task, yesterday)) {
-        if (task.startTime && task.endTime) {
-            const startNorm = normalizeTime(task.startTime);
-            const endNorm = normalizeTime(task.endTime);
-            if (startNorm > endNorm) {
-                const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
-                if (currentStr <= endNorm) {
-                    return true;
-                }
-            }
-        }
+    if (task.daysOfWeek && task.daysOfWeek.length > 0) {
+        if (!task.daysOfWeek.includes(dayOfWeek)) return false;
     }
-    return false;
-}
-
-// タイマー周期処理内で画面表示（renderCards）も更新するように拡張
-function initNotificationTimer() {
-    checkAndSendNotifications();
-    setInterval(() => {
-        checkAndSendNotifications();
-        renderCards(); // 1分ごとに画面を自動再描画してステータスを同期
-    }, 60000);
-}
-
-// チャイムを鳴らす
-function playNotificationSound() {
-    try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const ctx = new AudioContext();
-        
-        // チャイムのゆったりとしたテンポ（1拍＝1.2秒、四捨五入なし）
-        const beatDuration = 0.1; 
-        
-        // MIDIノート番号から周波数（Hz）への正確な変換式
-        const noteToFreq = (note) => 440 * Math.pow(2, (note - 69) / 12);
-        
-        // ウェストミンスターの鐘の音階（ミ・ド・レ・ソ ／ ソ・レ・ミ・ド）
-        const chimeNotes = [
-            { beat: 0, note: 64 }, // ミ (E4)
-            { beat: 2, note: 60 }, // ド (C4)
-            { beat: 4, note: 62 }, // レ (D4)
-            { beat: 6, note: 55 }, // ソ (G3)
-            
-            { beat: 9, note: 55 }, // ソ (G3)
-            { beat: 11, note: 62 }, // レ (D4)
-            { beat: 13, note: 64 }, // ミ (E4)
-            { beat: 15, note: 60 }  // ド (C4)
-        ];
-        
-        const startTime = ctx.currentTime + 0.1;
-        
-        chimeNotes.forEach(item => {
-            const time = startTime + (item.beat * beatDuration);
-            // 音が美しく重なるよう、1音あたり4秒間の余韻を持たせる
-            const duration = 4.0; 
-            
-            // 鐘の金属的な複合音を再現するため、基本音に加えて3つの倍音（共鳴音）を生成
-            // [倍音の比率, 音量比率]
-            const partials = [
-                { ratio: 1.0, vol: 0.25 },  // 基本音
-                { ratio: 2.0, vol: 0.05 },  // 1オクターブ上
-                { ratio: 3.0, vol: 0.015 }, // 1オクターブと5度上
-                { ratio: 4.0, vol: 0.005 }  // 2オクターブ上
-            ];
-            
-            partials.forEach(partial => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                
-                osc.type = 'sine'; // 澄んだ正弦波
-                // 基本の周波数に比率を掛け合わせて正確な倍音を計算
-                osc.frequency.value = noteToFreq(item.note) * partial.ratio;
-                
-                // 鐘を叩いた瞬間の鋭い立ち上がりと、静かに消えていく減衰（パーカッシブ・エンベロープ）
-                gain.gain.setValueAtTime(0, time);
-                gain.gain.linearRampToValueAtTime(partial.vol, time + 0.03); // アタック
-                gain.gain.exponentialRampToValueAtTime(0.00001, time + duration); // 長い余韻（ディケイ／リリース）
-                
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                
-                osc.start(time);
-                osc.stop(time + duration);
-            });
-        });
-    } catch (e) {
-        console.warn("音声再生がブロックされました。", e);
+    if (task.daysOfMonth && task.daysOfMonth.length > 0) {
+        if (!task.daysOfMonth.includes(dayOfMonth)) return false;
     }
+    return true;
 }
 
-function checkAndSendNotifications() {
-    if (Notification.permission !== 'granted') return;
-
-    const today = getFormattedDate(0);
-    const now = new Date();
-    const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
-    let isUpdated = false;
-
-    tasks.forEach(task => {
-        if (!shouldShowTask(task) || !task.startTime) return;
-        if (task.notifiedDate === today) return;
-        if (task.history[today]) return;
-
-        const startNorm = normalizeTime(task.startTime);
-        if (currentStr >= startNorm) {
-            const groupName = task.group || "その他";
-            const descText = task.description ? `\n${task.description}` : "";
-            
-            const notification = new Notification(`[${groupName}] タスクの時間です`, {
-                body: `「${task.text}」が実施可能な時間になりました。${descText}`,
-                icon: "https://calendar.google.com/calendar/images/favicon_v2014_3.ico"
-            });
-
-            notification.onclick = function(event) {
-                event.preventDefault();
-                const targetUrl = new URL('/done', window.location.href).href;
-                window.open(targetUrl, '_blank');
-            };
-
-            playNotificationSound();
-
-            task.notifiedDate = today;
-            isUpdated = true;
-        }
-    });
-
-    if (isUpdated) {
-        localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
-    }
-}
-
+// --- 時間内判定ヘルパー ---
 function isWithinTime(task) {
-    if (!task.startTime && !task.endTime) return { valid: true, msg: "" };
-    
-    const now = new Date();
-    const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
-    
-    const start = normalizeTime(task.startTime || "00:00");
-    const end = normalizeTime(task.endTime || "23:59");
-    
-    if (start <= end) {
-        if (currentStr < start) return { valid: false, msg: `時間外 (${start}から)` };
-        if (currentStr > end) return { valid: false, msg: `時間外 (${end}まで)` };
-    } else {
-        if (currentStr < start && currentStr > end) {
-            return { valid: false, msg: `時間外 (${start}〜翌${end})` };
-        }
+    if (!task.startTime && !task.endTime) return { valid: true };
+
+    const d = new Date();
+    const currentMin = d.getHours() * 60 + d.getMinutes();
+
+    let startMin = 0;
+    if (task.startTime) {
+        const parts = task.startTime.split(':');
+        startMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
     }
-    return { valid: true, msg: "" };
+
+    let endMin = 24 * 60 - 1;
+    if (task.endTime) {
+        const parts = task.endTime.split(':');
+        endMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+    }
+
+    if (startMin > endMin) {
+        if (currentMin >= startMin || currentMin <= endMin) {
+            return { valid: true };
+        }
+        return { valid: false };
+    } else {
+        if (currentMin >= startMin && currentMin <= endMin) {
+            return { valid: true };
+        }
+        return { valid: false };
+    }
 }
 
-// --- メイン描画 ---
+// --- メイン描画関数 ---
 function renderCards() {
     const container = document.getElementById('taskContainer');
     if (!container) return; 
@@ -355,12 +226,14 @@ function renderCards() {
     const hideOutOfTime = localStorage.getItem('filter_hide_out_of_time') === 'true';
     const hideCompleted = localStorage.getItem('filter_hide_completed') === 'true';
     const hideCancelled = localStorage.getItem('filter_hide_cancelled') === 'true';
+    const viewMode = localStorage.getItem('calendar_view_mode') || 'grid';
 
+    // 元の配列インデックスを保持したままグループへ分配
     const groups = {};
-    tasks.forEach(task => {
+    tasks.forEach((task, globalIndex) => {
         if (!shouldShowTask(task)) return;
 
-        const todayStatus = task.history[today];
+        const todayStatus = task.history ? task.history[today] : undefined;
         const timeCheck = isWithinTime(task);
 
         if (todayStatus === 'completed' && hideCompleted) return;
@@ -369,7 +242,7 @@ function renderCards() {
 
         const groupName = task.group || "その他";
         if (!groups[groupName]) groups[groupName] = [];
-        groups[groupName].push(task);
+        groups[groupName].push({ task, index: globalIndex });
     });
 
     if (Object.keys(groups).length === 0) {
@@ -378,9 +251,10 @@ function renderCards() {
     }
 
     for (const groupName in groups) {
+        // ソート処理（完了回数順）
         groups[groupName].sort((a, b) => {
-            const countA = Object.values(a.history || {}).filter(v => v === 'completed').length;
-            const countB = Object.values(b.history || {}).filter(v => v === 'completed').length;
+            const countA = Object.values(a.task.history || {}).filter(v => v === 'completed').length;
+            const countB = Object.values(b.task.history || {}).filter(v => v === 'completed').length;
             return countB - countA;
         });
 
@@ -392,169 +266,231 @@ function renderCards() {
         title.innerText = groupName;
         groupSection.appendChild(title);
 
-        const grid = document.createElement('div');
-        grid.className = 'grid';
+        const listContainer = document.createElement('div');
+        listContainer.className = viewMode === 'grid' ? 'grid' : 'backlog-list';
 
-        groups[groupName].forEach(task => {
-            const taskIndex = tasks.findIndex(t => t.id === task.id);
-            const todayStatus = task.history[today];
-            const yesterdayStatus = task.history[yesterday];
+        groups[groupName].forEach(({ task, index }) => {
+            const todayStatus = task.history ? task.history[today] : undefined;
+            const yesterdayStatus = task.history ? task.history[yesterday] : undefined;
             const timeCheck = isWithinTime(task);
             
             const totalCompleted = Object.values(task.history || {}).filter(v => v === 'completed').length;
-
             const card = document.createElement('div');
-            card.className = `card`;
 
-            if (todayStatus) {
-                card.setAttribute('data-done', 'true');
-            } else if (!timeCheck.valid) {
-                card.setAttribute('data-out-of-time', 'true');
-            }
+            if (viewMode === 'grid') {
+                // --- グリッド（カード）形式 ---
+                card.className = `card`;
 
-            let badgeHtml = `<span class="status-badge">未実施</span>`;
-            let isLocked = false;
-            if (todayStatus === 'completed') {
-                badgeHtml = `<span class="status-badge status-completed">追加済み</span>`;
-                isLocked = true;
-            } else if (todayStatus === 'cancelled') {
-                badgeHtml = `<span class="status-badge status-cancelled">キャンセル済</span>`;
-                isLocked = true;
-            }
+                if (todayStatus) {
+                    card.setAttribute('data-done', 'true');
+                } else if (!timeCheck.valid) {
+                    card.setAttribute('data-out-of-time', 'true');
+                }
 
-            let yesterdayHtml = "昨日: 履歴なし";
-            if (yesterdayStatus === 'completed') yesterdayHtml = "昨日: 完了";
-            if (yesterdayStatus === 'cancelled') yesterdayHtml = "昨日: キャンセル";
+                let badgeHtml = `<span class="status-badge">未実施</span>`;
+                let isLocked = false;
+                if (todayStatus === 'completed') {
+                    badgeHtml = `<span class="status-badge status-completed">追加済み</span>`;
+                    isLocked = true;
+                } else if (todayStatus === 'cancelled') {
+                    badgeHtml = `<span class="status-badge status-cancelled">キャンセル済</span>`;
+                    isLocked = true;
+                }
 
-            let timeInfoHtml = "";
-            if (task.startTime || task.endTime) {
-                const startNorm = normalizeTime(task.startTime || "00:00");
-                const endNorm = normalizeTime(task.endTime || "23:59");
-                const modeLabel = task.strictMode ? " (厳格)" : "";
+                let yesterdayHtml = "昨日: 履歴なし";
+                if (yesterdayStatus === 'completed') yesterdayHtml = "昨日: 完了";
+                if (yesterdayStatus === 'cancelled') yesterdayHtml = "昨日: キャンセル";
+
+                let timeInfoHtml = "";
+                if (task.startTime || task.endTime) {
+                    const startNorm = normalizeTime(task.startTime || "00:00");
+                    const endNorm = normalizeTime(task.endTime || "23:59");
+                    const modeLabel = task.strictMode ? " (厳格)" : "";
+                    const displayEnd = (startNorm > endNorm) ? `翌${task.endTime}` : task.endTime;
+                    timeInfoHtml = `<div class="time-restriction">${task.startTime || '00:00'} 〜 ${displayEnd || '23:59'}${modeLabel}</div>`;
+                }
+
+                let descriptionHtml = "";
+                if (task.description) {
+                    descriptionHtml = `<div class="task-description">${task.description}</div>`;
+                }
+
+                let linkHtml = "";
+                if (task.link) {
+                    linkHtml = `<a href="${task.link}" target="_blank" rel="noopener noreferrer" class="task-link">関連リンク ↗</a>`;
+                }
+
+                const undoButtonHtml = todayStatus ? `<button class="btn-undo" onclick="undoTask(${index})">✕</button>` : '';
+
+                let buttonDisabled = false;
+                const isStrict = task.strictMode === true || task.strictMode === 'true';
                 
-                const displayEnd = (startNorm > endNorm) ? `翌${task.endTime}` : task.endTime;
-                timeInfoHtml = `<div class="time-restriction">${task.startTime || '00:00'} 〜 ${displayEnd || '23:59'}${modeLabel}</div>`;
-            }
+                if (isLocked) {
+                    buttonDisabled = true;
+                } else if (!timeCheck.valid && isStrict) {
+                    buttonDisabled = true; 
+                }
 
-            let descriptionHtml = "";
-            if (task.description) {
-                descriptionHtml = `<div class="task-description">${task.description}</div>`;
-            }
-
-            let linkHtml = "";
-            if (task.link) {
-                linkHtml = `<a href="${task.link}" target="_blank" rel="noopener noreferrer" class="task-link">関連リンク ↗</a>`;
-            }
-
-            const undoButtonHtml = todayStatus ? `<button class="btn-undo" onclick="undoTask(${taskIndex})">✕</button>` : '';
-
-            let buttonDisabled = false;
-            const isStrict = task.strictMode === true || task.strictMode === 'true';
-            
-            if (isLocked) {
-                buttonDisabled = true;
-            } else if (!timeCheck.valid && isStrict) {
-                buttonDisabled = true; 
-            }
-
-            // --- サブアクションボタン（キャンセル or 削除）の条件分岐 ---
-            let secondaryButtonHtml = "";
-            if (task.specificDate) {
-                // 一時的タスクの場合はキャンセルではなく「削除」ボタンにする（既存の赤色指定を流用）
-                secondaryButtonHtml = `<button class="btn" style="background-color: #ef4444; color: #ffffff; flex: 1;" ${isLocked ? 'disabled' : ''} onclick="deleteActualTask('${task.id}')">削除</button>`;
+                card.innerHTML = `
+                    ${undoButtonHtml}
+                    <div>
+                        <h4 class="card-title">${task.text}</h4>
+                        ${badgeHtml}
+                        ${timeInfoHtml}
+                        ${descriptionHtml}
+                        ${linkHtml}
+                        <div class="history-status">${yesterdayHtml}</div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-action" ${buttonDisabled ? 'disabled' : ''} onclick="executeTask(${index}, false)">追加</button>
+                        <button class="btn btn-cancel" ${isLocked ? 'disabled' : ''} onclick="executeTask(${index}, true)">キャンセル</button>
+                    </div>
+                    <div class="card-footer">
+                        累計実績: ${totalCompleted} 回
+                    </div>
+                `;
             } else {
-                // 通常ルーティンタスクは従来通り「キャンセル」
-                secondaryButtonHtml = `<button class="btn btn-cancel" ${isLocked ? 'disabled' : ''} onclick="executeTask(${taskIndex}, true)">キャンセル</button>`;
+                // --- Backlog形式（一行リスト型） ---
+                card.className = `backlog-item`;
+
+                if (todayStatus) {
+                    card.setAttribute('data-done', 'true');
+                } else if (!timeCheck.valid) {
+                    card.setAttribute('data-out-of-time', 'true');
+                }
+
+                let badgeHtml = `<span class="status-badge">未実施</span>`;
+                let isLocked = false;
+                if (todayStatus === 'completed') {
+                    badgeHtml = `<span class="status-badge status-completed">追加済み</span>`;
+                    isLocked = true;
+                } else if (todayStatus === 'cancelled') {
+                    badgeHtml = `<span class="status-badge status-cancelled">キャンセル済</span>`;
+                    isLocked = true;
+                }
+
+                let timeInfoHtml = "";
+                if (task.startTime || task.endTime) {
+                    const startNorm = normalizeTime(task.startTime || "00:00");
+                    const endNorm = normalizeTime(task.endTime || "23:59");
+                    const displayEnd = (startNorm > endNorm) ? `翌${task.endTime}` : task.endTime;
+                    timeInfoHtml = `<span class="time-restriction" style="margin-right: 8px;">${task.startTime || '00:00'}〜${displayEnd || '23:59'}</span>`;
+                }
+
+                let buttonDisabled = false;
+                const isStrict = task.strictMode === true || task.strictMode === 'true';
+                
+                if (isLocked) {
+                    buttonDisabled = true;
+                } else if (!timeCheck.valid && isStrict) {
+                    buttonDisabled = true; 
+                }
+
+                const undoButtonHtml = todayStatus ? `<button class="btn-undo" onclick="undoTask(${index})" style="position: static; margin-left: 4px;">✕</button>` : '';
+
+                let yesterdayHtml = "昨日: 履歴なし";
+                if (yesterdayStatus === 'completed') yesterdayHtml = "昨日: 完了";
+                if (yesterdayStatus === 'cancelled') yesterdayHtml = "昨日: キャンセル";
+
+                let detailsHtml = "";
+                if (task.description || task.link || yesterdayStatus || totalCompleted > 0) {
+                    detailsHtml = `
+                        <div class="backlog-details" style="font-size: 12px; color: var(--text-muted); margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                            ${task.description ? `<span style="color: var(--text-secondary);">${task.description}</span>` : ''}
+                            ${task.link ? `<a href="${task.link}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color); text-decoration: none;">リンク ↗</a>` : ''}
+                            <span>${yesterdayHtml}</span>
+                            <span>累計: ${totalCompleted}回</span>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div style="display: flex; flex-direction: column; flex: 1; min-width: 0;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            ${badgeHtml}
+                            ${timeInfoHtml}
+                            <h4 class="card-title" style="font-size: 15px; margin: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${task.text}</h4>
+                        </div>
+                        ${detailsHtml}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                        <div class="card-actions" style="margin-top: 0; gap: 4px;">
+                            <button class="btn btn-action" ${buttonDisabled ? 'disabled' : ''} onclick="executeTask(${index}, false)" style="padding: 6px 12px; font-size: 12px;">追加</button>
+                            <button class="btn btn-cancel" ${isLocked ? 'disabled' : ''} onclick="executeTask(${index}, true)" style="padding: 6px 12px; font-size: 12px;">キャンセル</button>
+                        </div>
+                        ${undoButtonHtml}
+                    </div>
+                `;
             }
 
-            card.innerHTML = `
-                ${undoButtonHtml}
-                <div>
-                    <h4 class="card-title">${task.text}</h4>
-                    ${badgeHtml}
-                    ${timeInfoHtml}
-                    ${descriptionHtml}
-                    ${linkHtml}
-                    <div class="history-status">${yesterdayHtml}</div>
-                </div>
-                <div class="card-actions">
-                    <button class="btn btn-action" ${buttonDisabled ? 'disabled' : ''} onclick="executeTask(${taskIndex}, false)">追加</button>
-                    ${secondaryButtonHtml}
-                </div>
-                <div class="card-footer">
-                    累計実績: ${totalCompleted} 回
-                </div>
-            `;
-
-            grid.appendChild(card);
+            listContainer.appendChild(card);
         });
 
-        groupSection.appendChild(grid);
+        groupSection.appendChild(listContainer);
         container.appendChild(groupSection);
     }
 }
 
-// --- タスク実行 ---
+// --- タスク追加・キャンセル操作 ---
 function executeTask(index, isCancel) {
     const today = getFormattedDate(0);
-    tasks[index].history[today] = isCancel ? 'cancelled' : 'completed';
-    localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
-    renderCards();
-
-    const now = new Date();
-    const startTime = formatDateTimeUTC(now);
-    const endTime = startTime; 
-    
-    const groupName = tasks[index].group || "その他";
-    let displayTitle = `[${groupName}] ${tasks[index].text}`;
-    
-    let details = ""; 
-    if (tasks[index].description) {
-        details += `${tasks[index].description}\n`;
-    }
-    if (tasks[index].link) {
-        details += `${tasks[index].link}\n`;
+    if (!tasks[index].history) {
+        tasks[index].history = {};
     }
 
     if (isCancel) {
-        displayTitle = `【未実施】[${groupName}] ${tasks[index].text}`;
-        details += "※保存時に手動で「フラミンゴ」カラーへ変更してください。";
-    }
-    
-    const calendarId = localStorage.getItem('calendar_target_id') || '';
-    let baseUrl = "https://calendar.google.com/calendar/render?action=TEMPLATE";
-    if (calendarId) {
-        baseUrl += `&src=${encodeURIComponent(calendarId)}`;
-    }
-    
-    window.open(`${baseUrl}&text=${encodeURIComponent(displayTitle)}&dates=${startTime}/${endTime}&details=${encodeURIComponent(details)}`, '_blank');
-}
-
-// --- 一時的タスクの完全削除機能 ---
-function deleteActualTask(id) {
-    if (confirm('この一時的タスクをリストから完全に削除しますか？')) {
-        tasks = tasks.filter(t => t.id !== id);
+        tasks[index].history[today] = 'cancelled';
         localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
         renderCards();
+    } else {
+        tasks[index].history[today] = 'completed';
+        localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
+        renderCards();
+
+        const task = tasks[index];
+        const calendarId = localStorage.getItem('calendar_target_id') || 'primary';
+        
+        const now = new Date();
+        const start = new Date(now);
+        if (task.startTime) {
+            const parts = task.startTime.split(':');
+            start.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0);
+        }
+        const end = new Date(start);
+        if (task.endTime) {
+            const parts = task.endTime.split(':');
+            end.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0);
+            if (start > end) {
+                end.setDate(end.getDate() + 1);
+            }
+        } else {
+            end.setHours(end.getHours() + 1);
+        }
+
+        const text = encodeURIComponent(task.text);
+        const dates = `${formatDateTimeUTC(start)}/${formatDateTimeUTC(end)}`;
+        const details = encodeURIComponent(task.description || '');
+        
+        let calUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}`;
+        if (calendarId && calendarId !== 'primary') {
+            calUrl += `&src=${encodeURIComponent(calendarId)}`;
+        }
+        
+        window.open(calUrl, '_blank');
     }
 }
 
+// --- 操作取り消し ---
 function undoTask(index) {
     const today = getFormattedDate(0);
-    if (tasks[index].history[today]) {
+    if (tasks[index].history && tasks[index].history[today]) {
         delete tasks[index].history[today];
         localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
         renderCards();
     }
 }
 
-// --- テーマ変更 ---
-function handleThemeChange(theme) {
-    applyTheme(theme);
-    localStorage.setItem('calendar_app_theme', theme);
-}
-
-// --- データ管理 ---
+// --- データエクスポート ---
 function exportJSON() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tasks, null, 2));
     const downloadAnchor = document.createElement('a');
@@ -565,8 +501,11 @@ function exportJSON() {
     downloadAnchor.remove();
 }
 
-function triggerImport() { document.getElementById('fileInput').click(); }
+function triggerImport() { 
+    document.getElementById('fileInput').click(); 
+}
 
+// --- データインポート ---
 function importJSON(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -591,6 +530,7 @@ function importJSON(event) {
     event.target.value = '';
 }
 
+// --- 初期状態リセット ---
 async function resetToDefault() {
     if (confirm('すべてのカスタム設定と履歴を削除し、デフォルトのtasks.jsonから再読み込みしますか？')) {
         localStorage.removeItem('calendar_tasks_v3');
@@ -600,4 +540,5 @@ async function resetToDefault() {
     }
 }
 
-initApp();
+// アプリの起動イベント
+document.addEventListener('DOMContentLoaded', initApp);
