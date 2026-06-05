@@ -457,6 +457,16 @@ function renderCards() {
                 buttonDisabled = true; 
             }
 
+            // --- サブアクションボタン（キャンセル or 削除）の条件分岐 ---
+            let secondaryButtonHtml = "";
+            if (task.specificDate) {
+                // 一時的タスクの場合はキャンセルではなく「削除」ボタンにする（既存の赤色指定を流用）
+                secondaryButtonHtml = `<button class="btn" style="background-color: #ef4444; color: #ffffff; flex: 1;" ${isLocked ? 'disabled' : ''} onclick="deleteActualTask('${task.id}')">削除</button>`;
+            } else {
+                // 通常ルーティンタスクは従来通り「キャンセル」
+                secondaryButtonHtml = `<button class="btn btn-cancel" ${isLocked ? 'disabled' : ''} onclick="executeTask(${taskIndex}, true)">キャンセル</button>`;
+            }
+
             card.innerHTML = `
                 ${undoButtonHtml}
                 <div>
@@ -469,7 +479,7 @@ function renderCards() {
                 </div>
                 <div class="card-actions">
                     <button class="btn btn-action" ${buttonDisabled ? 'disabled' : ''} onclick="executeTask(${taskIndex}, false)">追加</button>
-                    <button class="btn btn-cancel" ${isLocked ? 'disabled' : ''} onclick="executeTask(${taskIndex}, true)">キャンセル</button>
+                    ${secondaryButtonHtml}
                 </div>
                 <div class="card-footer">
                     累計実績: ${totalCompleted} 回
@@ -518,6 +528,15 @@ function executeTask(index, isCancel) {
     }
     
     window.open(`${baseUrl}&text=${encodeURIComponent(displayTitle)}&dates=${startTime}/${endTime}&details=${encodeURIComponent(details)}`, '_blank');
+}
+
+// --- 一時的タスクの完全削除機能 ---
+function deleteActualTask(id) {
+    if (confirm('この一時的タスクをリストから完全に削除しますか？')) {
+        tasks = tasks.filter(t => t.id !== id);
+        localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
+        renderCards();
+    }
 }
 
 function undoTask(index) {
