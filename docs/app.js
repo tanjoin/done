@@ -380,9 +380,20 @@ function isWithinTime(task) {
     const end = normalizeTime(task.endTime || "23:59");
     
     if (start <= end) {
+        // 通常の時間帯（同一日内）
         if (currentStr < start) return { valid: false, msg: `時間外 (${start}から)` };
         if (currentStr > end) return { valid: false, msg: `時間外 (${end}まで)` };
     } else {
+        // 翌日をまたぐ時間帯（start > end）
+        // 前日の履歴をチェック
+        const yesterday = getFormattedDate(-1);
+        const hasYesterdayHistory = task.history && task.history[yesterday];
+        
+        // 前日の履歴がある場合のみ、startTimeまでを時間外にする
+        if (hasYesterdayHistory && currentStr < start) {
+            return { valid: false, msg: `時間外 (${start}から)` };
+        }
+        // currentStr >= start OR currentStr <= end なら時間内
         if (currentStr < start && currentStr > end) {
             return { valid: false, msg: `時間外 (${start}〜翌${end})` };
         }
