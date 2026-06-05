@@ -33,24 +33,24 @@
                         </span>
                     </label>
                 </div>
-
-                <button id="toggleFilterBtn" class="btn btn-cancel">
-                    フィルターを開く ▼
-                </button>
                 
                 <div id="filterControls" class="filter-controls">
-                    <label class="filter-chip">
-                        <input type="checkbox" id="hideOutOfTimeCheckbox">
-                        <span class="chip-text">時間外を非表示</span>
-                    </label>
-                    <label class="filter-chip">
-                        <input type="checkbox" id="hideCompletedCheckbox">
-                        <span class="chip-text">追加済みを非表示</span>
-                    </label>
-                    <label class="filter-chip">
-                        <input type="checkbox" id="hideCancelledCheckbox">
-                        <span class="chip-text">キャンセル済を非表示</span>
-                    </label>
+                    <div class="filter-button-item">
+                        <span class="view-mode-label">該当日外</span>
+                        <button id="hideNonTargetDayBtn" type="button" class="filter-toggle-btn" aria-pressed="false">表示</button>
+                    </div>
+                    <div class="filter-button-item">
+                        <span class="view-mode-label">時間外</span>
+                        <button id="hideOutOfTimeBtn" type="button" class="filter-toggle-btn" aria-pressed="false">表示</button>
+                    </div>
+                    <div class="filter-button-item">
+                        <span class="view-mode-label">追加済み</span>
+                        <button id="hideCompletedBtn" type="button" class="filter-toggle-btn" aria-pressed="false">表示</button>
+                    </div>
+                    <div class="filter-button-item">
+                        <span class="view-mode-label">キャンセル済</span>
+                        <button id="hideCancelledBtn" type="button" class="filter-toggle-btn" aria-pressed="false">表示</button>
+                    </div>
                 </div>
             </div>
 

@@ -19,6 +19,12 @@ function formatDateTimeUTC(date) {
     return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 }
 
+function getStoredBool(key, defaultValue = false) {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return defaultValue;
+    return raw === 'true';
+}
+
 // --- テーマ適用 ---
 function applyTheme(theme) {
     const root = document.documentElement;
@@ -65,11 +71,25 @@ function setupPageSpecifics(currentTheme) {
     // --- タスク一覧画面用の初期化 ---
     if (document.getElementById('taskContainer')) {
         const viewModeToggle = document.getElementById('viewModeToggle');
-        const toggleFilterBtn = document.getElementById('toggleFilterBtn');
-        const filterControls = document.getElementById('filterControls');
-        const hideOutOfTimeCheckbox = document.getElementById('hideOutOfTimeCheckbox');
-        const hideCompletedCheckbox = document.getElementById('hideCompletedCheckbox');
-        const hideCancelledCheckbox = document.getElementById('hideCancelledCheckbox');
+        const hideNonTargetDayBtn = document.getElementById('hideNonTargetDayBtn');
+        const hideOutOfTimeBtn = document.getElementById('hideOutOfTimeBtn');
+        const hideCompletedBtn = document.getElementById('hideCompletedBtn');
+        const hideCancelledBtn = document.getElementById('hideCancelledBtn');
+
+        const setFilterButtonState = (btn, isHidden) => {
+            if (!btn) return;
+            btn.classList.toggle('is-hidden', isHidden);
+            btn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+            btn.innerText = isHidden ? '非表示' : '表示';
+        };
+
+        const toggleFilterState = (storageKey, btn) => {
+            const current = localStorage.getItem(storageKey) === 'true';
+            const next = !current;
+            localStorage.setItem(storageKey, next);
+            setFilterButtonState(btn, next);
+            renderCards();
+        };
 
         if (viewModeToggle) {
             const savedViewMode = localStorage.getItem('task_view_mode') || 'card';
@@ -81,53 +101,29 @@ function setupPageSpecifics(currentTheme) {
             });
         }
 
-        // 1. フィルタースイッチ自体の開閉状態を復元・制御するロジック
-        if (toggleFilterBtn && filterControls) {
-            const isFilterPanelVisible = localStorage.getItem('filter_panel_visible') === 'true';
-            
-            if (isFilterPanelVisible) {
-                filterControls.style.display = 'flex';
-                toggleFilterBtn.innerText = 'フィルターを隠す ▲';
-            } else {
-                filterControls.style.display = 'none';
-                toggleFilterBtn.innerText = 'フィルターを開く ▼';
-            }
+        setFilterButtonState(hideNonTargetDayBtn, getStoredBool('filter_hide_non_target_day', true));
+        setFilterButtonState(hideOutOfTimeBtn, getStoredBool('filter_hide_out_of_time', false));
+        setFilterButtonState(hideCompletedBtn, getStoredBool('filter_hide_completed', false));
+        setFilterButtonState(hideCancelledBtn, getStoredBool('filter_hide_cancelled', false));
 
-            toggleFilterBtn.addEventListener('click', () => {
-                const isCurrentlyHidden = filterControls.style.display === 'none';
-                if (isCurrentlyHidden) {
-                    filterControls.style.display = 'flex';
-                    toggleFilterBtn.innerText = 'フィルターを隠す ▲';
-                    localStorage.setItem('filter_panel_visible', 'true');
-                } else {
-                    filterControls.style.display = 'none';
-                    toggleFilterBtn.innerText = 'フィルターを開く ▼';
-                    localStorage.setItem('filter_panel_visible', 'false');
-                }
-            });
+        if (hideNonTargetDayBtn) {
+            hideNonTargetDayBtn.addEventListener('click', () => toggleFilterState('filter_hide_non_target_day', hideNonTargetDayBtn));
         }
-
-        // 2. 各フィルタースイッチのON/OFF状態の復元とイベント紐付け
-        if (hideOutOfTimeCheckbox && hideCompletedCheckbox && hideCancelledCheckbox) {
-            hideOutOfTimeCheckbox.checked = localStorage.getItem('filter_hide_out_of_time') === 'true';
-            hideCompletedCheckbox.checked = localStorage.getItem('filter_hide_completed') === 'true';
-            hideCancelledCheckbox.checked = localStorage.getItem('filter_hide_cancelled') === 'true';
-
-            const handleFilterChange = () => {
-                localStorage.setItem('filter_hide_out_of_time', hideOutOfTimeCheckbox.checked);
-                localStorage.setItem('filter_hide_completed', hideCompletedCheckbox.checked);
-                localStorage.setItem('filter_hide_cancelled', hideCancelledCheckbox.checked);
-                renderCards();
-            };
-
-            hideOutOfTimeCheckbox.addEventListener('change', handleFilterChange);
-            hideCompletedCheckbox.addEventListener('change', handleFilterChange);
-            hideCancelledCheckbox.addEventListener('change', handleFilterChange);
+        if (hideOutOfTimeBtn) {
+            hideOutOfTimeBtn.addEventListener('click', () => toggleFilterState('filter_hide_out_of_time', hideOutOfTimeBtn));
+        }
+        if (hideCompletedBtn) {
+            hideCompletedBtn.addEventListener('click', () => toggleFilterState('filter_hide_completed', hideCompletedBtn));
+        }
+        if (hideCancelledBtn) {
+            hideCancelledBtn.addEventListener('click', () => toggleFilterState('filter_hide_cancelled', hideCancelledBtn));
         }
 
         renderCards();
         checkNotificationPermission();
     }
+
+    updateNotificationTestUI();
     
     // --- 設定画面用の初期化 ---
     if (document.getElementById('themeForm')) {
@@ -167,13 +163,53 @@ function checkNotificationPermission() {
     banner.style.display = (Notification.permission === 'default') ? 'flex' : 'none';
 }
 
+function updateNotificationTestUI() {
+    const enableBtn = document.getElementById('notificationEnableBtn');
+    if (!enableBtn) return;
+
+    const testBtn = document.getElementById('sendTestNotificationBtn');
+    const isGranted = Notification.permission === 'granted';
+
+    enableBtn.style.display = isGranted ? 'none' : 'inline-flex';
+
+    if (testBtn) {
+        testBtn.disabled = !isGranted;
+        testBtn.title = isGranted ? '' : '先に通知を有効にしてください。';
+    }
+}
+
 function requestPermission() {
     Notification.requestPermission().then(permission => {
         checkNotificationPermission();
+        updateNotificationTestUI();
         if (permission === 'granted') {
             alert('プッシュ通知が有効になりました！');
         }
     });
+}
+
+function sendTestNotification() {
+    if (!('Notification' in window)) {
+        alert('このブラウザは通知に対応していません。');
+        return;
+    }
+
+    if (Notification.permission !== 'granted') {
+        alert('先に「通知を有効にする」を押してください。');
+        return;
+    }
+
+    const notification = new Notification('通知テスト', {
+        body: 'done からのテスト通知です。表示されていれば設定は正常です。',
+        icon: 'https://calendar.google.com/calendar/images/favicon_v2014_3.ico'
+    });
+
+    notification.onclick = function(event) {
+        event.preventDefault();
+        window.focus();
+    };
+
+    playNotificationSound();
 }
 
 // --- スケジュール合致判定 ---
@@ -354,17 +390,20 @@ function isWithinTime(task) {
     return { valid: true, msg: "" };
 }
 
-function getTaskStatusInfo(task, todayStatus, timeCheck) {
+function getTaskStatusInfo(task, todayStatus, timeCheck, isTargetDay) {
     if (todayStatus === 'completed') {
         return { label: '追加済み', className: 'chip-status-done', locked: true };
     }
     if (todayStatus === 'cancelled') {
         return { label: 'キャンセル済', className: 'chip-status-cancel', locked: true };
     }
-    if (timeCheck.valid) {
-        return { label: 'In progress', className: 'chip-status-active', locked: false };
+    if (!isTargetDay) {
+        return { label: '対象日外', className: 'chip-status-nontarget', locked: true };
     }
-    return { label: 'Todo', className: 'chip-status-todo', locked: false };
+    if (timeCheck.valid) {
+        return { label: '実施可能', className: 'chip-status-active', locked: false };
+    }
+    return { label: '未実施', className: 'chip-status-todo', locked: false };
 }
 
 function getScheduleLabel(task) {
@@ -379,7 +418,7 @@ function getScheduleLabel(task) {
     return '毎日';
 }
 
-function renderTableView(container, filteredTasks, today) {
+function renderTableView(container, filteredTasks, today, targetDayMap) {
     const tableWrapper = document.createElement('div');
     tableWrapper.className = 'table-wrapper';
 
@@ -388,12 +427,11 @@ function renderTableView(container, filteredTasks, today) {
     table.innerHTML = `
         <thead>
             <tr>
-                <th>#</th>
+                <th>グループ</th>
                 <th>タスク</th>
-                <th>ステータス</th>
-                <th>カテゴリ</th>
-                <th>日付</th>
                 <th>時間</th>
+                <th>日付</th>
+                <th>ステータス</th>
                 <th>操作</th>
             </tr>
         </thead>
@@ -406,7 +444,8 @@ function renderTableView(container, filteredTasks, today) {
         const taskIndex = tasks.findIndex(t => t.id === task.id);
         const todayStatus = task.history[today];
         const timeCheck = isWithinTime(task);
-        const statusInfo = getTaskStatusInfo(task, todayStatus, timeCheck);
+        const isTargetDay = targetDayMap[task.id] === true;
+        const statusInfo = getTaskStatusInfo(task, todayStatus, timeCheck, isTargetDay);
         const isStrict = task.strictMode === true || task.strictMode === 'true';
         const addDisabled = statusInfo.locked || (!timeCheck.valid && isStrict);
         const row = document.createElement('tr');
@@ -428,12 +467,11 @@ function renderTableView(container, filteredTasks, today) {
             : `<button class="table-btn table-btn-primary" ${addDisabled ? 'disabled' : ''} onclick="executeTask(${taskIndex}, false)">追加</button>`;
 
         row.innerHTML = `
-            <td class="task-index">${idx + 1}</td>
-            <td class="task-name">${task.text}</td>
-            <td><span class="chip ${statusInfo.className}">${statusInfo.label}</span></td>
             <td><span class="chip chip-group">${task.group || 'その他'}</span></td>
-            <td>${getScheduleLabel(task)}</td>
+            <td class="task-name">${task.text}</td>
             <td>${timeLabel}</td>
+            <td>${getScheduleLabel(task)}</td>
+            <td><span class="chip ${statusInfo.className}">${statusInfo.label}</span></td>
             <td>
                 <div class="table-actions">
                     ${actionMain}
@@ -457,21 +495,25 @@ function renderCards() {
     const today = getFormattedDate(0);
     const yesterday = getFormattedDate(-1);
 
-    const hideOutOfTime = localStorage.getItem('filter_hide_out_of_time') === 'true';
-    const hideCompleted = localStorage.getItem('filter_hide_completed') === 'true';
-    const hideCancelled = localStorage.getItem('filter_hide_cancelled') === 'true';
+    const hideNonTargetDay = getStoredBool('filter_hide_non_target_day', true);
+    const hideOutOfTime = getStoredBool('filter_hide_out_of_time', false);
+    const hideCompleted = getStoredBool('filter_hide_completed', false);
+    const hideCancelled = getStoredBool('filter_hide_cancelled', false);
 
     const filteredTasks = [];
+    const targetDayMap = {};
     const groups = {};
     tasks.forEach(task => {
-        if (!shouldShowTask(task)) return;
+        const isTargetDay = shouldShowTask(task);
+        targetDayMap[task.id] = isTargetDay;
+        if (!isTargetDay && hideNonTargetDay) return;
 
         const todayStatus = task.history[today];
         const timeCheck = isWithinTime(task);
 
         if (todayStatus === 'completed' && hideCompleted) return;
         if (todayStatus === 'cancelled' && hideCancelled) return;
-        if (!todayStatus && !timeCheck.valid && hideOutOfTime) return;
+        if (isTargetDay && !todayStatus && !timeCheck.valid && hideOutOfTime) return;
 
         const groupName = task.group || "その他";
         filteredTasks.push(task);
@@ -485,8 +527,9 @@ function renderCards() {
     }
 
     const currentViewMode = localStorage.getItem('task_view_mode') || 'card';
+    document.body.classList.toggle('table-view-mode', currentViewMode === 'table');
     if (currentViewMode === 'table') {
-        renderTableView(container, filteredTasks, today);
+        renderTableView(container, filteredTasks, today, targetDayMap);
         return;
     }
 
@@ -510,6 +553,7 @@ function renderCards() {
 
         groups[groupName].forEach(task => {
             const taskIndex = tasks.findIndex(t => t.id === task.id);
+            const isTargetDay = targetDayMap[task.id] === true;
             const todayStatus = task.history[today];
             const yesterdayStatus = task.history[yesterday];
             const timeCheck = isWithinTime(task);
@@ -532,6 +576,9 @@ function renderCards() {
                 isLocked = true;
             } else if (todayStatus === 'cancelled') {
                 badgeHtml = `<span class="status-badge status-cancelled">キャンセル済</span>`;
+                isLocked = true;
+            } else if (!isTargetDay) {
+                badgeHtml = `<span class="status-badge">対象日外</span>`;
                 isLocked = true;
             }
 

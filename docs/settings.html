@@ -52,6 +52,17 @@
             </div>
 
             <div class="data-box">
+                <h3 class="group-title">通知テスト</h3>
+                <p class="setting-desc">
+                    ブラウザ通知が届くかを確認できます。まず「通知を有効にする」を押してからテストしてください。
+                </p>
+                <div class="btn-group-wrap">
+                    <button id="notificationEnableBtn" class="btn btn-cancel" onclick="requestPermission()">通知を有効にする</button>
+                    <button id="sendTestNotificationBtn" class="btn btn-action" onclick="sendTestNotification()">テスト通知を送信</button>
+                </div>
+            </div>
+
+            <div class="data-box">
                 <h3 class="group-title">データ管理</h3>
                 <p class="setting-desc">
                     タスクの設定内容や、これまでの実施・キャンセル履歴をJSONファイルとして保存・復元できます。

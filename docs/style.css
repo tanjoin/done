@@ -82,6 +82,10 @@ body {
     margin: 0 auto;
 }
 
+body.table-view-mode .container {
+    max-width: min(96vw, 1480px);
+}
+
 /* ナビゲーション */
 .nav-bar {
     display: flex;
@@ -377,6 +381,10 @@ body {
     box-sizing: border-box;
 }
 
+.switch-track-compact {
+    width: 150px;
+}
+
 .switch-text-left,
 .switch-text-right {
     z-index: 2;
@@ -406,7 +414,8 @@ body {
 .table-wrapper {
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: hidden;
     background-color: var(--card-bg);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
@@ -414,7 +423,7 @@ body {
 .task-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 720px;
+    table-layout: auto;
 }
 
 .task-table th,
@@ -422,7 +431,8 @@ body {
     border-bottom: 1px solid var(--border-color);
     padding: 10px 12px;
     font-size: 13px;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
     text-align: left;
 }
 
@@ -444,7 +454,7 @@ body {
 
 .task-index {
     color: var(--text-muted);
-    width: 40px;
+    width: auto;
 }
 
 .task-name {
@@ -485,13 +495,16 @@ body {
     border-color: #fca5a5;
 }
 
+.chip-status-nontarget {
+    background-color: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
 .chip-group {
     background-color: #e0f2fe;
     color: #0c4a6e;
     border-color: #7dd3fc;
-    max-width: 170px;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .table-actions {
@@ -501,10 +514,10 @@ body {
 
 .table-btn {
     padding: 4px 9px;
-    border: 1px solid var(--border-color);
+    border: 1px solid transparent;
     border-radius: 6px;
-    background-color: var(--card-bg);
-    color: var(--text-secondary);
+    background-color: var(--btn-secondary-bg);
+    color: var(--btn-secondary-text);
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
@@ -523,51 +536,53 @@ body {
 }
 
 .table-btn:disabled {
-    opacity: 0.55;
+    background-color: var(--bg-color) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-muted) !important;
     cursor: not-allowed;
+    box-shadow: none !important;
 }
 
 /* スイッチ本体を格納するアコーディオンパネル */
 .filter-controls {
-    display: none; /* JS側で flex と none を切り替え */
-    gap: 8px;
+    display: flex;
+    gap: 10px;
     flex-wrap: wrap;
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    padding: 12px;
     margin-top: 12px;
-    width: fit-content;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-/* ボタン型のカスタムチップ */
-.filter-chip {
+.filter-button-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filter-toggle-btn {
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--accent-color);
+    background-color: transparent;
+    color: var(--accent-color);
+    font-size: 12px;
+    font-weight: 700;
     cursor: pointer;
-    user-select: none;
 }
 
-.filter-chip input {
-    display: none; /* 生のチェックボックスを非表示 */
+.filter-toggle-btn:hover {
+    background-color: rgba(26, 115, 232, 0.08);
 }
 
-.filter-chip .chip-text {
-    display: inline-block;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    background-color: var(--btn-secondary-bg);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-    transition: all 0.15s ease;
-}
-
-/* フィルターがON（非表示設定が有効）になった時のアクティブカラー */
-.filter-chip input:checked + .chip-text {
+.filter-toggle-btn.is-hidden {
     background-color: var(--accent-color);
     color: var(--btn-primary-text);
     border-color: var(--accent-color);
+}
+
+@media (max-width: 640px) {
+    .filter-button-item {
+        width: 100%;
+        justify-content: space-between;
+    }
 }
 
 /* 設定画面の細かいパーツ調整用の汎用クラス */
