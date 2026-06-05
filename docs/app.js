@@ -47,6 +47,9 @@ async function initApp() {
 
     const currentTheme = localStorage.getItem('calendar_app_theme') || 'system';
     setupPageSpecifics(currentTheme);
+
+    // 通知UI（バナーおよび設定画面のステータス）の表示状態を更新
+    updateNotificationUI();
 }
 
 async function loadDefaultTasksFromJSON() {
@@ -537,6 +540,89 @@ async function resetToDefault() {
         await loadDefaultTasksFromJSON();
         alert('初期設定に戻しました。');
         if (document.getElementById('taskContainer')) renderCards();
+    }
+}
+
+// =========================================================================
+//   プッシュ通知制御 ＆ ステータス同期ロジック
+// =========================================================================
+
+/**
+ * 通知関連のUI（トップページのバナーや設定画面のステータス）を統合管理する関数
+ */
+function updateNotificationUI() {
+    const banner = document.getElementById('notificationBanner');
+    const statusEl = document.getElementById('notificationStatus');
+    const reqBtn = document.getElementById('requestPermissionBtn');
+    const testBtn = document.getElementById('testNotificationBtn');
+
+    // ブラウザが通知機能に対応していない場合
+    if (!('Notification' in window)) {
+        if (statusEl) statusEl.textContent = 'お使いのブラウザは通知に未対応です';
+        if (banner) banner.style.display = 'none';
+        if (reqBtn) reqBtn.style.display = 'none';
+        return;
+    }
+
+    const permission = Notification.permission;
+
+    // 1. トップページの通知有効化バナーの制御（未設定の場合のみ出す）
+    if (banner) {
+        banner.style.display = (permission === 'default') ? 'flex' : 'none';
+    }
+
+    // 2. 設定画面（settings.html）内の通知設定ステータス表示制御
+    if (statusEl) {
+        if (permission === 'granted') {
+            statusEl.textContent = '許可済み ✔';
+            statusEl.style.color = '#10b981'; // 鮮やかな緑
+            if (reqBtn) reqBtn.style.display = 'none';
+            if (testBtn) testBtn.style.display = 'inline-block';
+        } else if (permission === 'denied') {
+            statusEl.textContent = 'ブラウザ側でブロックされています ❌';
+            statusEl.style.color = '#ef4444'; // 警告の赤
+            if (reqBtn) {
+                reqBtn.textContent = 'アドレスバーの鍵アイコン等から許可してください';
+                reqBtn.disabled = true;
+                reqBtn.style.display = 'inline-block';
+            }
+            if (testBtn) testBtn.style.display = 'none';
+        } else {
+            statusEl.textContent = '未設定（デフォルト）';
+            statusEl.style.color = 'var(--text-secondary)';
+            if (reqBtn) {
+                reqBtn.textContent = '通知を有効にする';
+                reqBtn.disabled = false;
+                reqBtn.style.display = 'inline-block';
+            }
+            if (testBtn) testBtn.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * 通知権限を要求する関数（ボタンの onclick から呼び出される）
+ */
+function requestPermission() {
+    if (!('Notification' in window)) return;
+
+    Notification.requestPermission().then(permission => {
+        updateNotificationUI();
+        if (permission === 'granted') {
+            sendTestNotification();
+        }
+    });
+}
+
+/**
+ * 動作確認用のテスト通知を送信する関数
+ */
+function sendTestNotification() {
+    if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('ルーティンカレンダー連携', {
+            body: 'プッシュ通知は正常に機能しています！',
+            tag: 'test-notification'
+        });
     }
 }
 

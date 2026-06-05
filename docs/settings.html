@@ -33,9 +33,9 @@
                 </form>
             </div>
 
-            <div class="theme-options">
+            <div class="data-box">
                 <h3 class="group-title">テーマ設定</h3>
-                <form id="themeForm">
+                <form id="themeForm" class="theme-options-wrap">
                     <label class="theme-option">
                         <input type="radio" name="theme" value="system" checked onchange="handleThemeChange(this.value)">
                         <span>システム設定に従う</span>
@@ -49,6 +49,18 @@
                         <span>ダークモード</span>
                     </label>
                 </form>
+            </div>
+
+            <div class="data-box">
+                <h3 class="group-title">通知設定</h3>
+                <p class="setting-desc">
+                    タスク開始時刻のプッシュ通知の状態確認や、正常に届くかのテストが行えます。
+                </p>
+                <div class="form-actions-row" style="align-items: center; gap: 16px; flex-wrap: wrap;">
+                    <div>現在のステータス: <strong id="notificationStatus">確認中...</strong></div>
+                    <button id="requestPermissionBtn" class="btn btn-cancel" onclick="requestPermission()">通知を有効にする</button>
+                    <button id="testNotificationBtn" class="btn btn-secondary" onclick="sendTestNotification()" style="display: none;">テスト通知を送信</button>
+                </div>
             </div>
 
             <div class="data-box">
