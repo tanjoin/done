@@ -479,7 +479,7 @@ function renderTableView(container, filteredTasks, today, targetDayMap) {
 
         row.innerHTML = `
             <td><span class="chip chip-group">${task.group || 'その他'}</span></td>
-            <td class="task-name">${task.text}</td>
+            <td class="task-name">${task.link ? ('<a href="' + task.link + '" target="_blank" rel="noopener noreferrer">' + task.text + '</a>') : task.text}</td>
             <td>${timeLabel}</td>
             <td>${getScheduleLabel(task)}</td>
             <td><span class="chip ${statusInfo.className}">${statusInfo.label}</span></td>
