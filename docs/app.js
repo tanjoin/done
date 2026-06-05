@@ -167,6 +167,12 @@ function requestPermission() {
 
 // --- スケジュール合致判定 ---
 function isTaskScheduledOnDate(task, date) {
+
+    if (task.specificDate) {
+        const dStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        return task.specificDate === dStr;
+    }
+
     const currentDayOfWeek = date.getDay();  
     const currentDayOfMonth = date.getDate(); 
 
