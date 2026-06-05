@@ -211,36 +211,62 @@ function initNotificationTimer() {
 function playNotificationSound() {
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-        
         const ctx = new AudioContext();
-        const now = ctx.currentTime;
         
-        // 心地よいCメジャーコードの周波数（ド・ミ・ソ・高音ド）
-        const freqs = [523.25, 659.25, 783.99, 1046.50];
+        // チャイムのゆったりとしたテンポ（1拍＝1.2秒、四捨五入なし）
+        const beatDuration = 0.1; 
         
-        freqs.forEach((freq, index) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
+        // MIDIノート番号から周波数（Hz）への正確な変換式
+        const noteToFreq = (note) => 440 * Math.pow(2, (note - 69) / 12);
+        
+        // ウェストミンスターの鐘の音階（ミ・ド・レ・ソ ／ ソ・レ・ミ・ド）
+        const chimeNotes = [
+            { beat: 0, note: 64 }, // ミ (E4)
+            { beat: 2, note: 60 }, // ド (C4)
+            { beat: 4, note: 62 }, // レ (D4)
+            { beat: 6, note: 55 }, // ソ (G3)
             
-            // 高音に向かって「100分の2秒」ずつ発音を遅らせて、綺麗なアルペジオ（楽器の弾き方）にする
-            const timeOffset = index * 0.02;
-            const startTime = now + timeOffset;
-            const duration = 0.8; // 残響の長さ（秒）
+            { beat: 9, note: 55 }, // ソ (G3)
+            { beat: 11, note: 62 }, // レ (D4)
+            { beat: 13, note: 64 }, // ミ (E4)
+            { beat: 15, note: 60 }  // ド (C4)
+        ];
+        
+        const startTime = ctx.currentTime + 0.1;
+        
+        chimeNotes.forEach(item => {
+            const time = startTime + (item.beat * beatDuration);
+            // 音が美しく重なるよう、1音あたり4秒間の余韻を持たせる
+            const duration = 4.0; 
             
-            osc.type = 'sine'; // まろやかなサイン波
-            osc.frequency.setValueAtTime(freq, startTime);
+            // 鐘の金属的な複合音を再現するため、基本音に加えて3つの倍音（共鳴音）を生成
+            // [倍音の比率, 音量比率]
+            const partials = [
+                { ratio: 1.0, vol: 0.25 },  // 基本音
+                { ratio: 2.0, vol: 0.05 },  // 1オクターブ上
+                { ratio: 3.0, vol: 0.015 }, // 1オクターブと5度上
+                { ratio: 4.0, vol: 0.005 }  // 2オクターブ上
+            ];
             
-            // 音量エンベロープ（最初は無音 ➔ 瞬時に立ち上がり ➔ 滑らかに消える）
-            gain.gain.setValueAtTime(0, startTime);
-            gain.gain.linearRampToValueAtTime(0.04, startTime + 0.03); // 耳に刺さらない程度の優しい音量
-            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-            
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            
-            osc.start(startTime);
-            osc.stop(startTime + duration);
+            partials.forEach(partial => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = 'sine'; // 澄んだ正弦波
+                // 基本の周波数に比率を掛け合わせて正確な倍音を計算
+                osc.frequency.value = noteToFreq(item.note) * partial.ratio;
+                
+                // 鐘を叩いた瞬間の鋭い立ち上がりと、静かに消えていく減衰（パーカッシブ・エンベロープ）
+                gain.gain.setValueAtTime(0, time);
+                gain.gain.linearRampToValueAtTime(partial.vol, time + 0.03); // アタック
+                gain.gain.exponentialRampToValueAtTime(0.00001, time + duration); // 長い余韻（ディケイ／リリース）
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.start(time);
+                osc.stop(time + duration);
+            });
         });
     } catch (e) {
         console.warn("音声再生がブロックされました。", e);
