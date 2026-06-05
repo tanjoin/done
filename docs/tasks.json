@@ -5,7 +5,7 @@
     "group": "健康・ルーティン",
     "daysOfWeek": [],
     "daysOfMonth": [],
-    "startTime": "",
+    "startTime": "5:00",
     "endTime": "",
     "history": {},
     "notifiedDate": ""
@@ -17,7 +17,7 @@
     "daysOfWeek": [],
     "daysOfMonth": [],
     "startTime": "21:00",
-    "endTime": "",
+    "endTime": "2:00",
     "history": {},
     "notifiedDate": ""
   },
@@ -346,6 +346,7 @@
     "daysOfMonth": [5],
     "startTime": "",
     "endTime": "",
+    "link": "https://www.jreast.co.jp/card/caution/notice220524.html/",
     "history": {},
     "notifiedDate": ""
   },
@@ -355,8 +356,8 @@
     "group": "遊戯王マスターデュエル",
     "daysOfWeek": [],
     "daysOfMonth": [],
-    "startTime": "",
-    "endTime": "",
+    "startTime": "3:00",
+    "endTime": "2:59",
     "description": "遊戯王デュエリストポイント公式サイト",
     "link": "https://yugioh-duelist-point.konami.net/",
     "history": {},
@@ -382,6 +383,52 @@
     "daysOfMonth": [1],
     "startTime": "",
     "endTime": "",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-35",
+    "text": "5000歩",
+    "group": "楽天ヘルスケア",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-36",
+    "text": "デイリーミッション",
+    "group": "スパロボDD",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-37",
+    "text": "エポスカードの明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [6],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://www.eposcard.co.jp/memberservice/pc/login/login_preload.do",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-38",
+    "text": "上坂すみれの土曜闇鍋劇場",
+    "group": "声優",
+    "daysOfWeek": [0],
+    "daysOfMonth": [],
+    "startTime": "0:00",
+    "endTime": "0:30",
+    "link": "https://radiko.jp/#!/live/INT",
     "history": {},
     "notifiedDate": ""
   }
