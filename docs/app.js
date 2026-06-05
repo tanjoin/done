@@ -207,27 +207,41 @@ function initNotificationTimer() {
     setInterval(checkAndSendNotifications, 60000);
 }
 
-// Mac/ブラウザ環境で確実に通知音を鳴らすためのオーディオ合成関数
+// 【大幅修正】高級感のある「ポロロン✨」という透き通った和音チャイムを合成
 function playNotificationSound() {
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
         
         const ctx = new AudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        const now = ctx.currentTime;
         
-        osc.type = 'sine'; 
-        osc.frequency.setValueAtTime(880, ctx.currentTime); 
+        // 心地よいCメジャーコードの周波数（ド・ミ・ソ・高音ド）
+        const freqs = [523.25, 659.25, 783.99, 1046.50];
         
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-        
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        
-        osc.start();
-        osc.stop(ctx.currentTime + 0.5);
+        freqs.forEach((freq, index) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            // 高音に向かって「100分の2秒」ずつ発音を遅らせて、綺麗なアルペジオ（楽器の弾き方）にする
+            const timeOffset = index * 0.02;
+            const startTime = now + timeOffset;
+            const duration = 0.8; // 残響の長さ（秒）
+            
+            osc.type = 'sine'; // まろやかなサイン波
+            osc.frequency.setValueAtTime(freq, startTime);
+            
+            // 音量エンベロープ（最初は無音 ➔ 瞬時に立ち上がり ➔ 滑らかに消える）
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.04, startTime + 0.03); // 耳に刺さらない程度の優しい音量
+            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        });
     } catch (e) {
         console.warn("音声再生がブロックされました。", e);
     }
@@ -256,10 +270,8 @@ function checkAndSendNotifications() {
                 icon: "https://calendar.google.com/calendar/images/favicon_v2014_3.ico"
             });
 
-            // 【修正】現在の環境ドメインをベースに、指定されたルート相対パス（/done）を安全に結合
             notification.onclick = function(event) {
                 event.preventDefault();
-                // ※もしフォルダ内の「done.html」等のファイルへ飛ばしたい場合は、第1引数を 'done.html' に変更してください
                 const targetUrl = new URL('/done', window.location.href).href;
                 window.open(targetUrl, '_blank');
             };
