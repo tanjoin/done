@@ -201,13 +201,16 @@ function shouldShowTask(task) {
     return false;
 }
 
-// タイマーと通知判定（60000ミリ秒周期）
+// タイマー周期処理内で画面表示（renderCards）も更新するように拡張
 function initNotificationTimer() {
     checkAndSendNotifications();
-    setInterval(checkAndSendNotifications, 60000);
+    setInterval(() => {
+        checkAndSendNotifications();
+        renderCards(); // 1分ごとに画面を自動再描画してステータスを同期
+    }, 60000);
 }
 
-// 【大幅修正】高級感のある「ポロロン✨」という透き通った和音チャイムを合成
+// チャイムを鳴らす
 function playNotificationSound() {
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
