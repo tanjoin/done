@@ -2,69 +2,83 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>一時的タスクの追加</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 700px; margin: 0 auto; background: #f4f6f9; color: #333; }
-        h2 { border-bottom: 2px solid #007bff; padding-bottom: 5px; margin-top: 30px; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .form-group input[type="text"], .form-group input[type="time"], .form-group input[type="url"], .form-group textarea, .form-group input[type="date"] { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        .btn { padding: 10px 20px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 4px; font-weight: bold; width: 100%; font-size: 1.1em; }
-        .btn:hover { background: #218838; }
-        .nav-link { display: inline-block; margin-bottom: 20px; color: #007bff; text-decoration: none; }
-        
-        /* 過去の追加履歴（再利用エリア）のスタイル */
-        .history-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 4px; background: white; display: flex; justify-content: space-between; align-items: center; }
-        .history-info { flex-grow: 1; }
-        .btn-reuse { padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-reuse:hover { background: #0056b3; }
-        .btn-delete { padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px; }
-        .btn-delete:hover { background: #bd2130; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ルーティンカレンダー連携アプリ - 一時的タスク</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <a href="index.html" class="nav-link">← メインのタスク一覧に戻る</a>
+    <div class="container">
+        <header class="nav-bar">
+            <a href="index.html" class="nav-link">タスク一覧</a>
+            <a href="temporary.html" class="nav-link active">一時的タスク</a>
+            <a href="settings.html" class="nav-link">設定・データ管理</a>
+        </header>
 
-    <h2>一時的タスクを追加する</h2>
-    <form id="taskForm">
-        <div class="form-group">
-            <label>実施日 *</label>
-            <input type="date" id="date" required>
-        </div>
-        <div class="form-group">
-            <label>グループ（カテゴリー）</label>
-            <input type="text" id="group" placeholder="例: 突発、買い物、通院" list="groupSuggestions">
-            <datalist id="groupSuggestions"></datalist>
-        </div>
-        <div class="form-group">
-            <label>タスク名 *</label>
-            <input type="text" id="text" required placeholder="例: 役所で書類の申請">
-        </div>
-        <div class="form-group">
-            <label>開始時刻（省略可）</label>
-            <input type="time" id="startTime">
-        </div>
-        <div class="form-group">
-            <label>終了時刻（省略可）</label>
-            <input type="time" id="endTime">
-        </div>
-        <div class="form-group">
-            <label>説明（省略可）</label>
-            <textarea id="description" rows="2" placeholder="持ち物やメモなど"></textarea>
-        </div>
-        <div class="form-group">
-            <label>関連リンク（省略可）</label>
-            <input type="url" id="link" placeholder="https://...">
-        </div>
-        <div class="form-group">
-            <label><input type="checkbox" id="strictMode"> 時間外の操作を禁止する（厳格モード）</label>
-        </div>
-        <button type="submit" class="btn">本番リストに追加する</button>
-    </form>
+        <main>
+            <div class="data-box">
+                <h3 class="group-title">一時的タスクを追加する</h3>
+                <form id="taskForm" class="setting-form" style="margin-top: 24px;">
+                    
+                    <div style="width: 100%;">
+                        <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">実施日 *</label>
+                        <input type="date" id="date" required class="setting-input">
+                    </div>
+                    
+                    <div style="width: 100%;">
+                        <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">グループ（カテゴリー）</label>
+                        <input type="text" id="group" placeholder="例: 突発、買い物、通院" list="groupSuggestions" class="setting-input">
+                        <datalist id="groupSuggestions"></datalist>
+                    </div>
+                    
+                    <div style="width: 100%;">
+                        <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">タスク名 *</label>
+                        <input type="text" id="text" required placeholder="例: 役所で書類の申請" class="setting-input">
+                    </div>
+                    
+                    <div style="width: 100%; display: flex; gap: 16px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">開始時刻（省略可）</label>
+                            <input type="time" id="startTime" class="setting-input">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">終了時刻（省略可）</label>
+                            <input type="time" id="endTime" class="setting-input">
+                        </div>
+                    </div>
+                    
+                    <div style="width: 100%;">
+                        <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">説明（省略可）</label>
+                        <textarea id="description" rows="2" placeholder="持ち物やメモなど" class="setting-input" style="font-family: inherit; resize: vertical;"></textarea>
+                    </div>
+                    
+                    <div style="width: 100%;">
+                        <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">関連リンク（省略可）</label>
+                        <input type="url" id="link" placeholder="https://..." class="setting-input">
+                    </div>
+                    
+                    <div style="width: 100%; margin-top: 4px; margin-bottom: 8px;">
+                        <label class="theme-option" style="margin-bottom: 0;">
+                            <input type="checkbox" id="strictMode">
+                            <span>時間外の操作を禁止する（厳格モード）</span>
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-action" style="width: 100%; padding: 12px;">本番リストに追加する</button>
+                </form>
+            </div>
 
-    <h2>過去に追加した一時的タスク（クリックで内容をコピー）</h2>
-    <div id="historyContainer"></div>
+            <div style="margin-top: 40px; margin-bottom: 16px;">
+                <h3 class="group-title">過去に追加した一時的タスク（クリックで内容をコピー）</h3>
+                <div id="historyContainer" style="margin-top: 16px;"></div>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            <a href="https://github.com/tanjoin/done" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">GitHub</a>
+            &copy; 2026 done by tanjoin
+        </footer>
+    </div>
 
     <script src="temporary.js"></script>
 </body>
