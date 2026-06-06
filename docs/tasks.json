@@ -645,5 +645,49 @@
     "link": "https://radiko.jp/#!/timetable/QRR",
     "history": {},
     "notifiedDate": ""
+  },
+  {
+    "id": "task-57",
+    "text": "風呂",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-58",
+    "text": "歯磨き（午前）",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "0:00",
+    "endTime": "11:59",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-59",
+    "text": "歯磨き（午後）",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "12:00",
+    "endTime": "23:59",
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-60",
+    "text": "洗濯",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "12:00",
+    "endTime": "23:59",
+    "history": {},
+    "notifiedDate": ""
   }
 ]
