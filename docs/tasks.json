@@ -685,8 +685,8 @@
     "group": "健康・ルーティン",
     "daysOfWeek": [],
     "daysOfMonth": [],
-    "startTime": "12:00",
-    "endTime": "23:59",
+    "startTime": "",
+    "endTime": "",
     "history": {},
     "notifiedDate": ""
   }
