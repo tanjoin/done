@@ -20,11 +20,17 @@
                 <h3 class="group-title">一時的タスクを追加する</h3>
                 <form id="taskForm" class="setting-form" style="margin-top: 24px;">
                     
-                    <div style="width: 100%;">
-                        <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">実施日 *</label>
-                        <input type="date" id="date" required class="setting-input">
+                    <div style="width: 100%; display: flex; gap: 16px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 220px;">
+                            <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">開始日 *</label>
+                            <input type="date" id="date" required class="setting-input">
+                        </div>
+                        <div style="flex: 1; min-width: 220px;">
+                            <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">終了日（省略可）</label>
+                            <input type="date" id="endDate" class="setting-input">
+                        </div>
                     </div>
-                    
+                    <p style="margin-top: 10px; color: var(--text-secondary); font-size: 13px;">終了日を設定すると、開始日から終了日の間に1回だけ実施すればOKになります。</p>
                     <div style="width: 100%;">
                         <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">グループ（カテゴリー）</label>
                         <input type="text" id="group" placeholder="例: 突発、買い物、通院" list="groupSuggestions" class="setting-input">

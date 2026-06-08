@@ -271,6 +271,25 @@ function isTaskScheduledOnDate(task, date) {
 
     if (task.specificDate) {
         const dStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        if (task.endDate) {
+            const start = new Date(task.specificDate);
+            const end = new Date(task.endDate);
+            if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
+                return false;
+            }
+            if (date < start || date > end) {
+                return false;
+            }
+            const todayCompleted = task.history && task.history[dStr] === 'completed';
+            if (todayCompleted) {
+                return true;
+            }
+            const completedBeforeToday = Object.keys(task.history || {}).some(histDate => {
+                if (task.history[histDate] !== 'completed') return false;
+                return histDate >= task.specificDate && histDate < dStr;
+            });
+            return !completedBeforeToday;
+        }
         return task.specificDate === dStr;
     }
 
@@ -472,7 +491,15 @@ function getTaskStatusInfo(task, todayStatus, timeCheck, isTargetDay) {
 }
 
 function getScheduleLabel(task) {
-    if (task.specificDate) return task.specificDate;
+    if (task.specificDate) {
+        if (task.endDate) {
+            if (task.endDate === task.specificDate) {
+                return task.specificDate;
+            }
+            return `${task.specificDate} 〜 ${task.endDate}`;
+        }
+        return task.specificDate;
+    }
     if (task.daysOfWeek && task.daysOfWeek.length) {
         const labels = ['日', '月', '火', '水', '木', '金', '土'];
         return task.daysOfWeek.map(day => labels[day] + '曜').join(', ');

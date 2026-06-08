@@ -21,6 +21,7 @@ function initTemporaryPage() {
     }
     // 実施日のデフォルトに今日を設定
     document.getElementById('date').value = getTodayString();
+    document.getElementById('endDate').value = '';
 
     // グループ名のサジェスト候補をセットアップ
     setupGroupSuggestions();
@@ -77,6 +78,7 @@ function publishTemporaryTask(e) {
     e.preventDefault();
 
     const targetDate = document.getElementById('date').value;
+    const endDateVal = document.getElementById('endDate').value;
     const groupVal = document.getElementById('group').value.trim();
     const textVal = document.getElementById('text').value.trim();
     const startVal = document.getElementById('startTime').value;
@@ -96,6 +98,10 @@ function publishTemporaryTask(e) {
         }
     }
 
+    if (endDateVal && endDateVal < targetDate) {
+        alert('終了日は開始日と同じかそれ以降の日付にしてください。');
+        return;
+    }
     // 2. 本番用の一時的タスクオブジェクトを作成
     const newTaskInstance = {
         id: 'actual_temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
@@ -108,7 +114,8 @@ function publishTemporaryTask(e) {
         strictMode: strictVal,
         history: {},
         notifiedDate: "",
-        specificDate: targetDate // app.jsがこの日付の時だけ画面に表示する
+        specificDate: targetDate,
+        endDate: endDateVal || undefined
     };
 
     mainTasks.push(newTaskInstance);
@@ -119,6 +126,7 @@ function publishTemporaryTask(e) {
         id: 'hist_' + Date.now(),
         group: groupVal,
         text: textVal,
+        endDate: endDateVal,
         startTime: startVal,
         endTime: endVal,
         description: descVal,
@@ -138,6 +146,7 @@ function publishTemporaryTask(e) {
     // フォームをリセット（日付は維持）
     document.getElementById('group').value = '';
     document.getElementById('text').value = '';
+    document.getElementById('endDate').value = '';
     document.getElementById('startTime').value = '';
     document.getElementById('endTime').value = '';
     document.getElementById('description').value = '';
@@ -156,6 +165,7 @@ function copyTemplateToForm(id) {
 
     document.getElementById('group').value = item.group || '';
     document.getElementById('text').value = item.text || '';
+    document.getElementById('endDate').value = item.endDate || '';
     document.getElementById('startTime').value = item.startTime || '';
     document.getElementById('endTime').value = item.endTime || '';
     document.getElementById('description').value = item.description || '';
@@ -191,11 +201,13 @@ function renderHistory() {
 
         const timeStr = (item.startTime || item.endTime) ? ` (${item.startTime || '00:00'}〜${item.endTime || '23:59'})` : '';
         const groupStr = item.group ? `[${item.group}] ` : '';
+        const endDateStr = item.endDate ? `<br><small>終了日: ${item.endDate}</small>` : '';
 
         div.innerHTML = `
             <div class="history-info">
                 <strong>${groupStr}${item.text}</strong>${timeStr}
                 ${item.description ? `<br><small>${item.description}</small>` : ''}
+                ${endDateStr}
             </div>
             <div>
                 <button class="btn-reuse" onclick="copyTemplateToForm('${item.id}')">再利用</button>
