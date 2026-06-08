@@ -8,6 +8,17 @@ function getTodayString() {
 
 // 初期起動
 function initTemporaryPage() {
+    // テーマを反映（settings の選択を尊重）
+    try {
+        const savedTheme = localStorage.getItem('calendar_app_theme');
+        if (savedTheme && savedTheme !== 'system') {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+    } catch (e) {
+        // localStorage 非対応なら何もしない
+    }
     // 実施日のデフォルトに今日を設定
     document.getElementById('date').value = getTodayString();
 
@@ -170,7 +181,7 @@ function renderHistory() {
     container.innerHTML = '';
 
     if (tempHistory.length === 0) {
-        container.innerHTML = '<p style="color: #666; font-style: italic;">過去に追加したタスク履歴はありません。</p>';
+        container.innerHTML = '<p style="color: var(--text-muted); font-style: italic;">過去に追加したタスク履歴はありません。</p>';
         return;
     }
 
@@ -184,7 +195,7 @@ function renderHistory() {
         div.innerHTML = `
             <div class="history-info">
                 <strong>${groupStr}${item.text}</strong>${timeStr}
-                ${item.description ? `<br><small style="color:#666">${item.description}</small>` : ''}
+                ${item.description ? `<br><small>${item.description}</small>` : ''}
             </div>
             <div>
                 <button class="btn-reuse" onclick="copyTemplateToForm('${item.id}')">再利用</button>

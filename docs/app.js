@@ -25,6 +25,18 @@ function getStoredBool(key, defaultValue = false) {
     return raw === 'true';
 }
 
+// --- localStorage 利用可否チェック ---
+function supportsLocalStorage() {
+    try {
+        const key = '__ls_test__';
+        localStorage.setItem(key, key);
+        localStorage.removeItem(key);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
 // --- テーマ適用 ---
 function applyTheme(theme) {
     const root = document.documentElement;
@@ -37,7 +49,14 @@ function applyTheme(theme) {
 
 // --- アプリ初期起動 ---
 async function initApp() {
-    const savedTheme = localStorage.getItem('calendar_app_theme') || 'system';
+    let savedTheme = 'system';
+    try {
+        const raw = localStorage.getItem('calendar_app_theme');
+        if (raw) savedTheme = raw;
+    } catch (e) {
+        // localStorage が利用できない環境では system を使う
+        savedTheme = 'system';
+    }
     applyTheme(savedTheme);
 
     const savedTasks = localStorage.getItem('calendar_tasks_v3');
@@ -126,26 +145,49 @@ function setupPageSpecifics(currentTheme) {
     updateNotificationTestUI();
     
     // --- 設定画面用の初期化 ---
-    if (document.getElementById('themeForm')) {
+    const themeForm = document.getElementById('themeForm');
+    if (themeForm) {
         const radio = document.querySelector(`input[name="theme"][value="${currentTheme}"]`);
         if (radio) radio.checked = true;
+        // 安全のため、フォーム内の input にもイベントリスナを登録
+        document.querySelectorAll('input[name="theme"]').forEach(inp => {
+            inp.addEventListener('change', (e) => {
+                handleThemeChange(e.target.value);
+            });
+        });
     }
-    
+
+    const calendarSection = document.getElementById('calendarSection');
+    const notificationSection = document.getElementById('notificationSection');
+    const supportsLS = supportsLocalStorage();
+    const supportsNotification = ('Notification' in window) && typeof Notification.requestPermission === 'function';
+
+    if (!supportsLS && calendarSection) {
+        calendarSection.style.display = 'none';
+    }
+    if (!supportsNotification && notificationSection) {
+        notificationSection.style.display = 'none';
+    }
+
     const calendarIdForm = document.getElementById('calendarIdForm');
     const calendarIdInput = document.getElementById('calendarIdInput');
     const saveStatus = document.getElementById('saveStatus');
 
     if (calendarIdInput) {
-        calendarIdInput.value = localStorage.getItem('calendar_target_id') || '';
+        if (supportsLS) {
+            calendarIdInput.value = localStorage.getItem('calendar_target_id') || '';
+        } else {
+            calendarIdInput.value = '';
+            calendarIdInput.placeholder = 'この環境ではカレンダー設定は利用できません';
+            calendarIdInput.disabled = true;
+        }
     }
 
-    if (calendarIdForm && calendarIdInput) {
+    if (calendarIdForm && calendarIdInput && supportsLS) {
         calendarIdForm.addEventListener('submit', (e) => {
             e.preventDefault(); 
-            
             const inputVal = calendarIdInput.value.trim();
             localStorage.setItem('calendar_target_id', inputVal);
-            
             if (saveStatus) {
                 saveStatus.style.display = 'inline';
                 setTimeout(() => {
@@ -160,18 +202,25 @@ function setupPageSpecifics(currentTheme) {
 function checkNotificationPermission() {
     const banner = document.getElementById('notificationBanner');
     if (!banner) return;
+    if (!('Notification' in window) || typeof Notification.requestPermission !== 'function') {
+        banner.style.display = 'none';
+        return;
+    }
     banner.style.display = (Notification.permission === 'default') ? 'flex' : 'none';
 }
 
 function updateNotificationTestUI() {
     const enableBtn = document.getElementById('notificationEnableBtn');
     if (!enableBtn) return;
-
     const testBtn = document.getElementById('sendTestNotificationBtn');
+    if (!('Notification' in window) || typeof Notification.requestPermission !== 'function') {
+        enableBtn.style.display = 'none';
+        if (testBtn) testBtn.style.display = 'none';
+        return;
+    }
+
     const isGranted = Notification.permission === 'granted';
-
     enableBtn.style.display = isGranted ? 'none' : 'inline-flex';
-
     if (testBtn) {
         testBtn.disabled = !isGranted;
         testBtn.title = isGranted ? '' : '先に通知を有効にしてください。';
@@ -179,6 +228,11 @@ function updateNotificationTestUI() {
 }
 
 function requestPermission() {
+    if (!('Notification' in window) || typeof Notification.requestPermission !== 'function') {
+        alert('このブラウザは通知をサポートしていません。');
+        return;
+    }
+
     Notification.requestPermission().then(permission => {
         checkNotificationPermission();
         updateNotificationTestUI();
@@ -722,7 +776,11 @@ function undoTask(index) {
 // --- テーマ変更 ---
 function handleThemeChange(theme) {
     applyTheme(theme);
-    localStorage.setItem('calendar_app_theme', theme);
+    try {
+        localStorage.setItem('calendar_app_theme', theme);
+    } catch (e) {
+        // 無視: ローカルストレージ不可環境（プライベートブラウズ等）
+    }
 }
 
 // --- データ管理 ---
