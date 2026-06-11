@@ -31,6 +31,51 @@ class DateHelper {
         if (parts.length !== 2) return timeStr;
         return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
     }
+
+    /**
+     * 指定された日付の「一日の始まり (00:00:00.000)」のDateオブジェクトを生成します。
+     * @param {Object} task - タスクオブジェクト
+     * @param {string} task.specificDate - 'YYYY-MM-DD' 形式の文字列
+     * @returns {Date}
+     */
+    static createStartDate(task) {
+        if (!task?.specificDate) return null; // バリデーション（必要に応じて）
+        
+        const [year, month, day] = task.specificDate.split('-').map(Number);
+        // 月は 0 から始まるため -1 する
+        return new Date(year, month - 1, day, 0, 0, 0, 0);
+    }
+
+    /**
+     * 指定された日付の「一日の終わり (23:59:59.999)」のDateオブジェクトを生成します。
+     * @param {Object} task - タスクオブジェクト
+     * @param {string} task.endDate - 'YYYY-MM-DD' 形式の文字列
+     * @returns {Date}
+     */
+    static createEndDate(task) {
+        if (!task?.endDate) return null; // バリデーション（必要に応じて）
+        
+        const [year, month, day] = task.endDate.split('-').map(Number);
+        // ミリ秒までしっかり含めて 23:59:59.999 に設定
+        return new Date(year, month - 1, day, 23, 59, 59, 999);
+    }
+
+    /**
+     * Dateオブジェクトを 'YYYY-MM-DD' 形式の文字列に変換します。
+     * @param {Date} date 
+     * @returns {string} '2026-06-12'
+     * @link https://developer.mozilla.org/ja/docs/Glossary/Kebab_case
+     */
+    static toKebabCase(date) {
+        if (!(date instanceof Date) || isNaN(date)) return ''; // 不正な入力のガード
+
+        // 日本のロケール（sv-SEでも可）を指定して YYYY-MM-DD 形式で出力
+        return date.toLocaleDateString('ja-JP', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).replace(/\//g, '-'); // 「/」を「-」に置換
+    }
 }
 
 class LocalStorageHelper {
@@ -62,6 +107,10 @@ class LocalStorageHelper {
 
     static set calendarTasksV3(json) {
         localStorage.setItem(this.CALENDAR_TASKS_V3, JSON.stringify(tasks));
+    }
+
+    static removeCalendarTasksV3() {
+        localStorage.removeItem(this.CALENDAR_TASKS_V3);
     }
 
     static getStoredBool(key, defaultValue = false) {
@@ -100,7 +149,7 @@ class FilterManager {
     }
 }
 
-class MainView {
+class SettingsView {
     // --- テーマ適用 ---
     static applyTheme(theme) {
         const root = document.documentElement;
@@ -114,8 +163,125 @@ class MainView {
     // --- テーマ変更 ---
     // dependency in settings.html
     static handleThemeChange(theme) {
-        MainView.applyTheme(theme);
+        SettingsView.applyTheme(theme);
         LocalStorageHelper.calendarAppTheme = theme;
+    }
+
+    static async resetToDefault() {
+        if (confirm('すべてのカスタム設定と履歴を削除し、デフォルトのtasks.jsonから再読み込みしますか？')) {
+            await TaskRepository.reset();
+            alert('初期設定に戻しました。');
+            if (document.getElementById('taskContainer')) renderCards();
+        }
+    }
+
+    // --- ファイルからデータをインポート ---
+
+    static triggerImport() { 
+        document.getElementById('fileInput').click(); 
+    }
+
+    static importJSONFromFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (Array.isArray(importedData)) {
+                    TaskRepository.tasks = importedData;
+                    LocalStorageHelper.calendarTasksV3 = JSON.stringify(tasks);
+                    alert('インポートが完了しました。');
+                    if (document.getElementById('taskContainer')) {
+                        renderCards();
+                    }
+                } else {
+                    alert('無効なJSONフォーマットです。');
+                }
+            } catch (err) {
+                alert('JSONの解析に失敗しました。');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+
+    static async importJSONFromClipboard() {
+        if (!navigator.clipboard || !window.isSecureContext) {
+            alert('この環境ではクリップボード操作が利用できません。https環境またはlocalhostでお試しください。');
+            return;
+        }
+
+        try {
+            const clipboardText = await navigator.clipboard.readText();
+            if (!clipboardText || !clipboardText.trim()) {
+                alert('クリップボードが空です。');
+                return;
+            }
+
+            const importedData = JSON.parse(clipboardText);
+            if (!Array.isArray(importedData)) {
+                alert('無効なJSONフォーマットです。');
+                return;
+            }
+
+            TaskRepository.tasks = importedData;
+            LocalStorageHelper.calendarTasksV3 = JSON.stringify(tasks);
+            alert('クリップボードからインポートが完了しました。');
+            if (document.getElementById('taskContainer')) {
+                renderCards();
+            }
+        } catch (error) {
+            console.error('クリップボードからのインポートに失敗しました:', error);
+            alert('クリップボードの読み込みまたはJSON解析に失敗しました。');
+        }
+    }
+
+    static async copyJSONToClipboard() {
+        if (!navigator.clipboard || !window.isSecureContext) {
+            alert('この環境ではクリップボード操作が利用できません。https環境またはlocalhostでお試しください。');
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(JSON.stringify(TaskRepository.tasks, null, 2));
+            alert('JSONをクリップボードにコピーしました。');
+        } catch (error) {
+            console.error('クリップボードへのコピーに失敗しました:', error);
+            alert('クリップボードへのコピーに失敗しました。');
+        }
+    }
+
+    // --- データ管理 ---
+    static exportJSON() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(TaskRepository.tasks, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `task_settings_and_history.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    }
+}
+
+class ItemView {
+    static undoTask(index) {
+        const TODAY = DateHelper.today;
+        if (tasks[index].history[TODAY]) {
+            delete tasks[index].history[TODAY];
+            localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
+            renderCards();
+        }
+    }
+
+    // --- 一時的タスクの完全削除機能 ---
+    static deleteActualTask(id) {
+        if (confirm('この一時的タスクをリストから完全に削除しますか？')) {
+            tasks = tasks.filter(t => t.id !== id);
+            localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
+            renderCards();
+        }
     }
 }
  
@@ -130,7 +296,7 @@ class MainController {
             // localStorage が利用できない環境では system を使う
             savedTheme = 'system';
         }
-        MainView.applyTheme(savedTheme);
+        SettingsView.applyTheme(savedTheme);
 
         const savedTasks = LocalStorageHelper.calendarTasksV3;
         if (savedTasks) {
@@ -170,6 +336,11 @@ class TaskRepository {
             console.error('デフォルトタスクJSONの読み込みに失敗しました:', error);
             TaskRepository.tasks = [];
         }
+    }
+
+    static async reset() {
+        LocalStorageHelper.removeCalendarTasksV3();
+        await this.loadDefaultTasksFromJSON();    
     }
 }
 
@@ -239,7 +410,7 @@ function setupPageSpecifics(currentTheme) {
         // 安全のため、フォーム内の input にもイベントリスナを登録
         document.querySelectorAll('input[name="theme"]').forEach(inp => {
             inp.addEventListener('change', (e) => {
-                MainView.handleThemeChange(e.target.value);
+                SettingsView.handleThemeChange(e.target.value);
             });
         });
     }
@@ -357,10 +528,11 @@ function sendTestNotification() {
 function isTaskScheduledOnDate(task, date) {
 
     if (task.specificDate) {
-        const dStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        const dStr = DateHelper.toKebabCase(date);
         if (task.endDate) {
-            const start = new Date(task.specificDate);
-            const end = new Date(task.endDate);
+            const start = DateHelper.createStartDate(task);
+            const end = DateHelper.createEndDate(task);
+            console.log(task.id, task.text, start, end, date);
             if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
                 return false;
             }
@@ -640,11 +812,11 @@ function renderTableView(container, filteredTasks, today, targetDayMap) {
             : '-';
 
         const actionSecondary = task.specificDate
-            ? `<button class="table-btn table-btn-danger" ${statusInfo.locked ? 'disabled' : ''} onclick="deleteActualTask('${task.id}')">削除</button>`
+            ? `<button class="table-btn table-btn-danger" ${statusInfo.locked ? 'disabled' : ''} onclick="ItemView.deleteActualTask('${task.id}')">削除</button>`
             : `<button class="table-btn" ${statusInfo.locked ? 'disabled' : ''} onclick="executeTask(${taskIndex}, true)">キャンセル</button>`;
 
         const actionMain = todayStatus
-            ? `<button class="table-btn" onclick="undoTask(${taskIndex})">戻す</button>`
+            ? `<button class="table-btn" onclick="ItemView.undoTask(${taskIndex})">戻す</button>`
             : `<button class="table-btn table-btn-primary" ${addDisabled ? 'disabled' : ''} onclick="executeTask(${taskIndex}, false)">追加</button>`;
 
         let groupChipClass = 'chip chip-group';
@@ -789,7 +961,7 @@ function renderCards() {
                 linkHtml = `<a href="${task.link}" target="_blank" rel="noopener noreferrer" class="task-link">関連リンク ↗</a>`;
             }
 
-            const undoButtonHtml = todayStatus ? `<button class="btn-undo" onclick="undoTask(${taskIndex})">✕</button>` : '';
+            const undoButtonHtml = todayStatus ? `<button class="btn-undo" onclick="ItemView.undoTask(${taskIndex})">✕</button>` : '';
 
             let buttonDisabled = false;
             const isStrict = task.strictMode === true || task.strictMode === 'true';
@@ -804,7 +976,7 @@ function renderCards() {
             let secondaryButtonHtml = "";
             if (task.specificDate) {
                 // 一時的タスクの場合はキャンセルではなく「削除」ボタンにする（既存の赤色指定を流用）
-                secondaryButtonHtml = `<button class="btn" style="background-color: #ef4444; color: #ffffff; flex: 1;" ${isLocked ? 'disabled' : ''} onclick="deleteActualTask('${task.id}')">削除</button>`;
+                secondaryButtonHtml = `<button class="btn" style="background-color: #ef4444; color: #ffffff; flex: 1;" ${isLocked ? 'disabled' : ''} onclick="ItemView.deleteActualTask('${task.id}')">削除</button>`;
             } else {
                 // 通常ルーティンタスクは従来通り「キャンセル」
                 secondaryButtonHtml = `<button class="btn btn-cancel" ${isLocked ? 'disabled' : ''} onclick="executeTask(${taskIndex}, true)">キャンセル</button>`;
@@ -870,114 +1042,6 @@ function executeTask(index, isCancel) {
     }
     
     window.open(`${baseUrl}&text=${encodeURIComponent(displayTitle)}&dates=${startTime}/${endTime}&details=${encodeURIComponent(details)}`, '_blank');
-}
-
-// --- 一時的タスクの完全削除機能 ---
-function deleteActualTask(id) {
-    if (confirm('この一時的タスクをリストから完全に削除しますか？')) {
-        tasks = tasks.filter(t => t.id !== id);
-        localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
-        renderCards();
-    }
-}
-
-function undoTask(index) {
-    const TODAY = DateHelper.today;
-    if (tasks[index].history[TODAY]) {
-        delete tasks[index].history[TODAY];
-        localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
-        renderCards();
-    }
-}
-
-// --- データ管理 ---
-function exportJSON() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tasks, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `task_settings_and_history.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-}
-
-async function copyJSONToClipboard() {
-    if (!navigator.clipboard || !window.isSecureContext) {
-        alert('この環境ではクリップボード操作が利用できません。https環境またはlocalhostでお試しください。');
-        return;
-    }
-
-    try {
-        await navigator.clipboard.writeText(JSON.stringify(tasks, null, 2));
-        alert('JSONをクリップボードにコピーしました。');
-    } catch (error) {
-        console.error('クリップボードへのコピーに失敗しました:', error);
-        alert('クリップボードへのコピーに失敗しました。');
-    }
-}
-
-async function importJSONFromClipboard() {
-    if (!navigator.clipboard || !window.isSecureContext) {
-        alert('この環境ではクリップボード操作が利用できません。https環境またはlocalhostでお試しください。');
-        return;
-    }
-
-    try {
-        const clipboardText = await navigator.clipboard.readText();
-        if (!clipboardText || !clipboardText.trim()) {
-            alert('クリップボードが空です。');
-            return;
-        }
-
-        const importedData = JSON.parse(clipboardText);
-        if (!Array.isArray(importedData)) {
-            alert('無効なJSONフォーマットです。');
-            return;
-        }
-
-        tasks = importedData;
-        localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
-        alert('クリップボードからインポートが完了しました。');
-        if (document.getElementById('taskContainer')) renderCards();
-    } catch (error) {
-        console.error('クリップボードからのインポートに失敗しました:', error);
-        alert('クリップボードの読み込みまたはJSON解析に失敗しました。');
-    }
-}
-
-function triggerImport() { document.getElementById('fileInput').click(); }
-
-function importJSON(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const importedData = JSON.parse(e.target.result);
-            if (Array.isArray(importedData)) {
-                tasks = importedData;
-                localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
-                alert('インポートが完了しました。');
-                if (document.getElementById('taskContainer')) renderCards();
-            } else {
-                alert('無効なJSONフォーマットです。');
-            }
-        } catch (err) {
-            alert('JSONの解析に失敗しました。');
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
-}
-
-async function resetToDefault() {
-    if (confirm('すべてのカスタム設定と履歴を削除し、デフォルトのtasks.jsonから再読み込みしますか？')) {
-        localStorage.removeItem('calendar_tasks_v3');
-        await TaskRepository.loadDefaultTasksFromJSON();
-        alert('初期設定に戻しました。');
-        if (document.getElementById('taskContainer')) renderCards();
-    }
 }
 
 MainController.initApp();

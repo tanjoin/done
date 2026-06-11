@@ -37,15 +37,15 @@
                 <h3 class="group-title">テーマ設定</h3>
                 <form id="themeForm">
                     <label class="theme-option">
-                        <input type="radio" name="theme" value="system" checked onchange="MainView.handleThemeChange(this.value)">
+                        <input type="radio" name="theme" value="system" checked onchange="SettingsView.handleThemeChange(this.value)">
                         <span>システム設定に従う</span>
                     </label>
                     <label class="theme-option">
-                        <input type="radio" name="theme" value="light" onchange="MainView.handleThemeChange(this.value)">
+                        <input type="radio" name="theme" value="light" onchange="SettingsView.handleThemeChange(this.value)">
                         <span>ライトモード</span>
                     </label>
                     <label class="theme-option">
-                        <input type="radio" name="theme" value="dark" onchange="MainView.handleThemeChange(this.value)">
+                        <input type="radio" name="theme" value="dark" onchange="SettingsView.handleThemeChange(this.value)">
                         <span>ダークモード</span>
                     </label>
                 </form>
@@ -68,13 +68,13 @@
                     タスクの設定内容や、これまでの実施・キャンセル履歴をJSONファイルとして保存・復元できます。
                 </p>
                 <div class="btn-group-wrap btn-group-vertical">
-                    <button class="btn btn-cancel" onclick="exportJSON()">データエクスポート (書き出し)</button>
-                    <button class="btn btn-cancel" onclick="triggerImport()">データインポート (読み込み)</button>
-                    <button class="btn btn-cancel" onclick="copyJSONToClipboard()">クリップボードへコピー</button>
-                    <button class="btn btn-cancel" onclick="importJSONFromClipboard()">クリップボードから読み込み</button>
-                    <button class="btn btn-action" style="background-color: #ef4444;" onclick="resetToDefault()">全て初期状態に戻す</button>
+                    <button class="btn btn-cancel" onclick="SettingsView.exportJSON()">データエクスポート (書き出し)</button>
+                    <button class="btn btn-cancel" onclick="SettingsView.triggerImport()">データインポート (読み込み)</button>
+                    <button class="btn btn-cancel" onclick="SettingsView.copyJSONToClipboard()">クリップボードへコピー</button>
+                    <button class="btn btn-cancel" onclick="SettingsView.importJSONFromClipboard()">クリップボードから読み込み</button>
+                    <button class="btn btn-action" style="background-color: #ef4444;" onclick="SettingsView.resetToDefault()">全て初期状態に戻す</button>
                 </div>
-                <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)">
+                <input type="file" id="fileInput" accept=".json" onchange="SettingsView.importJSONFromFile(event)">
             </div>
 
         </main>
