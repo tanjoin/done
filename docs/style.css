@@ -520,6 +520,18 @@ a:not(.nav-link):hover {
     border-color: #7dd3fc;
 }
 
+.chip-group--completed-yesterday {
+    background-color: #e0e7ff;
+    color: #3730a3;
+    border-color: #a5b4fc;
+}
+
+.chip-group--cancelled-yesterday {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border-color: #fca5a5;
+}
+
 .table-actions {
     display: flex;
     gap: 6px;

@@ -1,88 +1,175 @@
 let tasks = [];
 
-// --- 1桁の時刻（6:00等）を比較・判定用に2桁（06:00）に正規化するヘルパー ---
-function normalizeTime(timeStr) {
-    if (!timeStr) return "";
-    const parts = timeStr.split(':');
-    if (parts.length !== 2) return timeStr;
-    return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
-}
-
 // --- 日付ヘルパー関数 ---
-function getFormattedDate(offset = 0) {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+class DateHelper {
+    static get today() {
+        return this._getFormattedDate(0);
+    }
 
-function formatDateTimeUTC(date) {
-    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-}
+    static get yesterday() {
+        return this._getFormattedDate(-1);
+    }
 
-function getStoredBool(key, defaultValue = false) {
-    const raw = localStorage.getItem(key);
-    if (raw === null) return defaultValue;
-    return raw === 'true';
-}
+    static _getFormattedDate(offset = 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + offset);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
 
-// --- localStorage 利用可否チェック ---
-function supportsLocalStorage() {
-    try {
-        const key = '__ls_test__';
-        localStorage.setItem(key, key);
-        localStorage.removeItem(key);
-        return true;
-    } catch (e) {
-        return false;
+    static get todayUTC() {
+        return this._formatDateTimeUTC(new Date());
+    }
+
+    static _formatDateTimeUTC(date) {
+        return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    }
+
+    // --- 1桁の時刻（6:00等）を比較・判定用に2桁（06:00）に正規化するヘルパー ---
+    static normalizeTime(timeStr) {
+        if (!timeStr) return "";
+        const parts = timeStr.split(':');
+        if (parts.length !== 2) return timeStr;
+        return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
     }
 }
 
-// --- テーマ適用 ---
-function applyTheme(theme) {
-    const root = document.documentElement;
-    if (theme === 'system') {
-        root.removeAttribute('data-theme');
-    } else {
-        root.setAttribute('data-theme', theme);
-    }
-}
+class LocalStorageHelper {
 
-// --- アプリ初期起動 ---
-async function initApp() {
-    let savedTheme = 'system';
-    try {
-        const raw = localStorage.getItem('calendar_app_theme');
-        if (raw) savedTheme = raw;
-    } catch (e) {
-        // localStorage が利用できない環境では system を使う
-        savedTheme = 'system';
+    static get CALENDAR_APP_THEME() {
+        return `calendar_app_theme`;
     }
-    applyTheme(savedTheme);
 
-    const savedTasks = localStorage.getItem('calendar_tasks_v3');
-    if (savedTasks) {
+    static get calendarAppTheme() {
+        return localStorage.getItem(this.CALENDAR_APP_THEME);
+    }
+
+    static set calendarAppTheme(theme) {
         try {
-            tasks = JSON.parse(savedTasks);
+            localStorage.setItem(this.CALENDAR_APP_THEME, theme);
         } catch (e) {
-            await loadDefaultTasksFromJSON();
+            // 無視: ローカルストレージ不可環境（プライベートブラウズ等）
+            console.error(e);
         }
-    } else {
-        await loadDefaultTasksFromJSON();
     }
 
-    setupPageSpecifics(savedTheme);
-    initNotificationTimer();
+    static get CALENDAR_TASKS_V3() {
+        return `calendar_tasks_v3`;
+    }
+
+    static get calendarTasksV3() {
+        return localStorage.getItem(this.CALENDAR_TASKS_V3);
+    }
+
+    static set calendarTasksV3(json) {
+        localStorage.setItem(this.CALENDAR_TASKS_V3, JSON.stringify(tasks));
+    }
+
+    static getStoredBool(key, defaultValue = false) {
+        const raw = localStorage.getItem(key);
+        if (raw === null) {
+            return defaultValue;
+        }
+        return raw === 'true';
+    }
+
+    // --- localStorage 利用可否チェック ---
+    static supportsLocalStorage() {
+        try {
+            const key = '__ls_test__';
+            localStorage.setItem(key, key);
+            localStorage.removeItem(key);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
 }
 
-async function loadDefaultTasksFromJSON() {
-    try {
-        const response = await fetch('tasks.json');
-        if (!response.ok) throw new Error('Network error');
-        tasks = await response.json();
-        localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
-    } catch (error) {
-        console.error('デフォルトタスクJSONの読み込みに失敗しました:', error);
-        tasks = [];
+class FilterManager {
+    static get hideNonTargetDay() {
+        return LocalStorageHelper.getStoredBool('filter_hide_non_target_day', true);
+    }
+    static get hideOutOfTime() {
+        return LocalStorageHelper.getStoredBool('filter_hide_out_of_time', false);
+    }
+    static get hideCompleted() {
+        return LocalStorageHelper.getStoredBool('filter_hide_completed', false);
+    }
+    static get hideCancelled() {
+        return LocalStorageHelper.getStoredBool('filter_hide_cancelled', false);
+    }
+}
+
+class MainView {
+    // --- テーマ適用 ---
+    static applyTheme(theme) {
+        const root = document.documentElement;
+        if (theme === 'system') {
+            root.removeAttribute('data-theme');
+        } else {
+            root.setAttribute('data-theme', theme);
+        }
+    }
+
+    // --- テーマ変更 ---
+    // dependency in settings.html
+    static handleThemeChange(theme) {
+        MainView.applyTheme(theme);
+        LocalStorageHelper.calendarAppTheme = theme;
+    }
+}
+ 
+class MainController {
+    // --- アプリ初期起動 ---
+    static async initApp() {
+        let savedTheme = 'system';
+        try {
+            const raw = LocalStorageHelper.calendarAppTheme;
+            if (raw) savedTheme = raw;
+        } catch (e) {
+            // localStorage が利用できない環境では system を使う
+            savedTheme = 'system';
+        }
+        MainView.applyTheme(savedTheme);
+
+        const savedTasks = LocalStorageHelper.calendarTasksV3;
+        if (savedTasks) {
+            try {
+                tasks = JSON.parse(savedTasks);
+            } catch (e) {
+                await TaskRepository.loadDefaultTasksFromJSON();
+            }
+        } else {
+            await TaskRepository.loadDefaultTasksFromJSON();
+        }
+
+        setupPageSpecifics(savedTheme);
+        initNotificationTimer();
+    }
+}
+
+class TaskRepository {
+
+    // TODO: tasks を中で管理したい
+
+    static get tasks() {
+        return tasks;
+    }
+
+    static set tasks(array) {
+        tasks = array;
+    }
+
+    static async loadDefaultTasksFromJSON() {
+        try {
+            const response = await fetch('tasks.json');
+            if (!response.ok) throw new Error('Network error');
+            TaskRepository.tasks = await response.json();
+            LocalStorageHelper.calendarTasksV3 = JSON.stringify(tasks);
+        } catch (error) {
+            console.error('デフォルトタスクJSONの読み込みに失敗しました:', error);
+            TaskRepository.tasks = [];
+        }
     }
 }
 
@@ -120,10 +207,10 @@ function setupPageSpecifics(currentTheme) {
             });
         }
 
-        setFilterButtonState(hideNonTargetDayBtn, getStoredBool('filter_hide_non_target_day', true));
-        setFilterButtonState(hideOutOfTimeBtn, getStoredBool('filter_hide_out_of_time', false));
-        setFilterButtonState(hideCompletedBtn, getStoredBool('filter_hide_completed', false));
-        setFilterButtonState(hideCancelledBtn, getStoredBool('filter_hide_cancelled', false));
+        setFilterButtonState(hideNonTargetDayBtn, LocalStorageHelper.getStoredBool('filter_hide_non_target_day', true));
+        setFilterButtonState(hideOutOfTimeBtn, LocalStorageHelper.getStoredBool('filter_hide_out_of_time', false));
+        setFilterButtonState(hideCompletedBtn, LocalStorageHelper.getStoredBool('filter_hide_completed', false));
+        setFilterButtonState(hideCancelledBtn, LocalStorageHelper.getStoredBool('filter_hide_cancelled', false));
 
         if (hideNonTargetDayBtn) {
             hideNonTargetDayBtn.addEventListener('click', () => toggleFilterState('filter_hide_non_target_day', hideNonTargetDayBtn));
@@ -152,14 +239,14 @@ function setupPageSpecifics(currentTheme) {
         // 安全のため、フォーム内の input にもイベントリスナを登録
         document.querySelectorAll('input[name="theme"]').forEach(inp => {
             inp.addEventListener('change', (e) => {
-                handleThemeChange(e.target.value);
+                MainView.handleThemeChange(e.target.value);
             });
         });
     }
 
     const calendarSection = document.getElementById('calendarSection');
     const notificationSection = document.getElementById('notificationSection');
-    const supportsLS = supportsLocalStorage();
+    const supportsLS = LocalStorageHelper.supportsLocalStorage();
     const supportsNotification = ('Notification' in window) && typeof Notification.requestPermission === 'function';
 
     if (!supportsLS && calendarSection) {
@@ -314,8 +401,8 @@ function shouldShowTask(task) {
     yesterday.setDate(yesterday.getDate() - 1);
     if (isTaskScheduledOnDate(task, yesterday)) {
         if (task.startTime && task.endTime) {
-            const startNorm = normalizeTime(task.startTime);
-            const endNorm = normalizeTime(task.endTime);
+            const startNorm = DateHelper.normalizeTime(task.startTime);
+            const endNorm = DateHelper.normalizeTime(task.endTime);
             if (startNorm > endNorm) {
                 const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
                 if (currentStr <= endNorm) {
@@ -405,17 +492,17 @@ function playNotificationSound() {
 function checkAndSendNotifications() {
     if (Notification.permission !== 'granted') return;
 
-    const today = getFormattedDate(0);
+    const TODAY = DateHelper.today;
     const now = new Date();
     const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
     let isUpdated = false;
 
     tasks.forEach(task => {
         if (!shouldShowTask(task) || !task.startTime) return;
-        if (task.notifiedDate === today) return;
-        if (task.history[today]) return;
+        if (task.notifiedDate === TODAY) return;
+        if (task.history[TODAY]) return;
 
-        const startNorm = normalizeTime(task.startTime);
+        const startNorm = DateHelper.normalizeTime(task.startTime);
         if (currentStr >= startNorm) {
             const groupName = task.group || "その他";
             const descText = task.description ? `\n${task.description}` : "";
@@ -433,7 +520,7 @@ function checkAndSendNotifications() {
 
             playNotificationSound();
 
-            task.notifiedDate = today;
+            task.notifiedDate = TODAY;
             isUpdated = true;
         }
     });
@@ -449,8 +536,8 @@ function isWithinTime(task) {
     const now = new Date();
     const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
     
-    const start = normalizeTime(task.startTime || "00:00");
-    const end = normalizeTime(task.endTime || "23:59");
+    const start = DateHelper.normalizeTime(task.startTime || "00:00");
+    const end = DateHelper.normalizeTime(task.endTime || "23:59");
     
     if (start <= end) {
         // 通常の時間帯（同一日内）
@@ -459,8 +546,8 @@ function isWithinTime(task) {
     } else {
         // 翌日をまたぐ時間帯（start > end）
         // 前日の履歴をチェック
-        const yesterday = getFormattedDate(-1);
-        const hasYesterdayHistory = task.history && task.history[yesterday];
+        const YESTERDAY = DateHelper.yesterday;
+        const hasYesterdayHistory = task.history && task.history[YESTERDAY];
         
         // 前日の履歴がある場合のみ、startTimeまでを時間外にする
         if (hasYesterdayHistory && currentStr < start) {
@@ -511,6 +598,7 @@ function getScheduleLabel(task) {
 }
 
 function renderTableView(container, filteredTasks, today, targetDayMap) {
+    const YESTERDAY = DateHelper.yesterday;
     const tableWrapper = document.createElement('div');
     tableWrapper.className = 'table-wrapper';
 
@@ -535,6 +623,7 @@ function renderTableView(container, filteredTasks, today, targetDayMap) {
     filteredTasks.forEach((task, idx) => {
         const taskIndex = tasks.findIndex(t => t.id === task.id);
         const todayStatus = task.history[today];
+        const yesterdayStatus = task.history[YESTERDAY];
         const timeCheck = isWithinTime(task);
         const isTargetDay = targetDayMap[task.id] === true;
         const statusInfo = getTaskStatusInfo(task, todayStatus, timeCheck, isTargetDay);
@@ -558,8 +647,15 @@ function renderTableView(container, filteredTasks, today, targetDayMap) {
             ? `<button class="table-btn" onclick="undoTask(${taskIndex})">戻す</button>`
             : `<button class="table-btn table-btn-primary" ${addDisabled ? 'disabled' : ''} onclick="executeTask(${taskIndex}, false)">追加</button>`;
 
+        let groupChipClass = 'chip chip-group';
+        if (yesterdayStatus === 'completed') {
+            groupChipClass += ' chip-group--completed-yesterday';
+        } else if (yesterdayStatus === 'cancelled') {
+            groupChipClass += ' chip-group--cancelled-yesterday';
+        }
+
         row.innerHTML = `
-            <td><span class="chip chip-group">${task.group || 'その他'}</span></td>
+            <td><span class="${groupChipClass}">${task.group || 'その他'}</span></td>
             <td class="task-name">${task.link ? ('<a href="' + task.link + '" target="_blank" rel="noopener noreferrer">' + task.text + '</a>') : task.text}</td>
             <td>${timeLabel}</td>
             <td>${getScheduleLabel(task)}</td>
@@ -584,13 +680,8 @@ function renderCards() {
     if (!container) return; 
     container.innerHTML = '';
 
-    const today = getFormattedDate(0);
-    const yesterday = getFormattedDate(-1);
-
-    const hideNonTargetDay = getStoredBool('filter_hide_non_target_day', true);
-    const hideOutOfTime = getStoredBool('filter_hide_out_of_time', false);
-    const hideCompleted = getStoredBool('filter_hide_completed', false);
-    const hideCancelled = getStoredBool('filter_hide_cancelled', false);
+    const TODAY = DateHelper.today;
+    const YESTERDAY = DateHelper.yesterday;
 
     const filteredTasks = [];
     const targetDayMap = {};
@@ -598,14 +689,14 @@ function renderCards() {
     tasks.forEach(task => {
         const isTargetDay = shouldShowTask(task);
         targetDayMap[task.id] = isTargetDay;
-        if (!isTargetDay && hideNonTargetDay) return;
+        if (!isTargetDay && FilterManager.hideNonTargetDay) return;
 
-        const todayStatus = task.history[today];
+        const todayStatus = task.history[TODAY];
         const timeCheck = isWithinTime(task);
 
-        if (todayStatus === 'completed' && hideCompleted) return;
-        if (todayStatus === 'cancelled' && hideCancelled) return;
-        if (isTargetDay && !todayStatus && !timeCheck.valid && hideOutOfTime) return;
+        if (todayStatus === 'completed' && FilterManager.hideCompleted) return;
+        if (todayStatus === 'cancelled' && FilterManager.hideCancelled) return;
+        if (isTargetDay && !todayStatus && !timeCheck.valid && FilterManager.hideOutOfTime) return;
 
         const groupName = task.group || "その他";
         filteredTasks.push(task);
@@ -621,7 +712,7 @@ function renderCards() {
     const currentViewMode = localStorage.getItem('task_view_mode') || 'card';
     document.body.classList.toggle('table-view-mode', currentViewMode === 'table');
     if (currentViewMode === 'table') {
-        renderTableView(container, filteredTasks, today, targetDayMap);
+        renderTableView(container, filteredTasks, TODAY, targetDayMap);
         return;
     }
 
@@ -646,8 +737,8 @@ function renderCards() {
         groups[groupName].forEach(task => {
             const taskIndex = tasks.findIndex(t => t.id === task.id);
             const isTargetDay = targetDayMap[task.id] === true;
-            const todayStatus = task.history[today];
-            const yesterdayStatus = task.history[yesterday];
+            const todayStatus = task.history[TODAY];
+            const yesterdayStatus = task.history[YESTERDAY];
             const timeCheck = isWithinTime(task);
             
             const totalCompleted = Object.values(task.history || {}).filter(v => v === 'completed').length;
@@ -680,8 +771,8 @@ function renderCards() {
 
             let timeInfoHtml = "";
             if (task.startTime || task.endTime) {
-                const startNorm = normalizeTime(task.startTime || "00:00");
-                const endNorm = normalizeTime(task.endTime || "23:59");
+                const startNorm = DateHelper.normalizeTime(task.startTime || "00:00");
+                const endNorm = DateHelper.normalizeTime(task.endTime || "23:59");
                 const modeLabel = task.strictMode ? " (厳格)" : "";
                 
                 const displayEnd = (startNorm > endNorm) ? `翌${task.endTime}` : task.endTime;
@@ -748,13 +839,12 @@ function renderCards() {
 
 // --- タスク実行 ---
 function executeTask(index, isCancel) {
-    const today = getFormattedDate(0);
-    tasks[index].history[today] = isCancel ? 'cancelled' : 'completed';
+    const TODAY = DateHelper.today;
+    tasks[index].history[TODAY] = isCancel ? 'cancelled' : 'completed';
     localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
     renderCards();
 
-    const now = new Date();
-    const startTime = formatDateTimeUTC(now);
+    const startTime = DateHelper.todayUTC;
     const endTime = startTime; 
     
     const groupName = tasks[index].group || "その他";
@@ -792,21 +882,11 @@ function deleteActualTask(id) {
 }
 
 function undoTask(index) {
-    const today = getFormattedDate(0);
-    if (tasks[index].history[today]) {
-        delete tasks[index].history[today];
+    const TODAY = DateHelper.today;
+    if (tasks[index].history[TODAY]) {
+        delete tasks[index].history[TODAY];
         localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
         renderCards();
-    }
-}
-
-// --- テーマ変更 ---
-function handleThemeChange(theme) {
-    applyTheme(theme);
-    try {
-        localStorage.setItem('calendar_app_theme', theme);
-    } catch (e) {
-        // 無視: ローカルストレージ不可環境（プライベートブラウズ等）
     }
 }
 
@@ -894,10 +974,10 @@ function importJSON(event) {
 async function resetToDefault() {
     if (confirm('すべてのカスタム設定と履歴を削除し、デフォルトのtasks.jsonから再読み込みしますか？')) {
         localStorage.removeItem('calendar_tasks_v3');
-        await loadDefaultTasksFromJSON();
+        await TaskRepository.loadDefaultTasksFromJSON();
         alert('初期設定に戻しました。');
         if (document.getElementById('taskContainer')) renderCards();
     }
 }
 
-initApp();
+MainController.initApp();

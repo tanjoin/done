@@ -37,15 +37,15 @@
                 <h3 class="group-title">テーマ設定</h3>
                 <form id="themeForm">
                     <label class="theme-option">
-                        <input type="radio" name="theme" value="system" checked onchange="handleThemeChange(this.value)">
+                        <input type="radio" name="theme" value="system" checked onchange="MainView.handleThemeChange(this.value)">
                         <span>システム設定に従う</span>
                     </label>
                     <label class="theme-option">
-                        <input type="radio" name="theme" value="light" onchange="handleThemeChange(this.value)">
+                        <input type="radio" name="theme" value="light" onchange="MainView.handleThemeChange(this.value)">
                         <span>ライトモード</span>
                     </label>
                     <label class="theme-option">
-                        <input type="radio" name="theme" value="dark" onchange="handleThemeChange(this.value)">
+                        <input type="radio" name="theme" value="dark" onchange="MainView.handleThemeChange(this.value)">
                         <span>ダークモード</span>
                     </label>
                 </form>
