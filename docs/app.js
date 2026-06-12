@@ -647,6 +647,44 @@ class NotificationSound {
     }
 
     /**
+     * 「チン！」という澄んだ電子レンジやベルの金属音
+     */
+    static playDing() {
+        try {
+            const ctx = NotificationSound.createAudioContext();
+            const t = ctx.currentTime + 0.02;
+            const duration = 2.0;
+            const rootFreq = 1800; // 高音のチン
+
+            const master = ctx.createGain();
+            master.gain.setValueAtTime(0, t);
+            master.gain.linearRampToValueAtTime(0.4, t + 0.002);
+            master.gain.exponentialRampToValueAtTime(0.00001, t + duration);
+            master.connect(ctx.destination);
+
+            // 金属の響きを作る非調和倍音
+            const partials = [1.0, 1.91, 2.44, 3.12];
+            partials.forEach((ratio, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(rootFreq * ratio, t);
+                
+                const vol = 0.15 / (i + 1);
+                gain.gain.setValueAtTime(vol, t);
+                gain.gain.exponentialRampToValueAtTime(0.00001, t + duration / (i * 0.5 + 1));
+
+                osc.connect(gain);
+                gain.connect(master);
+                osc.start(t);
+                osc.stop(t + duration);
+            });
+        } catch (e) {
+            console.warn('音声再生がブロックされました。', e);
+        }
+    }
+
+    /**
      * オリジナルチャイム (ウェストミンスター寺院の鐘風、伝統的な学校チャイム)
      * テンポと音色を美しく整えた4打点×2構成
      */
@@ -1096,7 +1134,8 @@ class NotificationSound {
     }
 
     /**
-     * ドラクエ風「レベルアップ」音 (levelup1)
+     * ドラクエ風「レベルアップ」音 (levelup1 / dq_levelup) - 本格派アップデート
+     * レトロな矩形波を重ね、最後に厚みのあるCメジャー（ドミソド）主和音がきれいに決まる本格的な構成
      */
     static playDq() {
         try {
@@ -1104,49 +1143,56 @@ class NotificationSound {
             const noteToFreq = NotificationSound.noteToFreq;
             const start = ctx.currentTime + 0.02;
             
-            // レベルアップのタラララッタッター♪
-            const scale = [60, 62, 64, 65, 67, 69, 71, 72];
-            const tempo = 0.06; // 高速アルペジオ
+            // 高速に駆け上がる全12のレトロ音階ステップ
+            const scale = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79]; 
+            const tempo = 0.045; // 実機同様の16分音符超高速グリッサンド
 
             scale.forEach((n, i) => {
                 const t = start + (i * tempo);
                 const isLast = i === scale.length - 1;
-                const duration = isLast ? 0.6 : 0.08;
+                const duration = isLast ? 0.8 : 0.06;
 
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 
-                osc.type = 'triangle';
+                osc.type = 'square'; // ファミコン感を出すための矩形波
                 osc.frequency.value = noteToFreq(n);
 
                 gain.gain.setValueAtTime(0, t);
-                gain.gain.linearRampToValueAtTime(0.3, t + 0.005);
+                gain.gain.linearRampToValueAtTime(0.15, t + 0.002);
                 gain.gain.exponentialRampToValueAtTime(0.00001, t + duration);
 
-                osc.connect(gain);
+                // レトロ音源の適度な温かみを持たせるためのローパス
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 4000;
+
+                osc.connect(filter);
+                filter.connect(gain);
                 gain.connect(ctx.destination);
 
                 osc.start(t);
-                osc.stop(t + duration);
+                osc.stop(t + duration + 0.05);
 
-                // 最後の決めポーズ音に和音を足す (ハ長調の主和音 C-E-G)
+                // 最後の決めポーズ音に壮大なハ長調ハーモニー(C-E-G-C)を同時ブレンド
                 if (isLast) {
-                    const extraNotes = [76, 79, 84]; // E5, G5, C6
-                    extraNotes.forEach(en => {
-                        const extraOsc = ctx.createOscillator();
-                        const extraGain = ctx.createGain();
-                        extraOsc.type = 'triangle';
-                        extraOsc.frequency.value = noteToFreq(en);
+                    const harmony = [84, 88, 91, 96]; // C6, E6, G6, C7
+                    harmony.forEach(hn => {
+                        const hOsc = ctx.createOscillator();
+                        const hGain = ctx.createGain();
+                        hOsc.type = 'square';
+                        hOsc.frequency.value = noteToFreq(hn);
 
-                        extraGain.gain.setValueAtTime(0, t);
-                        extraGain.gain.linearRampToValueAtTime(0.15, t + 0.01);
-                        extraGain.gain.exponentialRampToValueAtTime(0.00001, t + duration);
+                        hGain.gain.setValueAtTime(0, t);
+                        hGain.gain.linearRampToValueAtTime(0.08, t + 0.005);
+                        hGain.gain.exponentialRampToValueAtTime(0.00001, t + duration);
 
-                        extraOsc.connect(extraGain);
-                        extraGain.connect(ctx.destination);
-
-                        extraOsc.start(t);
-                        extraOsc.stop(t + duration);
+                        hOsc.connect(filter);
+                        hGain.connect(ctx.destination);
+                        hOsc.connect(hGain);
+                        
+                        hOsc.start(t);
+                        hOsc.stop(t + duration + 0.05);
                     });
                 }
             });
@@ -1269,6 +1315,183 @@ class NotificationSound {
     }
 
     /**
+     * 透明感ある定番メール着信通知チャイム (mail_received)
+     * Outlook風の「テロリン♪」(F5→C6) をさわやかなサイン倍音合成で再現
+     */
+    static playMail() {
+        try {
+            const ctx = NotificationSound.createAudioContext();
+            const noteToFreq = NotificationSound.noteToFreq;
+            const start = ctx.currentTime + 0.02;
+            const seq = [77, 84]; // F5 -> C6 の澄みきった上昇音階
+            const delay = 0.12;
+
+            seq.forEach((n, i) => {
+                const t = start + i * delay;
+                const duration = 1.5;
+
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = noteToFreq(n);
+
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.25, t + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.00001, t + duration);
+
+                // 2倍音（オクターブ上のきらめき）を少しだけブレンドして高級感をプラス
+                const overtone = ctx.createOscillator();
+                const oGain = ctx.createGain();
+                overtone.type = 'sine';
+                overtone.frequency.value = noteToFreq(n) * 2;
+                
+                oGain.gain.setValueAtTime(0, t);
+                oGain.gain.linearRampToValueAtTime(0.08, t + 0.01);
+                oGain.gain.exponentialRampToValueAtTime(0.00001, t + duration * 0.5);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                overtone.connect(oGain);
+                oGain.connect(ctx.destination);
+
+                osc.start(t);
+                osc.stop(t + duration);
+                overtone.start(t);
+                overtone.stop(t + duration * 0.5);
+            });
+        } catch (e) {
+            console.warn('音声再生がブロックされました。', e);
+        }
+    }
+
+    /**
+     * 「ぽきぽき（LINE風）」通知サウンド (line_pokipoki)
+     * 木製やプラスチックが弾けるような短いパルス的な木魚風のピッチ急降下2連打音を再現
+     */
+    static playLinePokipoki() {
+        try {
+            const ctx = NotificationSound.createAudioContext();
+            const start = ctx.currentTime + 0.02;
+            const steps = [0.0, 0.12]; // コポ、コポッというリピート感覚
+
+            steps.forEach((delay, i) => {
+                const t = start + delay;
+                const duration = 0.08;
+
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'sine';
+                // 高音から低音へ瞬間的にピッチスイープさせることで「ポキッ」というアタックを生成
+                const startFreq = i === 0 ? 1600 : 1800;
+                const endFreq = i === 0 ? 600 : 700;
+                
+                osc.frequency.setValueAtTime(startFreq, t);
+                osc.frequency.exponentialRampToValueAtTime(endFreq, t + duration);
+
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.3, t + 0.002);
+                gain.gain.exponentialRampToValueAtTime(0.00001, t + duration);
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 2200; // カドを少し削って適度な太さを加える
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(t);
+                osc.stop(t + duration + 0.02);
+            });
+        } catch (e) {
+            console.warn('音声再生がブロックされました。', e);
+        }
+    }
+
+    /**
+     * Slackの優しくノックするような通知サウンド (slack_knock)
+     * ドアを叩く「トントン」というこもった音をピッチエンベロープで合成
+     */
+    static playSlackKnock() {
+        try {
+            const ctx = NotificationSound.createAudioContext();
+            const start = ctx.currentTime + 0.02;
+            const steps = [0.0, 0.14]; // トン、トンの打点時間
+
+            steps.forEach((delay) => {
+                const t = start + delay;
+                const duration = 0.06;
+
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'sine';
+                // 緩やかで低いピッチ降下
+                osc.frequency.setValueAtTime(450, t);
+                osc.frequency.exponentialRampToValueAtTime(150, t + duration);
+
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.4, t + 0.002);
+                gain.gain.exponentialRampToValueAtTime(0.00001, t + duration);
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 800; // 深い木の残響のみを通す
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(t);
+                osc.stop(t + duration + 0.02);
+            });
+        } catch (e) {
+            console.warn('音声再生がブロックされました。', e);
+        }
+    }
+
+    /**
+     * Discordの丸みのあるチャイムサウンド (discord_ping)
+     * G5(79)とD5(74)を優しく包み込むように同時発音させて再現
+     */
+    static playDiscordPing() {
+        try {
+            const ctx = NotificationSound.createAudioContext();
+            const noteToFreq = NotificationSound.noteToFreq;
+            const t = ctx.currentTime + 0.02;
+            const duration = 0.35;
+            const notes = [74, 79]; // 象徴的な2つの心地よいベルノート
+
+            notes.forEach((n) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.value = noteToFreq(n);
+
+                // アタックを少しだけ緩やかにしてフワッと立ち上げるのがコツ
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.25, t + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.00001, t + duration);
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 1500;
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(t);
+                osc.stop(t + duration + 0.02);
+            });
+        } catch (e) {
+            console.warn('音声再生がブロックされました。', e);
+        }
+    }
+
+    /**
      * おすすめ音色1: 「キラリーン！」星が輝くようなファンタジー・スター (recommend1)
      */
     static playRecommend1() {
@@ -1340,6 +1563,154 @@ class NotificationSound {
     }
 
     /**
+     * おすすめ音色3: 「タララ・ラーン！」達成感のある大成功ファンファーレ (success)
+     */
+    static playSuccess() {
+        try {
+            const ctx = NotificationSound.createAudioContext();
+            const noteToFreq = NotificationSound.noteToFreq;
+            const start = ctx.currentTime + 0.02;
+            const seq = [60, 64, 67, 72]; // C4, E4, G4, C5 (ハ長調の分散和音)
+            const tempo = 0.08;
+
+            seq.forEach((n, i) => {
+                const t = start + (i * tempo);
+                const isLast = i === seq.length - 1;
+                const duration = isLast ? 1.2 : 0.15;
+
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                // 華やかなブラス・シンセ風のノコギリ波
+                osc.type = 'sawtooth'; 
+                osc.frequency.value = noteToFreq(n);
+
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.15, t + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.00001, t + duration);
+
+                // ローパスフィルターで最初は明るく、徐々に丸い音に
+                const lp = ctx.createBiquadFilter();
+                lp.type = 'lowpass';
+                lp.frequency.setValueAtTime(3000, t);
+                lp.frequency.exponentialRampToValueAtTime(300, t + duration);
+
+                osc.connect(lp);
+                lp.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(t);
+                osc.stop(t + duration);
+            });
+        } catch (e) {
+            console.warn('音声再生がブロックされました。', e);
+        }
+    }
+
+    /**
+     * おすすめ音色4: 「シャラララーン」魔法をかけたようなキラキラウィンドチャイム (magic)
+     */
+    static playMagic() {
+        try {
+            const ctx = NotificationSound.createAudioContext();
+            const noteToFreq = NotificationSound.noteToFreq;
+            const start = ctx.currentTime + 0.02;
+            // C5から始まるペンタトニックスケールの高速駆け上がり
+            const notes = [72, 74, 76, 79, 81, 84, 86, 88, 91, 93]; 
+            const speed = 0.035;
+
+            notes.forEach((n, i) => {
+                const t = start + i * speed;
+                const duration = 0.8;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'sine'; // 澄んだ音色
+                osc.frequency.value = noteToFreq(n);
+
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.1, t + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.00001, t + duration);
+
+                // パンニングで左右に散らすとより魔法っぽくなる(ステレオ対応環境向け)
+                if (ctx.createStereoPanner) {
+                    const panner = ctx.createStereoPanner();
+                    panner.pan.value = (i % 2 === 0) ? 0.5 : -0.5; // 左右に振る
+                    osc.connect(panner);
+                    panner.connect(gain);
+                } else {
+                    osc.connect(gain);
+                }
+                
+                gain.connect(ctx.destination);
+                osc.start(t);
+                osc.stop(t + duration);
+            });
+        } catch (e) {
+            console.warn('音声再生がブロックされました。', e);
+        }
+    }
+
+    /**
+     * おすすめ音色5: 「シュワァーン」SF風のワープ・空間移動音 (warp)
+     */
+    static playWarp() {
+        try {
+            const ctx = NotificationSound.createAudioContext();
+            const start = ctx.currentTime + 0.02;
+            const duration = 0.9;
+
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = 'sine';
+            
+            // ピッチが急上昇して、なだらかに降下していく
+            osc.frequency.setValueAtTime(150, start);
+            osc.frequency.exponentialRampToValueAtTime(1800, start + 0.2);
+            osc.frequency.exponentialRampToValueAtTime(50, start + duration);
+
+            gain.gain.setValueAtTime(0, start);
+            gain.gain.linearRampToValueAtTime(0.3, start + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.00001, start + duration);
+
+            // 少し歪み(Drive)のような効果を出すため波形をシェイピング
+            const distortion = ctx.createWaveShaper();
+            function makeDistortionCurve(amount) {
+                let k = typeof amount === 'number' ? amount : 50,
+                    n_samples = 44100,
+                    curve = new Float32Array(n_samples),
+                    deg = Math.PI / 180,
+                    i = 0,
+                    x;
+                for ( ; i < n_samples; ++i ) {
+                    x = i * 2 / n_samples - 1;
+                    curve[i] = ( 3 + k ) * x * 20 * deg / ( Math.PI + k * Math.abs(x) );
+                }
+                return curve;
+            }
+            distortion.curve = makeDistortionCurve(20);
+            distortion.oversample = '4x';
+
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(500, start);
+            filter.frequency.exponentialRampToValueAtTime(4000, start + 0.2);
+            filter.frequency.exponentialRampToValueAtTime(100, start + duration);
+
+            osc.connect(distortion);
+            distortion.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(start);
+            osc.stop(start + duration);
+        } catch (e) {
+            console.warn('音声再生がブロックされました。', e);
+        }
+    }
+
+    /**
      * 統合再生インターフェース
      * @param {string} profile - 再生したいサウンドキー
      */
@@ -1355,6 +1726,9 @@ class NotificationSound {
             'marimba': NotificationSound.playMarimba,
             'recommend1': NotificationSound.playRecommend1,
             'recommend2': NotificationSound.playRecommend2,
+            'success': NotificationSound.playSuccess,
+            'magic': NotificationSound.playMagic,
+            'warp': NotificationSound.playWarp,
 
             // システムUI側が要求するオリジナルのキー名との完全マッピング
             'bright': NotificationSound.playIphone,       // iPhoneトライトーン
@@ -1365,6 +1739,13 @@ class NotificationSound {
             'levelup2': NotificationSound.playPokemon,    // ポケモン回復
             'slap': NotificationSound.playDotapun,        // 水滴ドタプン
             'dotapun': NotificationSound.playDotapun,     // 水滴ドタプン
+
+            // 新規追加されたリアル＆アプリ系サウンドキー
+            'ding': NotificationSound.playDing,                   // チン！
+            'mail_received': NotificationSound.playMail,           // メールの着信音
+            'line_pokipoki': NotificationSound.playLinePokipoki,   // ポキポキ（LINE風）
+            'slack_knock': NotificationSound.playSlackKnock,       // Slackノック
+            'discord_ping': NotificationSound.playDiscordPing,     // Discord
 
             // 別名（エイリアス）でのアクセスにも対応
             'iphone': NotificationSound.playIphone,
