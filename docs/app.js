@@ -776,7 +776,7 @@ class NotificationSound {
     static playOriginal() {
         try {
             const ctx = NotificationSound.createAudioContext();
-            const beatDuration = 0.5; // テンポ調整
+            const beatDuration = 0.2; // テンポ調整
             const noteToFreq = NotificationSound.noteToFreq;
             // ウェストミンスター・チャイムの音階 (キートランスポーズ：E5, C5, D5, G4...)
             const chimeNotes = [
