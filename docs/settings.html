@@ -51,6 +51,23 @@
                 </form>
             </div>
 
+            <div class="data-box" id="soundSection">
+                <h3 class="group-title">通知音設定</h3>
+                <p class="setting-desc">通知で使うサウンドを選択します。会議中などは「会議向け（控えめ）」を選んでください。</p>
+                <div class="setting-row">
+                    <label for="notificationSoundSelect">通知音</label>
+                    <select id="notificationSoundSelect" class="setting-input">
+                        <option value="original">元のチャイム</option>
+                        <option value="bell">ベル（標準）</option>
+                        <option value="bell-high">ベル（高音）</option>
+                        <option value="soft">会議向け（控えめ）</option>
+                    </select>
+                </div>
+                <div class="btn-group-wrap">
+                    <button id="playSoundTestBtn" class="btn btn-action" onclick="playNotificationSound()">サウンドをテスト</button>
+                </div>
+            </div>
+
             <div class="data-box" id="notificationSection">
                 <h3 class="group-title">通知テスト</h3>
                 <p class="setting-desc">

@@ -624,6 +624,27 @@ a:not(.nav-link):hover {
     align-items: flex-start;
     width: 100%;
 }
+
+/* 設定行（ラベル + 入力）を他と揃えて表示 */
+.setting-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 12px;
+}
+.setting-row label {
+    display: block;
+    min-width: auto;
+    color: var(--text-secondary);
+    font-weight: 700;
+    font-size: 14px;
+}
+.setting-row .setting-input {
+    width: 100%;
+    max-width: none;
+}
 .setting-input {
     width: 100%;
     padding: 12px;

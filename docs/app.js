@@ -121,6 +121,26 @@ class LocalStorageHelper {
         return raw === 'true';
     }
 
+    static get NOTIFICATION_SOUND_KEY() {
+        return 'notification_sound';
+    }
+
+    static get notificationSound() {
+        try {
+            return localStorage.getItem(this.NOTIFICATION_SOUND_KEY) || 'bell';
+        } catch (e) {
+            return 'bell';
+        }
+    }
+
+    static set notificationSound(val) {
+        try {
+            localStorage.setItem(this.NOTIFICATION_SOUND_KEY, val);
+        } catch (e) {
+            // ignore
+        }
+    }
+
     // --- localStorage 利用可否チェック ---
     static supportsLocalStorage() {
         try {
@@ -402,6 +422,19 @@ function setupPageSpecifics(currentTheme) {
 
     updateNotificationTestUI();
     
+    // --- 通知音の設定セレクタ初期化 ---
+    const soundSelect = document.getElementById('notificationSoundSelect');
+    if (soundSelect) {
+        try {
+            soundSelect.value = LocalStorageHelper.notificationSound || 'bell';
+        } catch (e) {
+            soundSelect.value = 'bell';
+        }
+        soundSelect.addEventListener('change', (e) => {
+            LocalStorageHelper.notificationSound = e.target.value;
+        });
+    }
+    
     // --- 設定画面用の初期化 ---
     const themeForm = document.getElementById('themeForm');
     if (themeForm) {
@@ -595,70 +628,189 @@ function initNotificationTimer() {
     }, 60000);
 }
 
-// チャイムを鳴らす
-function playNotificationSound() {
+// 再利用できる音声音源ユーティリティ
+function _createAudioContext() {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    return new AudioContext();
+}
+
+function playNotificationSound_original() {
     try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const ctx = new AudioContext();
-        
-        // チャイムのゆったりとしたテンポ（1拍＝1.2秒、四捨五入なし）
-        const beatDuration = 0.1; 
-        
-        // MIDIノート番号から周波数（Hz）への正確な変換式
+        const ctx = _createAudioContext();
+        const beatDuration = 0.1;
         const noteToFreq = (note) => 440 * Math.pow(2, (note - 69) / 12);
-        
-        // ウェストミンスターの鐘の音階（ミ・ド・レ・ソ ／ ソ・レ・ミ・ド）
         const chimeNotes = [
-            { beat: 0, note: 64 }, // ミ (E4)
-            { beat: 2, note: 60 }, // ド (C4)
-            { beat: 4, note: 62 }, // レ (D4)
-            { beat: 6, note: 55 }, // ソ (G3)
-            
-            { beat: 9, note: 55 }, // ソ (G3)
-            { beat: 11, note: 62 }, // レ (D4)
-            { beat: 13, note: 64 }, // ミ (E4)
-            { beat: 15, note: 60 }  // ド (C4)
+            { beat: 0, note: 64 }, { beat: 2, note: 60 }, { beat: 4, note: 62 }, { beat: 6, note: 55 },
+            { beat: 9, note: 55 }, { beat: 11, note: 62 }, { beat: 13, note: 64 }, { beat: 15, note: 60 }
         ];
-        
         const startTime = ctx.currentTime + 0.1;
-        
         chimeNotes.forEach(item => {
             const time = startTime + (item.beat * beatDuration);
-            // 音が美しく重なるよう、1音あたり4秒間の余韻を持たせる
-            const duration = 4.0; 
-            
-            // 鐘の金属的な複合音を再現するため、基本音に加えて3つの倍音（共鳴音）を生成
-            // [倍音の比率, 音量比率]
+            const duration = 4.0;
             const partials = [
-                { ratio: 1.0, vol: 0.25 },  // 基本音
-                { ratio: 2.0, vol: 0.05 },  // 1オクターブ上
-                { ratio: 3.0, vol: 0.015 }, // 1オクターブと5度上
-                { ratio: 4.0, vol: 0.005 }  // 2オクターブ上
+                { ratio: 1.0, vol: 0.25 },
+                { ratio: 2.0, vol: 0.05 },
+                { ratio: 3.0, vol: 0.015 },
+                { ratio: 4.0, vol: 0.005 }
             ];
-            
             partials.forEach(partial => {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
-                
-                osc.type = 'sine'; // 澄んだ正弦波
-                // 基本の周波数に比率を掛け合わせて正確な倍音を計算
+                osc.type = 'sine';
                 osc.frequency.value = noteToFreq(item.note) * partial.ratio;
-                
-                // 鐘を叩いた瞬間の鋭い立ち上がりと、静かに消えていく減衰（パーカッシブ・エンベロープ）
                 gain.gain.setValueAtTime(0, time);
-                gain.gain.linearRampToValueAtTime(partial.vol, time + 0.03); // アタック
-                gain.gain.exponentialRampToValueAtTime(0.00001, time + duration); // 長い余韻（ディケイ／リリース）
-                
+                gain.gain.linearRampToValueAtTime(partial.vol, time + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.00001, time + duration);
                 osc.connect(gain);
                 gain.connect(ctx.destination);
-                
                 osc.start(time);
                 osc.stop(time + duration);
             });
         });
     } catch (e) {
-        console.warn("音声再生がブロックされました。", e);
+        console.warn('音声再生がブロックされました。', e);
     }
+}
+
+function playNotificationSound_bell() {
+    try {
+        const ctx = _createAudioContext();
+        const beatDuration = 0.6;
+        const noteToFreq = (note) => 440 * Math.pow(2, (note - 69) / 12);
+        const chimeNotes = [
+            { beat: 0, note: 64 }, { beat: 2, note: 60 }, { beat: 4, note: 62 }, { beat: 6, note: 55 },
+            { beat: 9, note: 55 }, { beat: 11, note: 62 }, { beat: 13, note: 64 }, { beat: 15, note: 60 }
+        ];
+        const startTime = ctx.currentTime + 0.05;
+        chimeNotes.forEach(item => {
+            const time = startTime + (item.beat * beatDuration);
+            const duration = 5.5;
+            const partials = [
+                { ratio: 1.0, vol: 0.5 },
+                { ratio: 2.99, vol: 0.12 },
+                { ratio: 4.01, vol: 0.08 },
+                { ratio: 5.4, vol: 0.04 },
+                { ratio: 6.8, vol: 0.02 }
+            ];
+            const masterGain = ctx.createGain();
+            masterGain.gain.setValueAtTime(0, time);
+            masterGain.gain.linearRampToValueAtTime(1.0, time + 0.02);
+            masterGain.gain.exponentialRampToValueAtTime(0.00001, time + duration + 0.05);
+            masterGain.connect(ctx.destination);
+            partials.forEach((partial, idx) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                const filter = ctx.createBiquadFilter();
+                osc.type = 'sine';
+                const detuneFactor = 1 + ((idx === 0 ? 0 : (Math.random() - 0.5) * 0.002));
+                const freq = noteToFreq(item.note) * partial.ratio * detuneFactor;
+                osc.frequency.value = freq;
+                filter.type = 'bandpass';
+                filter.frequency.value = freq * 1.2;
+                filter.Q.value = 6;
+                gain.gain.setValueAtTime(0.00001, time);
+                gain.gain.linearRampToValueAtTime(partial.vol, time + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.00001, time + duration);
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(masterGain);
+                osc.start(time);
+                osc.stop(time + duration);
+            });
+        });
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_high() {
+    try {
+        const ctx = _createAudioContext();
+        const beatDuration = 0.5;
+        const noteToFreq = (note) => 440 * Math.pow(2, (note - 69) / 12);
+        const chimeNotes = [
+            { beat: 0, note: 64 + 12 }, { beat: 2, note: 60 + 12 }, { beat: 4, note: 62 + 12 }, { beat: 6, note: 55 + 12 },
+            { beat: 9, note: 55 + 12 }, { beat: 11, note: 62 + 12 }, { beat: 13, note: 64 + 12 }, { beat: 15, note: 60 + 12 }
+        ];
+        const startTime = ctx.currentTime + 0.03;
+        chimeNotes.forEach(item => {
+            const time = startTime + (item.beat * beatDuration);
+            const duration = 4.2;
+            const partials = [
+                { ratio: 1.0, vol: 0.45 },
+                { ratio: 2.99, vol: 0.11 },
+                { ratio: 4.01, vol: 0.07 },
+                { ratio: 5.4, vol: 0.03 }
+            ];
+            const masterGain = ctx.createGain();
+            masterGain.gain.setValueAtTime(0, time);
+            masterGain.gain.linearRampToValueAtTime(0.85, time + 0.015);
+            masterGain.gain.exponentialRampToValueAtTime(0.00001, time + duration + 0.03);
+            masterGain.connect(ctx.destination);
+            partials.forEach((partial, idx) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                const filter = ctx.createBiquadFilter();
+                osc.type = 'sine';
+                const detuneFactor = 1 + ((idx === 0 ? 0 : (Math.random() - 0.5) * 0.0015));
+                const freq = noteToFreq(item.note) * partial.ratio * detuneFactor;
+                osc.frequency.value = freq;
+                filter.type = 'bandpass';
+                filter.frequency.value = freq * 1.4;
+                filter.Q.value = 7;
+                gain.gain.setValueAtTime(0.00001, time);
+                gain.gain.linearRampToValueAtTime(partial.vol, time + 0.015);
+                gain.gain.exponentialRampToValueAtTime(0.00001, time + duration);
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(masterGain);
+                osc.start(time);
+                osc.stop(time + duration);
+            });
+        });
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_soft() {
+    try {
+        const ctx = _createAudioContext();
+        const noteToFreq = (note) => 440 * Math.pow(2, (note - 69) / 12);
+        const now = ctx.currentTime + 0.02;
+        const freqs = [72, 76];
+        freqs.forEach((n, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            const time = now + i * 0.12;
+            const duration = 0.28;
+            osc.frequency.value = noteToFreq(n);
+            gain.gain.setValueAtTime(0.00001, time);
+            gain.gain.linearRampToValueAtTime(0.06, time + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.00001, time + duration);
+            // 少しローコンプ感を出すためにローパスを軽く通す
+            const lp = ctx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.value = 4000;
+            osc.connect(lp);
+            lp.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(time);
+            osc.stop(time + duration);
+        });
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+// 設定に応じた再生ラッパー
+function playNotificationSound() {
+    const profile = LocalStorageHelper.notificationSound || 'bell';
+    if (profile === 'original') return playNotificationSound_original();
+    if (profile === 'bell-high') return playNotificationSound_high();
+    if (profile === 'soft') return playNotificationSound_soft();
+    return playNotificationSound_bell();
 }
 
 function checkAndSendNotifications() {
