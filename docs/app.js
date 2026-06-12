@@ -1728,9 +1728,7 @@ class NotificationSound {
     }
 
     /**
-     * ジョジョの「To Be Continued」（Yes - Roundaboutイントロの完全再現） (jojo)
-     * 逆再生のリバース効果、12フレットハーモニクスの完全和音、
-     * そしてリッケンバッカーの極太で歪んだベースラインを全て統合した、Web Audioによる大作シンセ。
+     * ジョジョの「To Be Continued」(jojo)
      */
     static playJojo() {
         try {
@@ -1738,113 +1736,48 @@ class NotificationSound {
             const noteToFreq = NotificationSound.noteToFreq;
             const start = ctx.currentTime + 0.02;
 
-            // --- 1. 逆再生風リバース音 (0.0s 〜 2.1s) ---
-            const reverseOsc = ctx.createOscillator();
-            const reverseGain = ctx.createGain();
-            const reverseFilter = ctx.createBiquadFilter();
-
-            reverseOsc.type = 'triangle';
-            reverseOsc.frequency.setValueAtTime(90, start);
-            reverseOsc.frequency.exponentialRampToValueAtTime(220, start + 2.1); // ピッチ上昇
-
-            reverseGain.gain.setValueAtTime(0.00001, start);
-            reverseGain.gain.exponentialRampToValueAtTime(0.35, start + 2.1); // 指数クレッシェンド
-
-            // フィルターの開閉によるリバース演出
-            reverseFilter.type = 'lowpass';
-            reverseFilter.frequency.setValueAtTime(200, start);
-            reverseFilter.frequency.exponentialRampToValueAtTime(1200, start + 2.1);
-
-            reverseOsc.connect(reverseFilter);
-            reverseFilter.connect(reverseGain);
-            reverseGain.connect(ctx.destination);
-
-            reverseOsc.start(start);
-            reverseOsc.stop(start + 2.15);
-
-            // --- 2. アコースティックギター・ハーモニクス (2.1sに炸裂する美しいキーン音) ---
-            const harmonyTime = start + 2.1;
-            const harmonics = [76, 83, 88]; // E5, B5, E6 (Emハーモニクス)
-
-            harmonics.forEach((n, idx) => {
-                const hOsc = ctx.createOscillator();
-                const hGain = ctx.createGain();
-                const hFilter = ctx.createBiquadFilter();
-
-                hOsc.type = 'sine';
-                hOsc.frequency.value = noteToFreq(n);
-
-                hGain.gain.setValueAtTime(0, harmonyTime);
-                const strokeDelay = idx * 0.015; // ストラム感を演出する微小遅延
-                hGain.gain.linearRampToValueAtTime(0.12, harmonyTime + strokeDelay + 0.005);
-                hGain.gain.exponentialRampToValueAtTime(0.00001, harmonyTime + strokeDelay + 3.0); // 長い残響
-
-                hFilter.type = 'highpass';
-                hFilter.frequency.value = 800; // キンとした高域成分のみ抽出
-
-                hOsc.connect(hFilter);
-                hFilter.connect(hGain);
-                hGain.connect(ctx.destination);
-
-                hOsc.start(harmonyTime);
-                hOsc.stop(harmonyTime + 3.5);
-            });
-
-            // --- 3. 歪んだリッケンバッカーベースリフ (2.1s 〜 3.5s) ---
-            const baseTime = start + 2.1;
-            
-            // ディストーション・ノードの作成
-            const dist = ctx.createWaveShaper();
-            const makeDistortionCurve = (amount) => {
-                const k = typeof amount === 'number' ? amount : 50;
-                const n_samples = 44100;
-                const curve = new Float32Array(n_samples);
-                const deg = Math.PI / 180;
-                for (let i = 0; i < n_samples; ++i) {
-                    const x = (i * 2) / n_samples - 1;
-                    curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
-                }
-                return curve;
-            };
-            dist.curve = makeDistortionCurve(120); // ゴリゴリの強め歪み
-            dist.oversample = '4x';
-
-            const baseFilter = ctx.createBiquadFilter();
-            baseFilter.type = 'lowpass';
-            baseFilter.frequency.value = 550; // 重低音にフォーカス
-
-            // Roundabout のあのイントロベースフレーズ
-            const bassNotes = [
-                { note: 40, time: 0.00, dur: 0.45, vol: 0.40 }, // E2強打 (デーーーン)
-                { note: 40, time: 0.50, dur: 0.12, vol: 0.25 }, // E2 (ド)
-                { note: 40, time: 0.65, dur: 0.12, vol: 0.25 }, // E2 (ド)
-                { note: 43, time: 0.80, dur: 0.12, vol: 0.30 }, // G2 (ド)
-                { note: 45, time: 0.95, dur: 0.15, vol: 0.35 }, // A2 (ド)
-                { note: 40, time: 1.15, dur: 0.80, vol: 0.45 }  // E2決め強打 (デーン！)
+            const seq = [
+                { note: 79, delay: 0.00, duration: 1.00 },
+                { note: 83, delay: 0.08, duration: 1.20 },
+                { note: 88, delay: 0.16, duration: 1.50 }
             ];
 
-            bassNotes.forEach((step) => {
-                const t = baseTime + step.time;
-                const bOsc = ctx.createOscillator();
-                const bGain = ctx.createGain();
+            seq.forEach((item) => {
+                const t = start + item.delay;
+                const duration = item.duration;
 
-                bOsc.type = 'sawtooth'; // 倍音豊かなノコギリ波
-                bOsc.frequency.value = noteToFreq(step.note);
+                const partials = [
+                    { ratio: 1.0, vol: 0.50 },
+                    { ratio: 2.0, vol: 0.26 },
+                    { ratio: 3.0, vol: 0.10 }
+                ];
 
-                bGain.gain.setValueAtTime(0, t);
-                bGain.gain.linearRampToValueAtTime(step.vol, t + 0.015);
-                bGain.gain.exponentialRampToValueAtTime(0.00001, t + step.dur);
+                partials.forEach(partial => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
 
-                bOsc.connect(dist);
-                dist.connect(baseFilter);
-                bGain.connect(dist);
-                baseFilter.connect(ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(noteToFreq(item.note) * partial.ratio, t);
 
-                bOsc.connect(bGain);
-                bOsc.start(t);
-                bOsc.stop(t + step.dur + 0.05);
+                    // エンベロープ設定 (アタック・デケイ)
+                    gain.gain.setValueAtTime(0, t);
+                    gain.gain.linearRampToValueAtTime(partial.vol, t + 0.016);
+                    gain.gain.exponentialRampToValueAtTime(0.00001, t + duration);
+                    
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.setValueAtTime(noteToFreq(item.note) * 1, t);
+                filter.Q.setValueAtTime(3.1, t);
+                
+                    
+                osc.connect(filter);
+                filter.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.start(t);
+                    osc.stop(t + duration + 0.05);
+                });
             });
-
         } catch (e) {
             console.warn('音声再生がブロックされました。', e);
         }

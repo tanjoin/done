@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Audio API Chime Generator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+    <!-- ヘッダー -->
+    <header class="border-b border-slate-800 bg-slate-950/50 backdrop-blur px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center space-x-3">
+            <div class="p-2 bg-indigo-600 rounded-lg text-white">
+                <i data-lucide="music-4" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-white tracking-wide">Web Audio SE Generator</h1>
+                <p class="text-xs text-slate-400">NotificationSoundクラス向けの音作り＆コード生成ツール</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="playPreview()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-medium rounded-lg shadow-lg flex items-center space-x-2 transition-all">
+                <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                <span>プレビュー再生</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- 左側：シンセパラメーター設定 (7カラム) -->
+        <div class="lg:col-span-7 space-y-6">
+            
+            <!-- 1. シーケンサー（音階とタイミング） -->
+            <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-md font-bold text-white flex items-center space-x-2">
+                        <i data-lucide="list-music" class="w-5 h-5 text-indigo-400"></i>
+                        <span>1. 音階・シーケンス設定 (Notes)</span>
+                    </h2>
+                    <button onclick="addNoteRow()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-md flex items-center space-x-1 transition">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>音を追加</span>
+                    </button>
+                </div>
+
+                <!-- ノートリストヘッダー -->
+                <div class="grid grid-cols-12 gap-2 px-2 py-1 text-xs font-bold text-slate-400 border-b border-slate-800 mb-2">
+                    <div class="col-span-1 text-center">#</div>
+                    <div class="col-span-3">MIDIキー (ノート名)</div>
+                    <div class="col-span-3">発音タイミング (秒後)</div>
+                    <div class="col-span-3">音の長さ (秒)</div>
+                    <div class="col-span-2 text-center">操作</div>
+                </div>
+
+                <!-- ノートリスト本体 -->
+                <div id="notesContainer" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    <!-- 動的に追加されます -->
+                </div>
+            </div>
+
+            <!-- 2. 音色＆シンセサイザー特性 -->
+            <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-5 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 左半分: オシレータ＆エンベロープ -->
+                <div class="space-y-4">
+                    <h2 class="text-md font-bold text-white flex items-center space-x-2 mb-2">
+                        <i data-lucide="sliders" class="w-5 h-5 text-indigo-400"></i>
+                        <span>2. 音色 ＆ 音量特性</span>
+                    </h2>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">波形タイプ (Oscillator Type)</label>
+                        <select id="oscType" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500" onchange="generateCode()">
+                            <option value="sine">sine (サイン波: 澄んだ綺麗な音)</option>
+                            <option value="triangle" selected>triangle (三角波: ピコピコ丸いレトロ音)</option>
+                            <option value="square">square (矩形波: ファミコン風の力強い音)</option>
+                            <option value="sawtooth">sawtooth (のこぎり波: ギザギザしたブラス風)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300 font-medium">アタック時間 (Attack Time)</span>
+                            <span id="attackVal" class="text-indigo-400 font-bold">0.01 秒</span>
+                        </div>
+                        <input id="attackTime" type="range" min="0.001" max="0.5" step="0.005" value="0.01" class="w-full accent-indigo-500" oninput="updateRangeVal('attackTime', 'attackVal', ' 秒'); generateCode();">
+                        <p class="text-[10px] text-slate-400">音が最大音量に達するまでの時間。短いと硬い音、長いとふわっとした音になります。</p>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300 font-medium">マスター音量 (Volume)</span>
+                            <span id="volumeVal" class="text-indigo-400 font-bold">0.3</span>
+                        </div>
+                        <input id="masterVolume" type="range" min="0.05" max="1.0" step="0.05" value="0.3" class="w-full accent-indigo-500" oninput="updateRangeVal('masterVolume', 'volumeVal', ''); generateCode();">
+                    </div>
+                </div>
+
+                <!-- 右半分: フィルター＆倍音 -->
+                <div class="space-y-4">
+                    <h2 class="text-md font-bold text-white flex items-center space-x-2 mb-2">
+                        <i data-lucide="activity" class="w-5 h-5 text-indigo-400"></i>
+                        <span>3. フィルター ＆ 倍音効果</span>
+                    </h2>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">フィルタータイプ (Biquad Filter)</label>
+                        <select id="filterType" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500" onchange="toggleFilterParams(); generateCode();">
+                            <option value="none">フィルターなし</option>
+                            <option value="lowpass">lowpass (高域をカットし籠もらせる)</option>
+                            <option value="highpass">highpass (低音を削ってシャカシャカに)</option>
+                            <option value="bandpass">bandpass (特定の中心周波数周辺だけ残す)</option>
+                        </select>
+                    </div>
+
+                    <div id="filterParams" class="space-y-3 hidden">
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-slate-300 font-medium">カットオフ周波数 (倍率)</span>
+                                <span id="filtFreqVal" class="text-indigo-400 font-bold">1.2 倍</span>
+                            </div>
+                            <input id="filterFreqRatio" type="range" min="0.2" max="6.0" step="0.1" value="1.2" class="w-full accent-indigo-500" oninput="updateRangeVal('filterFreqRatio', 'filtFreqVal', ' 倍'); generateCode();">
+                            <p class="text-[10px] text-slate-400">音の基本周波数に対するフィルター基準周波数の倍率。</p>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-slate-300 font-medium">レゾナンス (Q値)</span>
+                                <span id="filtQVal" class="text-indigo-400 font-bold">4</span>
+                            </div>
+                            <input id="filterQ" type="range" min="0.1" max="15.0" step="0.5" value="4" class="w-full accent-indigo-500" oninput="updateRangeVal('filterQ', 'filtQVal', ''); generateCode();">
+                        </div>
+                    </div>
+
+                    <!-- 倍音構造 -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">倍音追加（ハーモニクス比率と音量）</label>
+                        <div class="space-y-2 bg-slate-900/80 p-3 rounded-lg border border-slate-800">
+                            <div class="flex items-center justify-between text-[11px] text-slate-400 font-bold">
+                                <span>第2倍音（比率: 2.0x）音量</span>
+                                <span id="partial2Val">0.10</span>
+                            </div>
+                            <input id="partial2" type="range" min="0.0" max="0.5" step="0.02" value="0.10" class="w-full accent-indigo-500" oninput="updateRangeVal('partial2', 'partial2Val', ''); generateCode();">
+
+                            <div class="flex items-center justify-between text-[11px] text-slate-400 font-bold mt-2">
+                                <span>第3倍音（比率: 3.0x）音量</span>
+                                <span id="partial3Val">0.04</span>
+                            </div>
+                            <input id="partial3" type="range" min="0.0" max="0.5" step="0.02" value="0.04" class="w-full accent-indigo-500" oninput="updateRangeVal('partial3', 'partial3Val', ''); generateCode();">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：生成コード & チュートリアル (5カラム) -->
+        <div class="lg:col-span-5 flex flex-col space-y-6">
+            
+            <!-- 生成コード表示ボックス -->
+            <div class="flex-1 bg-slate-950/60 border border-slate-800 rounded-xl p-5 shadow-sm flex flex-col min-h-[450px]">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-md font-bold text-white flex items-center space-x-2">
+                        <i data-lucide="code" class="w-5 h-5 text-emerald-400"></i>
+                        <span>生成された JavaScript コード</span>
+                    </h2>
+                    <button onclick="copyGeneratedCode()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-md flex items-center space-x-1.5 transition">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        <span id="copyBtnText">コピーする</span>
+                    </button>
+                </div>
+
+                <!-- コード表示領域 -->
+                <div class="flex-1 relative bg-slate-900 rounded-lg overflow-hidden border border-slate-800 flex flex-col">
+                    <textarea id="codeOutput" readonly class="code-font flex-1 w-full p-4 bg-transparent text-emerald-400 text-xs focus:outline-none resize-none overflow-y-auto leading-relaxed"></textarea>
+                </div>
+                
+                <p class="text-[11px] text-slate-400 mt-3 flex items-start space-x-1">
+                    <i data-lucide="info" class="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5"></i>
+                    <span>この出力コードをそのまま `NotificationSound.js` 内にメソッドとして貼り付け、クラス下の `play` メソッド内のマッピング（`map`）に登録することで利用できます。</span>
+                </p>
+            </div>
+
+            <!-- サウンドテンプレートクイック設定 -->
+            <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-5 shadow-sm">
+                <h3 class="text-sm font-bold text-slate-300 mb-3 flex items-center space-x-2">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i>
+                    <span>テンプレートから開始</span>
+                </h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="loadTemplate('retro')" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left text-xs transition">
+                        <div class="font-bold text-indigo-400">💡 レトロピコピコ</div>
+                        <div class="text-[10px] text-slate-400 mt-1">アルペジオ調の懐かしいゲームSE風。</div>
+                    </button>
+                    <button onclick="loadTemplate('crystal')" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left text-xs transition">
+                        <div class="font-bold text-indigo-400">✨ クリスタルチャイム</div>
+                        <div class="text-[10px] text-slate-400 mt-1">高音で透き通るきらびやかな響き。</div>
+                    </button>
+                    <button onclick="loadTemplate('softChime')" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left text-xs transition">
+                        <div class="font-bold text-indigo-400">🎐 やさしいベル</div>
+                        <div class="text-[10px] text-slate-400 mt-1">作業を邪魔しない完全4度の2音サイン。</div>
+                    </button>
+                    <button onclick="loadTemplate('successArc')" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left text-xs transition">
+                        <div class="font-bold text-indigo-400">🏆 達成感ファンファーレ</div>
+                        <div class="text-[10px] text-slate-400 mt-1">ブラス調の力強いCコード進行音。</div>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- フッター -->
+    <footer class="border-t border-slate-800 bg-slate-950/20 py-4 px-6 text-center text-xs text-slate-500">
+        Web Audio API Notification Sound Synthesizer Tool - Designed for modern productivity apps
+    </footer>
+
+    <!-- Script Area -->
+    <script>
+        // デフォルトのノート
+        let currentNotes = [
+            { note: 76, delay: 0.0, duration: 0.4 },
+            { note: 81, delay: 0.1, duration: 0.6 }
+        ];
+
+        // テンポラリMIDIノート名
+        const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        function getNoteName(midi) {
+            const octave = Math.floor(midi / 12) - 1;
+            const name = NOTE_NAMES[midi % 12];
+            return `${name}${octave} (${midi})`;
+        }
+
+        // 初期化処理
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            renderNotes();
+            toggleFilterParams();
+            generateCode();
+        });
+
+        // ノート一覧のレンダリング
+        function renderNotes() {
+            const container = document.getElementById('notesContainer');
+            container.innerHTML = '';
+
+            currentNotes.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = 'grid grid-cols-12 gap-2 items-center bg-slate-900/60 border border-slate-800 p-2 rounded-lg';
+                
+                row.innerHTML = `
+                    <div class="col-span-1 text-center font-bold text-slate-500 text-xs">${index + 1}</div>
+                    
+                    <div class="col-span-3">
+                        <input type="number" min="12" max="127" value="${item.note}" 
+                            class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-center font-semibold"
+                            onchange="updateNote(${index}, 'note', this.value)">
+                        <div class="text-[9px] text-slate-500 text-center mt-0.5">${getNoteName(item.note)}</div>
+                    </div>
+                    
+                    <div class="col-span-3">
+                        <input type="number" min="0.0" max="10.0" step="0.05" value="${item.delay}" 
+                            class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-center"
+                            onchange="updateNote(${index}, 'delay', this.value)">
+                    </div>
+                    
+                    <div class="col-span-3">
+                        <input type="number" min="0.05" max="5.0" step="0.05" value="${item.duration}" 
+                            class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-center"
+                            onchange="updateNote(${index}, 'duration', this.value)">
+                    </div>
+                    
+                    <div class="col-span-2 flex justify-center">
+                        <button onclick="removeNoteRow(${index})" class="p-1.5 bg-slate-800 hover:bg-red-950 hover:text-red-400 text-slate-400 rounded transition" title="この音を削除">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+            lucide.createIcons();
+        }
+
+        // ノート値のアップデート
+        function updateNote(index, key, val) {
+            let parsed = parseFloat(val);
+            if (isNaN(parsed)) return;
+            if (key === 'note') parsed = Math.max(12, Math.min(127, Math.round(parsed)));
+            currentNotes[index][key] = parsed;
+            
+            // ディレイ値順に並べ替え（オプション）
+            if (key === 'delay') {
+                currentNotes.sort((a, b) => a.delay - b.delay);
+            }
+            
+            renderNotes();
+            generateCode();
+        }
+
+        // ノート行追加
+        function addNoteRow() {
+            const lastNote = currentNotes[currentNotes.length - 1] || { note: 60, delay: 0.0, duration: 0.5 };
+            currentNotes.push({
+                note: Math.min(120, lastNote.note + 2),
+                delay: Math.round((lastNote.delay + 0.1) * 100) / 100,
+                duration: lastNote.duration
+            });
+            renderNotes();
+            generateCode();
+        }
+
+        // ノート行削除
+        function removeNoteRow(index) {
+            currentNotes.splice(index, 1);
+            renderNotes();
+            generateCode();
+        }
+
+        // フィルターパラメータ表示切り替え
+        function toggleFilterParams() {
+            const select = document.getElementById('filterType');
+            const params = document.getElementById('filterParams');
+            if (select.value === 'none') {
+                params.classList.add('hidden');
+            } else {
+                params.classList.remove('hidden');
+            }
+        }
+
+        // スライダー数値表示同期
+        function updateRangeVal(sliderId, displayId, suffix = '') {
+            const slider = document.getElementById(sliderId);
+            const display = document.getElementById(displayId);
+            display.innerText = slider.value + suffix;
+        }
+
+        // テンプレート読み込み
+        function loadTemplate(key) {
+            const filterType = document.getElementById('filterType');
+            const filterFreqRatio = document.getElementById('filterFreqRatio');
+            const filterQ = document.getElementById('filterQ');
+            const oscType = document.getElementById('oscType');
+            const attackTime = document.getElementById('attackTime');
+            const masterVolume = document.getElementById('masterVolume');
+            const partial2 = document.getElementById('partial2');
+            const partial3 = document.getElementById('partial3');
+
+            if (key === 'retro') {
+                currentNotes = [
+                    { note: 72, delay: 0.00, duration: 0.15 },
+                    { note: 76, delay: 0.06, duration: 0.15 },
+                    { note: 79, delay: 0.12, duration: 0.15 },
+                    { note: 84, delay: 0.18, duration: 0.45 }
+                ];
+                oscType.value = 'triangle';
+                attackTime.value = 0.005;
+                filterType.value = 'none';
+                partial2.value = 0.0;
+                partial3.value = 0.0;
+            } else if (key === 'crystal') {
+                currentNotes = [
+                    { note: 79, delay: 0.00, duration: 1.0 },
+                    { note: 83, delay: 0.08, duration: 1.2 },
+                    { note: 88, delay: 0.16, duration: 1.5 }
+                ];
+                oscType.value = 'sine';
+                attackTime.value = 0.015;
+                filterType.value = 'highpass';
+                filterFreqRatio.value = 1.0;
+                filterQ.value = 3.0;
+                partial2.value = 0.25;
+                partial3.value = 0.10;
+            } else if (key === 'softChime') {
+                currentNotes = [
+                    { note: 76, delay: 0.00, duration: 0.50 },
+                    { note: 81, delay: 0.08, duration: 0.60 }
+                ];
+                oscType.value = 'sine';
+                attackTime.value = 0.02;
+                filterType.value = 'none';
+                partial2.value = 0.05;
+                partial3.value = 0.0;
+            } else if (key === 'successArc') {
+                currentNotes = [
+                    { note: 60, delay: 0.00, duration: 0.15 },
+                    { note: 64, delay: 0.08, duration: 0.15 },
+                    { note: 67, delay: 0.16, duration: 0.15 },
+                    { note: 72, delay: 0.24, duration: 0.80 }
+                ];
+                oscType.value = 'sawtooth';
+                attackTime.value = 0.02;
+                filterType.value = 'lowpass';
+                filterFreqRatio.value = 2.5;
+                filterQ.value = 2.0;
+                partial2.value = 0.12;
+                partial3.value = 0.06;
+            }
+
+            // 反映
+            updateRangeVal('attackTime', 'attackVal', ' 秒');
+            updateRangeVal('filterFreqRatio', 'filtFreqVal', ' 倍');
+            updateRangeVal('filterQ', 'filtQVal', '');
+            updateRangeVal('partial2', 'partial2Val', '');
+            updateRangeVal('partial3', 'partial3Val', '');
+            
+            toggleFilterParams();
+            renderNotes();
+            generateCode();
+        }
+
+        // JavaScriptコードの自動生成
+        function generateCode() {
+            const osc = document.getElementById('oscType').value;
+            const attack = parseFloat(document.getElementById('attackTime').value);
+            const masterVol = parseFloat(document.getElementById('masterVolume').value);
+            const filtType = document.getElementById('filterType').value;
+            const filtFreqRatio = parseFloat(document.getElementById('filterFreqRatio').value);
+            const filtQ = parseFloat(document.getElementById('filterQ').value);
+            const part2Vol = parseFloat(document.getElementById('partial2').value);
+            const part3Vol = parseFloat(document.getElementById('partial3').value);
+
+            let noteArrayStr = '[\n';
+            currentNotes.forEach((item, i) => {
+                noteArrayStr += `                { note: ${item.note}, delay: ${item.delay.toFixed(2)}, duration: ${item.duration.toFixed(2)} }${i < currentNotes.length - 1 ? ',' : ''}\n`;
+            });
+            noteArrayStr += '            ]';
+
+            // フィルター構築
+            let filterSetupCode = '';
+            let filterConnectCode = '';
+            if (filtType !== 'none') {
+                filterSetupCode = `
+                const filter = ctx.createBiquadFilter();
+                filter.type = '${filtType}';
+                filter.frequency.setValueAtTime(noteToFreq(item.note) * ${filtFreqRatio}, t);
+                filter.Q.setValueAtTime(${filtQ}, t);
+                `;
+                filterConnectCode = `
+                osc.connect(filter);
+                filter.connect(gain);`;
+            } else {
+                filterConnectCode = `
+                osc.connect(gain);`;
+            }
+
+            // 倍音構成
+            let partialsCode = `const partials = [\n                    { ratio: 1.0, vol: ${masterVol.toFixed(2)} }`;
+            if (part2Vol > 0) partialsCode += `,\n                    { ratio: 2.0, vol: ${part2Vol.toFixed(2)} }`;
+            if (part3Vol > 0) partialsCode += `,\n                    { ratio: 3.0, vol: ${part3Vol.toFixed(2)} }`;
+            partialsCode += `\n                ];`;
+
+            const fullCode = `    /**
+     * カスタムジェネレートサウンド (playCustom)
+     * Web Audio API Chime Generator による生成SE
+     */
+    static playCustom() {
+        try {
+            const ctx = NotificationSound.createAudioContext();
+            const noteToFreq = NotificationSound.noteToFreq;
+            const start = ctx.currentTime + 0.02;
+
+            const seq = ${noteArrayStr};
+
+            seq.forEach((item) => {
+                const t = start + item.delay;
+                const duration = item.duration;
+
+                ${partialsCode}
+
+                partials.forEach(partial => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+
+                    osc.type = '${osc}';
+                    osc.frequency.setValueAtTime(noteToFreq(item.note) * partial.ratio, t);
+
+                    // エンベロープ設定 (アタック・デケイ)
+                    gain.gain.setValueAtTime(0, t);
+                    gain.gain.linearRampToValueAtTime(partial.vol, t + ${attack});
+                    gain.gain.exponentialRampToValueAtTime(0.00001, t + duration);
+                    ${filterSetupCode}
+                    ${filterConnectCode}
+                    gain.connect(ctx.destination);
+
+                    osc.start(t);
+                    osc.stop(t + duration + 0.05);
+                });
+            });
+        } catch (e) {
+            console.warn('音声再生がブロックされました。', e);
+        }
+    }`;
+            document.getElementById('codeOutput').value = fullCode;
+        }
+
+        // Web Audio API実再生 (プレビュー)
+        function playPreview() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioContext();
+                const noteToFreq = (n) => 440 * Math.pow(2, (n - 69) / 12);
+                
+                const start = ctx.currentTime + 0.02;
+                const osc = document.getElementById('oscType').value;
+                const attack = parseFloat(document.getElementById('attackTime').value);
+                const masterVol = parseFloat(document.getElementById('masterVolume').value);
+                const filtType = document.getElementById('filterType').value;
+                const filtFreqRatio = parseFloat(document.getElementById('filterFreqRatio').value);
+                const filtQ = parseFloat(document.getElementById('filterQ').value);
+                const part2Vol = parseFloat(document.getElementById('partial2').value);
+                const part3Vol = parseFloat(document.getElementById('partial3').value);
+
+                const partials = [{ ratio: 1.0, vol: masterVol }];
+                if (part2Vol > 0) partials.push({ ratio: 2.0, vol: part2Vol });
+                if (part3Vol > 0) partials.push({ ratio: 3.0, vol: part3Vol });
+
+                currentNotes.forEach((item) => {
+                    const t = start + item.delay;
+                    const duration = item.duration;
+
+                    partials.forEach(partial => {
+                        const o = ctx.createOscillator();
+                        const g = ctx.createGain();
+
+                        o.type = osc;
+                        o.frequency.setValueAtTime(noteToFreq(item.note) * partial.ratio, t);
+
+                        g.gain.setValueAtTime(0, t);
+                        g.gain.linearRampToValueAtTime(partial.vol, t + attack);
+                        g.gain.exponentialRampToValueAtTime(0.00001, t + duration);
+
+                        if (filtType !== 'none') {
+                            const f = ctx.createBiquadFilter();
+                            f.type = filtType;
+                            f.frequency.setValueAtTime(noteToFreq(item.note) * filtFreqRatio, t);
+                            f.Q.setValueAtTime(filtQ, t);
+                            
+                            o.connect(f);
+                            f.connect(g);
+                        } else {
+                            o.connect(g);
+                        }
+
+                        g.connect(ctx.destination);
+                        o.start(t);
+                        o.stop(t + duration + 0.05);
+                    });
+                });
+            } catch (e) {
+                console.warn('プレビュー再生に失敗しました（AudioContextが制限されている可能性があります）', e);
+            }
+        }
+
+        // コピーアクション
+        function copyGeneratedCode() {
+            const codeOutput = document.getElementById('codeOutput');
+            codeOutput.select();
+            document.execCommand('copy');
+            
+            const btnText = document.getElementById('copyBtnText');
+            btnText.innerText = 'コピー完了！';
+            setTimeout(() => {
+                btnText.innerText = 'コピーする';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
