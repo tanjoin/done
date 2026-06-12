@@ -675,7 +675,7 @@ function playNotificationSound_original() {
 function playNotificationSound_bell() {
     try {
         const ctx = _createAudioContext();
-        const beatDuration = 0.6;
+        const beatDuration = 0.1;
         const noteToFreq = (note) => 440 * Math.pow(2, (note - 69) / 12);
         const chimeNotes = [
             { beat: 0, note: 64 }, { beat: 2, note: 60 }, { beat: 4, note: 62 }, { beat: 6, note: 55 },
@@ -726,7 +726,7 @@ function playNotificationSound_bell() {
 function playNotificationSound_high() {
     try {
         const ctx = _createAudioContext();
-        const beatDuration = 0.5;
+        const beatDuration = 0.1;
         const noteToFreq = (note) => 440 * Math.pow(2, (note - 69) / 12);
         const chimeNotes = [
             { beat: 0, note: 64 + 12 }, { beat: 2, note: 60 + 12 }, { beat: 4, note: 62 + 12 }, { beat: 6, note: 55 + 12 },
@@ -804,12 +804,449 @@ function playNotificationSound_soft() {
     }
 }
 
+function playNotificationSound_loud() {
+    try {
+        const ctx = _createAudioContext();
+        const t = ctx.currentTime + 0.02;
+        const master = ctx.createGain();
+        master.gain.setValueAtTime(0.0001, t);
+        master.gain.exponentialRampToValueAtTime(1.5, t + 0.02);
+        master.gain.exponentialRampToValueAtTime(0.00001, t + 0.8);
+        master.connect(ctx.destination);
+
+        // quick sine hit
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = 220;
+        g.gain.setValueAtTime(0.00001, t);
+        g.gain.linearRampToValueAtTime(1.0, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.00001, t + 0.5);
+        osc.connect(g);
+        g.connect(master);
+        osc.start(t);
+        osc.stop(t + 0.6);
+
+        // short noise punch for impact
+        const bufSize = 2 * ctx.sampleRate;
+        const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+        const data = noiseBuf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.02));
+        const src = ctx.createBufferSource();
+        src.buffer = noiseBuf;
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.00001, t);
+        ng.gain.linearRampToValueAtTime(0.6, t + 0.01);
+        ng.gain.exponentialRampToValueAtTime(0.00001, t + 0.25);
+        src.connect(ng);
+        ng.connect(master);
+        src.start(t);
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_loudHigh() {
+    try {
+        const ctx = _createAudioContext();
+        const t = ctx.currentTime + 0.02;
+        const master = ctx.createGain();
+        master.gain.setValueAtTime(0.0001, t);
+        master.gain.exponentialRampToValueAtTime(1.2, t + 0.02);
+        master.gain.exponentialRampToValueAtTime(0.00001, t + 0.7);
+        master.connect(ctx.destination);
+
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = 660;
+        g.gain.setValueAtTime(0.00001, t);
+        g.gain.linearRampToValueAtTime(0.95, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.00001, t + 0.4);
+        const hp = ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 600;
+        hp.Q.value = 2;
+        osc.connect(hp);
+        hp.connect(g);
+        g.connect(master);
+        osc.start(t);
+        osc.stop(t + 0.45);
+
+        const bufSize = 2 * ctx.sampleRate;
+        const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+        const data = noiseBuf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.03));
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = noiseBuf;
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.00001, t);
+        ng.gain.linearRampToValueAtTime(0.45, t + 0.01);
+        ng.gain.exponentialRampToValueAtTime(0.00001, t + 0.2);
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 1400;
+        bp.Q.value = 3;
+        src.connect(bp);
+        bp.connect(ng);
+        ng.connect(master);
+        src.start(t);
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_iphone() {
+    try {
+        const ctx = _createAudioContext();
+        const noteToFreq = n => 440 * Math.pow(2, (n - 69) / 12);
+        const seq = [79, 76, 72, 76];
+        const start = ctx.currentTime + 0.02;
+        seq.forEach((n, i) => {
+            const t = start + i * 0.18;
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = noteToFreq(n);
+            g.gain.setValueAtTime(0.00001, t);
+            g.gain.linearRampToValueAtTime(0.6, t + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.00001, t + 0.22);
+            const filt = ctx.createBiquadFilter();
+            filt.type = 'bandpass';
+            filt.frequency.value = noteToFreq(n) * 1.1;
+            filt.Q.value = 8;
+            osc.connect(filt);
+            filt.connect(g);
+            g.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.26);
+        });
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_android() {
+    try {
+        const ctx = _createAudioContext();
+        const noteToFreq = n => 440 * Math.pow(2, (n - 69) / 12);
+        const pattern = [76, 72, 76, 72];
+        const start = ctx.currentTime + 0.02;
+        pattern.forEach((n, i) => {
+            const t = start + i * 0.14;
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.value = noteToFreq(n);
+            g.gain.setValueAtTime(0.00001, t);
+            g.gain.linearRampToValueAtTime(0.35, t + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.00001, t + 0.18);
+            const lp = ctx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.value = 3500;
+            osc.connect(lp);
+            lp.connect(g);
+            g.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.18);
+        });
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_mcd() {
+    try {
+        const ctx = _createAudioContext();
+        const start = ctx.currentTime + 0.02;
+        const notes = [84, 88, 91];
+        notes.forEach((n, i) => {
+            const t = start + i * 0.08;
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 440 * Math.pow(2, (n - 69) / 12) * (1 + i * 0.002);
+            g.gain.setValueAtTime(0.00001, t);
+            g.gain.linearRampToValueAtTime(0.18, t + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.00001, t + 0.28 + i * 0.05);
+            const hp = ctx.createBiquadFilter();
+            hp.type = 'highpass';
+            hp.frequency.value = 800;
+            osc.connect(hp);
+            hp.connect(g);
+            g.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.5 + i * 0.05);
+        });
+        // small sparkle
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (d.length * 0.2));
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const g2 = ctx.createGain();
+        g2.gain.setValueAtTime(0.00001, start);
+        g2.gain.linearRampToValueAtTime(0.08, start + 0.02);
+        g2.gain.exponentialRampToValueAtTime(0.00001, start + 0.22);
+        src.connect(g2);
+        g2.connect(ctx.destination);
+        src.start(start + 0.06);
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_dq() {
+    try {
+        const ctx = _createAudioContext();
+        const noteToFreq = n => 440 * Math.pow(2, (n - 69) / 12);
+        const seq = [60, 64, 67, 72];
+        const start = ctx.currentTime + 0.02;
+        seq.forEach((n, i) => {
+            const t = start + i * 0.18;
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = noteToFreq(n);
+            g.gain.setValueAtTime(0.00001, t);
+            g.gain.linearRampToValueAtTime(0.5, t + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.00001, t + 0.28);
+            const filt = ctx.createBiquadFilter();
+            filt.type = 'bandpass';
+            filt.frequency.value = noteToFreq(n) * 1.05;
+            filt.Q.value = 6;
+            osc.connect(filt);
+            filt.connect(g);
+            g.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.32);
+        });
+        // small final rise
+        const finalT = start + seq.length * 0.18;
+        const glide = ctx.createOscillator();
+        const gg = ctx.createGain();
+        glide.type = 'sine';
+        glide.frequency.setValueAtTime(noteToFreq(72), finalT);
+        glide.frequency.exponentialRampToValueAtTime(noteToFreq(84), finalT + 0.18);
+        gg.gain.setValueAtTime(0.00001, finalT);
+        gg.gain.linearRampToValueAtTime(0.35, finalT + 0.02);
+        gg.gain.exponentialRampToValueAtTime(0.00001, finalT + 0.36);
+        glide.connect(gg);
+        gg.connect(ctx.destination);
+        glide.start(finalT);
+        glide.stop(finalT + 0.36);
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_mario() {
+    try {
+        const ctx = _createAudioContext();
+        const noteToFreq = n => 440 * Math.pow(2, (n - 69) / 12);
+        const seq = [76, 79, 83]; // bright arpeggio like coin
+        const start = ctx.currentTime + 0.02;
+        seq.forEach((n, i) => {
+            const t = start + i * 0.08;
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = noteToFreq(n);
+            g.gain.setValueAtTime(0.00001, t);
+            g.gain.linearRampToValueAtTime(0.35, t + 0.006);
+            g.gain.exponentialRampToValueAtTime(0.00001, t + 0.14);
+            const hp = ctx.createBiquadFilter();
+            hp.type = 'highpass';
+            hp.frequency.value = 600;
+            osc.connect(hp);
+            hp.connect(g);
+            g.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.16);
+        });
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_pokemon() {
+    try {
+        const ctx = _createAudioContext();
+        const noteToFreq = n => 440 * Math.pow(2, (n - 69) / 12);
+        const seq = [72, 76, 79];
+        const start = ctx.currentTime + 0.02;
+        seq.forEach((n, i) => {
+            const t = start + i * 0.16;
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = noteToFreq(n);
+            g.gain.setValueAtTime(0.00001, t);
+            g.gain.linearRampToValueAtTime(0.55, t + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.00001, t + 0.26);
+            const band = ctx.createBiquadFilter();
+            band.type = 'bandpass';
+            band.frequency.value = noteToFreq(n) * 1.1;
+            band.Q.value = 9;
+            osc.connect(band);
+            band.connect(g);
+            g.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.28);
+        });
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_dotapun() {
+    try {
+        const ctx = _createAudioContext();
+        const noteToFreq = n => 440 * Math.pow(2, (n - 69) / 12);
+        const seq = [52, 55, 59];
+        const start = ctx.currentTime + 0.02;
+
+        seq.forEach((n, i) => {
+            const t = start + i * 0.14;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+            osc.type = 'triangle';
+            osc.frequency.value = noteToFreq(n);
+            gain.gain.setValueAtTime(0.00001, t);
+            gain.gain.linearRampToValueAtTime(0.28, t + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.00001, t + 0.18);
+            filter.type = 'lowpass';
+            filter.frequency.value = 1200;
+            filter.Q.value = 6;
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.24);
+        });
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_marimba() {
+    try {
+        const ctx = _createAudioContext();
+        const noteToFreq = n => 440 * Math.pow(2, (n - 69) / 12);
+        const seq = [67, 71, 74, 79];
+        const start = ctx.currentTime + 0.02;
+        seq.forEach((n, i) => {
+            const t = start + i * 0.12;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+            osc.type = 'triangle';
+            osc.frequency.value = noteToFreq(n);
+            gain.gain.setValueAtTime(0.00001, t);
+            gain.gain.linearRampToValueAtTime(0.25, t + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.00001, t + 0.36);
+            filter.type = 'bandpass';
+            filter.frequency.value = noteToFreq(n) * 1.05;
+            filter.Q.value = 14;
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.38);
+        });
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_recommend1() {
+    try {
+        const ctx = _createAudioContext();
+        const noteToFreq = n => 440 * Math.pow(2, (n - 69) / 12);
+        const seq = [72, 76, 79];
+        const start = ctx.currentTime + 0.02;
+        seq.forEach((n, i) => {
+            const t = start + i * 0.14;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = noteToFreq(n);
+            gain.gain.setValueAtTime(0.00001, t);
+            gain.gain.linearRampToValueAtTime(0.45, t + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.00001, t + 0.26);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.28);
+        });
+        const sparkle = ctx.createOscillator();
+        const sg = ctx.createGain();
+        sparkle.type = 'triangle';
+        sparkle.frequency.value = noteToFreq(84);
+        const t = start + 0.42;
+        sg.gain.setValueAtTime(0.00001, t);
+        sg.gain.linearRampToValueAtTime(0.12, t + 0.01);
+        sg.gain.exponentialRampToValueAtTime(0.00001, t + 0.2);
+        sparkle.connect(sg);
+        sg.connect(ctx.destination);
+        sparkle.start(t);
+        sparkle.stop(t + 0.22);
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
+function playNotificationSound_recommend2() {
+    try {
+        const ctx = _createAudioContext();
+        const noteToFreq = n => 440 * Math.pow(2, (n - 69) / 12);
+        const seq = [64, 67, 71];
+        const start = ctx.currentTime + 0.02;
+        seq.forEach((n, i) => {
+            const t = start + i * 0.16;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = noteToFreq(n);
+            gain.gain.setValueAtTime(0.00001, t);
+            gain.gain.linearRampToValueAtTime(0.28, t + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.00001, t + 0.3);
+            const filt = ctx.createBiquadFilter();
+            filt.type = 'lowpass';
+            filt.frequency.value = 3200;
+            osc.connect(filt);
+            filt.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.32);
+        });
+    } catch (e) {
+        console.warn('音声再生がブロックされました。', e);
+    }
+}
+
 // 設定に応じた再生ラッパー
 function playNotificationSound() {
     const profile = LocalStorageHelper.notificationSound || 'bell';
     if (profile === 'original') return playNotificationSound_original();
     if (profile === 'bell-high') return playNotificationSound_high();
     if (profile === 'soft') return playNotificationSound_soft();
+    if (profile === 'loud') return playNotificationSound_loud();
+    if (profile === 'loud-high') return playNotificationSound_loudHigh();
+    if (profile === 'bright') return playNotificationSound_iphone();
+    if (profile === 'pulse') return playNotificationSound_android();
+    if (profile === 'potato') return playNotificationSound_mcd();
+    if (profile === 'coin') return playNotificationSound_mario();
+    if (profile === 'levelup1') return playNotificationSound_dq();
+    if (profile === 'levelup2') return playNotificationSound_pokemon();
+    if (profile === 'slap') return playNotificationSound_dotapun();
+    if (profile === 'marimba') return playNotificationSound_marimba();
+    if (profile === 'recommend1') return playNotificationSound_recommend1();
+    if (profile === 'recommend2') return playNotificationSound_recommend2();
+    if (profile === 'dotapun') return playNotificationSound_dotapun();
     return playNotificationSound_bell();
 }
 
