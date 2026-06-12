@@ -1,5 +1,11 @@
 let tasks = [];
 
+// --- テーブルソート状態 ---
+let sortState = {
+    column: null,      // ソート対象の列 ('group', 'task', 'time', 'date', 'status')
+    ascending: true    // true: 昇順, false: 降順
+};
+
 // --- 日付ヘルパー関数 ---
 class DateHelper {
     static get today() {
@@ -364,6 +370,111 @@ class TaskRepository {
     }
 }
 
+// --- 【新規追加】ソート実行マネージャ ---
+class SortManager {
+    /**
+     * ソートヘッダーがクリックされた際のハンドラ
+     * @param {string} columnName - ソート対象列名 ('group', 'task', 'time', 'date', 'status')
+     */
+    static handleSort(columnName) {
+        if (sortState.column === columnName) {
+            sortState.ascending = !sortState.ascending;
+        } else {
+            sortState.column = columnName;
+            sortState.ascending = true;
+        }
+
+        // タスクをソートして再描画
+        SortManager.sortTasks();
+        renderCards();
+    }
+
+    /**
+     * 現在の sortState に基づいて tasks 配列を並び替える
+     */
+    static sortTasks() {
+        const col = sortState.column;
+        if (!col) return;
+
+        const ascMult = sortState.ascending ? 1 : -1;
+        const TODAY = DateHelper.today;
+
+        tasks.sort((a, b) => {
+            let valA = '';
+            let valB = '';
+
+            switch (col) {
+                case 'group':
+                    valA = a.group || '';
+                    valB = b.group || '';
+                    break;
+                case 'task':
+                    valA = a.text || ''; // タスク名は `text` プロパティ
+                    valB = b.text || '';
+                    break;
+                case 'time':
+                    // テキストベースでのシンプルな文字列ソートに変更
+                    valA = a.startTime || '';
+                    valB = b.startTime || '';
+                    break;
+                case 'date':
+                    valA = SortManager.getScheduleSortValue(a);
+                    valB = SortManager.getScheduleSortValue(b);
+                    break;
+                case 'status':
+                    valA = (a.history && a.history[TODAY]) ? a.history[TODAY] : '';
+                    valB = (b.history && b.history[TODAY]) ? b.history[TODAY] : '';
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (valA < valB) return -1 * ascMult;
+            if (valA > valB) return 1 * ascMult;
+            return 0;
+        });
+    }
+
+    /**
+     * 各スケジュールの比較用文字列を取得
+     */
+    static getScheduleSortValue(task) {
+        if (task.specificDate) {
+            return task.specificDate;
+        }
+        if (task.daysOfWeek && task.daysOfWeek.length) {
+            return 'W-' + task.daysOfWeek.join(',');
+        }
+        if (task.daysOfMonth && task.daysOfMonth.length) {
+            return 'M-' + task.daysOfMonth.map(n => String(n).padStart(2, '0')).join(',');
+        }
+        return 'Daily';
+    }
+
+    /**
+     * ソート状態のインジケータ表示をヘッダーUIに同期する
+     */
+    static updateHeaderUI() {
+        const headers = document.querySelectorAll('th[data-sort-col]');
+        headers.forEach(th => {
+            const col = th.getAttribute('data-sort-col');
+            th.classList.remove('sort-asc', 'sort-desc');
+            const indicator = th.querySelector('.sort-indicator');
+            if (indicator) indicator.textContent = '';
+
+            if (col === sortState.column) {
+                if (sortState.ascending) {
+                    th.classList.add('sort-asc');
+                    if (indicator) indicator.textContent = '▲';
+                } else {
+                    th.classList.add('sort-desc');
+                    if (indicator) indicator.textContent = '▼';
+                }
+            }
+        });
+    }
+}
+
 function setupPageSpecifics(currentTheme) {
     // --- タスク一覧画面用の初期化 ---
     if (document.getElementById('taskContainer')) {
@@ -414,6 +525,18 @@ function setupPageSpecifics(currentTheme) {
         }
         if (hideCancelledBtn) {
             hideCancelledBtn.addEventListener('click', () => toggleFilterState('filter_hide_cancelled', hideCancelledBtn));
+        }
+
+        // --- テーブルソートイベントのイベント委譲によるバインド ---
+        const taskContainer = document.getElementById('taskContainer');
+        if (taskContainer) {
+            taskContainer.addEventListener('click', (e) => {
+                const th = e.target.closest('th[data-sort-col]');
+                if (th) {
+                    const colName = th.getAttribute('data-sort-col');
+                    SortManager.handleSort(colName);
+                }
+            });
         }
 
         renderCards();
@@ -1951,14 +2074,16 @@ function renderTableView(container, filteredTasks, today, targetDayMap) {
 
     const table = document.createElement('table');
     table.className = 'task-table';
+    
+    // ヘッダーセルにソート属性（data-sort-col）とソート指示記号を追加
     table.innerHTML = `
         <thead>
             <tr>
-                <th>グループ</th>
-                <th>タスク</th>
-                <th>時間</th>
-                <th>日付</th>
-                <th>ステータス</th>
+                <th data-sort-col="group" style="cursor: pointer; user-select: none;">グループ <span class="sort-indicator"></span></th>
+                <th data-sort-col="task" style="cursor: pointer; user-select: none;">タスク <span class="sort-indicator"></span></th>
+                <th data-sort-col="time" style="cursor: pointer; user-select: none;">時間 <span class="sort-indicator"></span></th>
+                <th data-sort-col="date" style="cursor: pointer; user-select: none;">日付 <span class="sort-indicator"></span></th>
+                <th data-sort-col="status" style="cursor: pointer; user-select: none;">ステータス <span class="sort-indicator"></span></th>
                 <th>操作</th>
             </tr>
         </thead>
@@ -2030,6 +2155,11 @@ function renderCards() {
     const TODAY = DateHelper.today;
     const YESTERDAY = DateHelper.yesterday;
 
+    // ソート条件が設定されていれば、描画の直前にデータをソート
+    if (sortState.column) {
+        SortManager.sortTasks();
+    }
+
     const filteredTasks = [];
     const targetDayMap = {};
     const groups = {};
@@ -2060,15 +2190,20 @@ function renderCards() {
     document.body.classList.toggle('table-view-mode', currentViewMode === 'table');
     if (currentViewMode === 'table') {
         renderTableView(container, filteredTasks, TODAY, targetDayMap);
+        // テーブルレンダリング後にヘッダーUIに現在のソート状態（矢印など）を反映
+        SortManager.updateHeaderUI();
         return;
     }
 
     for (const groupName in groups) {
-        groups[groupName].sort((a, b) => {
-            const countA = Object.values(a.history || {}).filter(v => v === 'completed').length;
-            const countB = Object.values(b.history || {}).filter(v => v === 'completed').length;
-            return countB - countA;
-        });
+        // カードビューモードの場合は、従来どおり累計実績の多い順などでグループ内ソートを優先（ソート状態に左右されない元のロジックを担保）
+        if (!sortState.column) {
+            groups[groupName].sort((a, b) => {
+                const countA = Object.values(a.history || {}).filter(v => v === 'completed').length;
+                const countB = Object.values(b.history || {}).filter(v => v === 'completed').length;
+                return countB - countA;
+            });
+        }
 
         const groupSection = document.createElement('div');
         groupSection.className = 'group-section';
