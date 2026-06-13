@@ -38,7 +38,11 @@
     "id": "task-4",
     "text": "ストレッチ",
     "group": "健康・ルーティン",
-    "daysOfWeek": [1, 3, 5],
+    "daysOfWeek": [
+      1,
+      3,
+      5
+    ],
     "daysOfMonth": [],
     "startTime": "",
     "endTime": "",
@@ -64,7 +68,7 @@
     "daysOfMonth": [],
     "startTime": "7:00",
     "endTime": "11:00",
-    "strictMode": true,
+    "strictMode": false,
     "history": {},
     "notifiedDate": ""
   },
@@ -76,7 +80,7 @@
     "daysOfMonth": [],
     "startTime": "11:00",
     "endTime": "16:59",
-    "strictMode": true,
+    "strictMode": false,
     "history": {},
     "notifiedDate": ""
   },
@@ -88,7 +92,7 @@
     "daysOfMonth": [],
     "startTime": "17:00",
     "endTime": "",
-    "strictMode": true,
+    "strictMode": false,
     "history": {},
     "notifiedDate": ""
   },
@@ -133,7 +137,7 @@
     "daysOfMonth": [],
     "startTime": "00:00",
     "endTime": "8:59",
-    "strictMode": true,
+    "strictMode": false,
     "history": {},
     "notifiedDate": ""
   },
@@ -145,7 +149,7 @@
     "daysOfMonth": [],
     "startTime": "6:00",
     "endTime": "15:59",
-    "strictMode": true,
+    "strictMode": false,
     "history": {},
     "notifiedDate": ""
   },
@@ -157,7 +161,7 @@
     "daysOfMonth": [],
     "startTime": "14:00",
     "endTime": "19:59",
-    "strictMode": true,
+    "strictMode": false,
     "history": {},
     "notifiedDate": ""
   },
@@ -169,7 +173,7 @@
     "daysOfMonth": [],
     "startTime": "18:00",
     "endTime": "23:59",
-    "strictMode": true,
+    "strictMode": false,
     "history": {},
     "notifiedDate": ""
   },
@@ -287,7 +291,13 @@
     "id": "task-26",
     "text": "出社",
     "group": "仕事",
-    "daysOfWeek": [1, 2, 3, 4, 5],
+    "daysOfWeek": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
     "daysOfMonth": [],
     "startTime": "10:00",
     "endTime": "",
@@ -298,7 +308,13 @@
     "id": "task-27",
     "text": "退社",
     "group": "仕事",
-    "daysOfWeek": [1, 2, 3, 4, 5],
+    "daysOfWeek": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
     "daysOfMonth": [],
     "startTime": "19:00",
     "endTime": "",
@@ -309,7 +325,9 @@
     "id": "task-28",
     "text": "ゴミ捨て（資源ごみ）",
     "group": "家事",
-    "daysOfWeek": [5],
+    "daysOfWeek": [
+      5
+    ],
     "daysOfMonth": [],
     "startTime": "7:00",
     "endTime": "6:00",
@@ -320,7 +338,10 @@
     "id": "task-29",
     "text": "ゴミ捨て（燃えるゴミ）",
     "group": "家事",
-    "daysOfWeek": [0, 3],
+    "daysOfWeek": [
+      0,
+      3
+    ],
     "daysOfMonth": [],
     "startTime": "7:00",
     "endTime": "6:00",
@@ -343,7 +364,9 @@
     "text": "ビューカード締日",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [5],
+    "daysOfMonth": [
+      5
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://www.jreast.co.jp/card/caution/notice220524.html/",
@@ -367,7 +390,9 @@
     "text": "毎月1回のジェム",
     "group": "ドラクエウォーク",
     "daysOfWeek": [],
-    "daysOfMonth": [1],
+    "daysOfMonth": [
+      1
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://sqex-bridge.jp/webstore/dqwalk",
@@ -379,7 +404,9 @@
     "text": "医療費計算",
     "group": "家事",
     "daysOfWeek": [],
-    "daysOfMonth": [1],
+    "daysOfMonth": [
+      1
+    ],
     "startTime": "",
     "endTime": "",
     "history": {},
@@ -412,7 +439,9 @@
     "text": "エポスカードの明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [6],
+    "daysOfMonth": [
+      6
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://www.eposcard.co.jp/memberservice/pc/login/login_preload.do",
@@ -423,7 +452,9 @@
     "id": "task-38",
     "text": "上坂すみれの土曜闇鍋劇場",
     "group": "声優",
-    "daysOfWeek": [0],
+    "daysOfWeek": [
+      0
+    ],
     "daysOfMonth": [],
     "startTime": "0:00",
     "endTime": "0:30",
@@ -436,7 +467,9 @@
     "text": "三井住友カード（VISA・グリーン）の明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [10],
+    "daysOfMonth": [
+      10
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://www.smbc-card.com/mem/index.jsp",
@@ -448,7 +481,9 @@
     "text": "Amazon MasterCard の明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [10],
+    "daysOfMonth": [
+      10
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://www.smbc-card.com/mem/index.jsp",
@@ -460,7 +495,9 @@
     "text": "楽天カード の明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [12],
+    "daysOfMonth": [
+      12
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://www.rakuten-card.co.jp/e-navi/",
@@ -472,7 +509,9 @@
     "text": "dポイントをiDキャッシュバックに交換する",
     "group": "ポイント",
     "daysOfWeek": [],
-    "daysOfMonth": [17],
+    "daysOfMonth": [
+      17
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://dpoint.docomo.ne.jp/use/iDcb_dcard/index.html",
@@ -484,7 +523,9 @@
     "text": "Amazon定期おトク便を確認する",
     "group": "Amazon",
     "daysOfWeek": [],
-    "daysOfMonth": [20],
+    "daysOfMonth": [
+      20
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://www.amazon.co.jp/auto-deliveries/",
@@ -496,7 +537,9 @@
     "text": "Android Suica 1000円チャージ",
     "group": "Suica",
     "daysOfWeek": [],
-    "daysOfMonth": [20],
+    "daysOfMonth": [
+      20
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://mobile.rakuten.co.jp/",
@@ -508,7 +551,9 @@
     "text": "ビックカメラSuicaカードの明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [20],
+    "daysOfMonth": [
+      20
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://viewsnet.jp/default.htm",
@@ -520,7 +565,9 @@
     "text": "イオンカードセレクト の明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [20],
+    "daysOfMonth": [
+      20
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://www.aeon.co.jp/app/",
@@ -532,7 +579,9 @@
     "text": "JMBローソンPontaカードVisa の明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [20],
+    "daysOfMonth": [
+      20
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://www.saisoncard.co.jp/customer-support/netanswer/",
@@ -544,7 +593,9 @@
     "text": "ファミマTカードの明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [15],
+    "daysOfMonth": [
+      15
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://ftcard.pocketcard.co.jp/netservice/index.php",
@@ -556,7 +607,9 @@
     "text": "dカードの明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [25],
+    "daysOfMonth": [
+      25
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://dcard.docomo.ne.jp/st/index.html",
@@ -568,7 +621,9 @@
     "text": "JCB CARD W の明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [25],
+    "daysOfMonth": [
+      25
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://my.jcb.co.jp/Login",
@@ -580,7 +635,9 @@
     "text": "セブンカード・プラスの明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [25],
+    "daysOfMonth": [
+      25
+    ],
     "startTime": "",
     "endTime": "",
     "description": "旧URL: https://7card.jcb.co.jp/Login",
@@ -593,7 +650,9 @@
     "text": "リクルートカード(JCB)の明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [25],
+    "daysOfMonth": [
+      25
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://my.jcb.co.jp/Login",
@@ -605,7 +664,9 @@
     "text": "リクルートカード(VISA)の明細保存",
     "group": "クレジットカード",
     "daysOfWeek": [],
-    "daysOfMonth": [25],
+    "daysOfMonth": [
+      25
+    ],
     "startTime": "",
     "endTime": "",
     "link": "https://www2.cr.mufg.jp/newsplus/",
@@ -616,7 +677,9 @@
     "id": "task-54",
     "text": "Suica (Android) 利用履歴のスクリーンショットをとる",
     "group": "Suica",
-    "daysOfWeek": [0],
+    "daysOfWeek": [
+      0
+    ],
     "daysOfMonth": [],
     "startTime": "",
     "endTime": "",
@@ -627,7 +690,9 @@
     "id": "task-55",
     "text": "Suica (iOS) 利用履歴のスクリーンショットをとる",
     "group": "Suica",
-    "daysOfWeek": [0],
+    "daysOfWeek": [
+      0
+    ],
     "daysOfMonth": [],
     "startTime": "",
     "endTime": "",
@@ -638,7 +703,9 @@
     "id": "task-56",
     "text": "すみぺのすきま 〜知らないんですか？上坂さん！〜",
     "group": "声優",
-    "daysOfWeek": [3],
+    "daysOfWeek": [
+      3
+    ],
     "daysOfMonth": [],
     "startTime": "2:00",
     "endTime": "2:30",
