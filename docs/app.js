@@ -327,7 +327,7 @@ class MainController {
         const savedTasks = LocalStorageHelper.calendarTasksV3;
         if (savedTasks) {
             try {
-                tasks = JSON.parse(savedTasks);
+                TaskRepository.tasks = JSON.parse(savedTasks);
             } catch (e) {
                 await TaskRepository.loadDefaultTasksFromJSON();
             }
@@ -349,7 +349,12 @@ class TaskRepository {
     }
 
     static set tasks(array) {
-        tasks = array;
+        tasks = Array.isArray(array)
+            ? array.map(task => ({
+                ...task,
+                remindMinutesBefore: normalizeRemindMinutesBefore(task?.remindMinutesBefore)
+            }))
+            : [];
     }
 
     static async loadDefaultTasksFromJSON() {
@@ -368,6 +373,94 @@ class TaskRepository {
         LocalStorageHelper.removeCalendarTasksV3();
         await this.loadDefaultTasksFromJSON();    
     }
+}
+
+function normalizeRemindMinutesBefore(rawValue) {
+    if (rawValue === null || rawValue === undefined || rawValue === '') {
+        return null;
+    }
+
+    const minutes = Number(rawValue);
+    if (!Number.isFinite(minutes) || minutes < 0) {
+        return null;
+    }
+
+    return Math.floor(minutes);
+}
+
+function hasExplicitReminderLead(task) {
+    return normalizeRemindMinutesBefore(task?.remindMinutesBefore) !== null;
+}
+
+function parseStartTimeToMinutes(startTime) {
+    if (!startTime) return null;
+
+    const normalizedStart = DateHelper.normalizeTime(startTime);
+    const [hourStr, minuteStr] = normalizedStart.split(':');
+    const hour = Number(hourStr);
+    const minute = Number(minuteStr);
+
+    if (!Number.isInteger(hour) || !Number.isInteger(minute)) {
+        return null;
+    }
+
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+        return null;
+    }
+
+    return {
+        normalizedStart,
+        startMinutes: (hour * 60) + minute
+    };
+}
+
+function buildReminderCandidate(task, scheduledDate) {
+    if (!task?.startTime) return null;
+
+    const parsed = parseStartTimeToMinutes(task.startTime);
+    if (!parsed) return null;
+
+    const leadMinutes = normalizeRemindMinutesBefore(task.remindMinutesBefore);
+    const remindMinutes = leadMinutes === null ? 0 : leadMinutes;
+
+    const startAt = new Date(
+        scheduledDate.getFullYear(),
+        scheduledDate.getMonth(),
+        scheduledDate.getDate(),
+        Math.floor(parsed.startMinutes / 60),
+        parsed.startMinutes % 60,
+        0,
+        0
+    );
+
+    const reminderAt = new Date(startAt.getTime() - (remindMinutes * 60 * 1000));
+
+    return {
+        scheduledDateKey: DateHelper.toKebabCase(scheduledDate),
+        startNorm: parsed.normalizedStart,
+        leadMinutes,
+        reminderAt
+    };
+}
+
+function getNotificationCandidate(task, now) {
+    const dateOffsets = [0, 1];
+
+    for (const offset of dateOffsets) {
+        const scheduledDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, 12, 0, 0, 0);
+        if (!isTaskScheduledOnDate(task, scheduledDate)) continue;
+
+        const candidate = buildReminderCandidate(task, scheduledDate);
+        if (!candidate) continue;
+
+        if (task.notifiedDate === candidate.scheduledDateKey) continue;
+        if (task.history && task.history[candidate.scheduledDateKey]) continue;
+        if (now < candidate.reminderAt) continue;
+
+        return candidate;
+    }
+
+    return null;
 }
 
 // --- 【新規追加】ソート実行マネージャ ---
@@ -1962,37 +2055,38 @@ class NotificationSound {
 function checkAndSendNotifications() {
     if (Notification.permission !== 'granted') return;
 
-    const TODAY = DateHelper.today;
     const now = new Date();
-    const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
     let isUpdated = false;
 
     tasks.forEach(task => {
-        if (!shouldShowTask(task) || !task.startTime) return;
-        if (task.notifiedDate === TODAY) return;
-        if (task.history[TODAY]) return;
+        if (!task.startTime) return;
 
-        const startNorm = DateHelper.normalizeTime(task.startTime);
-        if (currentStr >= startNorm) {
-            const groupName = task.group || "その他";
-            const descText = task.description ? `\n${task.description}` : "";
-            
-            const notification = new Notification(`[${groupName}] タスクの時間です`, {
-                body: `「${task.text}」が実施可能な時間になりました。${descText}`,
-                icon: "https://calendar.google.com/calendar/images/favicon_v2014_3.ico"
-            });
+        const candidate = getNotificationCandidate(task, now);
+        if (!candidate) return;
 
-            notification.onclick = function(event) {
-                event.preventDefault();
-                const targetUrl = new URL('/done', window.location.href).href;
-                window.open(targetUrl, '_blank');
-            };
+        const groupName = task.group || "その他";
+        const descText = task.description ? `\n${task.description}` : "";
 
-            NotificationSound.play();
-
-            task.notifiedDate = TODAY;
-            isUpdated = true;
+        let bodyText = `「${task.text}」が実施可能な時間になりました。${descText}`;
+        if (candidate.leadMinutes !== null && candidate.leadMinutes > 0) {
+            bodyText = `「${task.text}」の ${candidate.leadMinutes} 分前です（開始 ${candidate.startNorm}）。${descText}`;
         }
+        
+        const notification = new Notification(`[${groupName}] タスクの時間です`, {
+            body: bodyText,
+            icon: "https://calendar.google.com/calendar/images/favicon_v2014_3.ico"
+        });
+
+        notification.onclick = function(event) {
+            event.preventDefault();
+            const targetUrl = new URL('/done', window.location.href).href;
+            window.open(targetUrl, '_blank');
+        };
+
+        NotificationSound.play();
+
+        task.notifiedDate = candidate.scheduledDateKey;
+        isUpdated = true;
     });
 
     if (isUpdated) {
@@ -2040,6 +2134,9 @@ function getTaskStatusInfo(task, todayStatus, timeCheck, isTargetDay) {
     }
     if (!isTargetDay) {
         return { label: '対象日外', className: 'chip-status-nontarget', locked: true };
+    }
+    if (!timeCheck.valid && hasExplicitReminderLead(task)) {
+        return { label: 'リマインダー', className: 'chip-status-reminder', locked: false };
     }
     if (timeCheck.valid) {
         return { label: '実施可能', className: 'chip-status-active', locked: false };
@@ -2173,7 +2270,7 @@ function renderCards() {
 
         if (todayStatus === 'completed' && FilterManager.hideCompleted) return;
         if (todayStatus === 'cancelled' && FilterManager.hideCancelled) return;
-        if (isTargetDay && !todayStatus && !timeCheck.valid && FilterManager.hideOutOfTime) return;
+        if (isTargetDay && !todayStatus && !timeCheck.valid && FilterManager.hideOutOfTime && !hasExplicitReminderLead(task)) return;
 
         const groupName = task.group || "その他";
         filteredTasks.push(task);
@@ -2222,6 +2319,7 @@ function renderCards() {
             const todayStatus = task.history[TODAY];
             const yesterdayStatus = task.history[YESTERDAY];
             const timeCheck = isWithinTime(task);
+            const statusInfo = getTaskStatusInfo(task, todayStatus, timeCheck, isTargetDay);
             
             const totalCompleted = Object.values(task.history || {}).filter(v => v === 'completed').length;
 
@@ -2234,18 +2332,17 @@ function renderCards() {
                 card.setAttribute('data-out-of-time', 'true');
             }
 
-            let badgeHtml = `<span class="status-badge">未実施</span>`;
-            let isLocked = false;
+            let badgeClass = 'status-badge';
+            let badgeHtml = `<span class="${badgeClass}">${statusInfo.label}</span>`;
+            let isLocked = statusInfo.locked;
             if (todayStatus === 'completed') {
-                badgeHtml = `<span class="status-badge status-completed">追加済み</span>`;
-                isLocked = true;
+                badgeClass += ' status-completed';
             } else if (todayStatus === 'cancelled') {
-                badgeHtml = `<span class="status-badge status-cancelled">キャンセル済</span>`;
-                isLocked = true;
-            } else if (!isTargetDay) {
-                badgeHtml = `<span class="status-badge">対象日外</span>`;
-                isLocked = true;
+                badgeClass += ' status-cancelled';
+            } else if (statusInfo.className === 'chip-status-reminder') {
+                badgeClass += ' status-reminder';
             }
+            badgeHtml = `<span class="${badgeClass}">${statusInfo.label}</span>`;
 
             let yesterdayHtml = "昨日: 履歴なし";
             if (yesterdayStatus === 'completed') yesterdayHtml = "昨日: 完了";

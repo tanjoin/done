@@ -274,6 +274,12 @@ a:not(.nav-link):hover {
     font-weight: 500;
 }
 
+.status-reminder {
+    background-color: #dbeafe;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+}
+
 /* アクションボタン */
 .card-actions {
     display: flex;
@@ -494,6 +500,12 @@ a:not(.nav-link):hover {
     background-color: #fef3c7;
     color: #92400e;
     border-color: #fcd34d;
+}
+
+.chip-status-reminder {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    border-color: #93c5fd;
 }
 
 .chip-status-done {

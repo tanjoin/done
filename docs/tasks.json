@@ -459,6 +459,7 @@
     "startTime": "0:00",
     "endTime": "0:30",
     "link": "https://radiko.jp/#!/live/INT",
+    "remindMinutesBefore": 5,
     "history": {},
     "notifiedDate": ""
   },
@@ -710,6 +711,7 @@
     "startTime": "2:00",
     "endTime": "2:30",
     "link": "https://radiko.jp/#!/live/QRR",
+    "remindMinutesBefore": 5,
     "history": {},
     "notifiedDate": ""
   },

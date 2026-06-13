@@ -45,8 +45,31 @@ function migrate() {
             };
         });
 
+        // docs/tasks.json に存在しない既存タスク（actual_temp_* など）も保持する
+        const defaultTaskIds = new Set(defaultTasks.map(task => task.id));
+        const extraExistingTasks = existingTasks.filter(task => !defaultTaskIds.has(task.id));
+        const mergedTasks = [...migratedTasks, ...extraExistingTasks];
+
+        // 既存 task_settings_and_history.json の id 並びを優先する
+        const existingOrderMap = new Map(existingTasks.map((task, index) => [task.id, index]));
+        mergedTasks.sort((a, b) => {
+            const aIndex = existingOrderMap.has(a.id) ? existingOrderMap.get(a.id) : Number.MAX_SAFE_INTEGER;
+            const bIndex = existingOrderMap.has(b.id) ? existingOrderMap.get(b.id) : Number.MAX_SAFE_INTEGER;
+
+            if (aIndex !== bIndex) {
+                return aIndex - bIndex;
+            }
+
+            // 既存側にない新規 id 同士は task-<number> の数値順で安定化
+            const extractTaskNumber = (id) => {
+                const match = String(id).match(/^task-(\d+)$/);
+                return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+            };
+            return extractTaskNumber(a.id) - extractTaskNumber(b.id);
+        });
+
         // 4. 移行データの保存 (インデント2スペースで整形保存、数値の省略・四捨五入なし)
-        fs.writeFileSync(defaultTaskAndHistoryPath, JSON.stringify(migratedTasks, null, 2), 'utf8');
+        fs.writeFileSync(defaultTaskAndHistoryPath, JSON.stringify(mergedTasks, null, 2), 'utf8');
         console.log(`【成功】データを移行・反映しました。: ${defaultTaskAndHistoryPath}`);
 
     } catch (error) {

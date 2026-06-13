@@ -83,9 +83,20 @@ function publishTemporaryTask(e) {
     const textVal = document.getElementById('text').value.trim();
     const startVal = document.getElementById('startTime').value;
     const endVal = document.getElementById('endTime').value;
+    const remindValRaw = document.getElementById('remindMinutesBefore').value;
     const descVal = document.getElementById('description').value.trim();
     const linkVal = document.getElementById('link').value.trim();
     const strictVal = document.getElementById('strictMode').checked;
+
+    let remindVal = null;
+    if (remindValRaw !== '') {
+        const parsed = Number(remindValRaw);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+            alert('通知猶予は 0 以上の数値で入力してください。');
+            return;
+        }
+        remindVal = Math.floor(parsed);
+    }
 
     // 1. 本番のメインタスクデータをロード
     let mainTasks = [];
@@ -109,6 +120,7 @@ function publishTemporaryTask(e) {
         text: textVal,
         startTime: startVal,
         endTime: endVal,
+        remindMinutesBefore: remindVal,
         description: descVal,
         link: linkVal,
         strictMode: strictVal,
@@ -129,6 +141,7 @@ function publishTemporaryTask(e) {
         endDate: endDateVal,
         startTime: startVal,
         endTime: endVal,
+        remindMinutesBefore: remindVal,
         description: descVal,
         link: linkVal,
         strictMode: strictVal
@@ -149,6 +162,7 @@ function publishTemporaryTask(e) {
     document.getElementById('endDate').value = '';
     document.getElementById('startTime').value = '';
     document.getElementById('endTime').value = '';
+    document.getElementById('remindMinutesBefore').value = '';
     document.getElementById('description').value = '';
     document.getElementById('link').value = '';
     document.getElementById('strictMode').checked = false;
@@ -168,6 +182,7 @@ function copyTemplateToForm(id) {
     document.getElementById('endDate').value = item.endDate || '';
     document.getElementById('startTime').value = item.startTime || '';
     document.getElementById('endTime').value = item.endTime || '';
+    document.getElementById('remindMinutesBefore').value = item.remindMinutesBefore ?? '';
     document.getElementById('description').value = item.description || '';
     document.getElementById('link').value = item.link || '';
     document.getElementById('strictMode').checked = item.strictMode || false;
@@ -200,12 +215,16 @@ function renderHistory() {
         div.className = 'history-item';
 
         const timeStr = (item.startTime || item.endTime) ? ` (${item.startTime || '00:00'}〜${item.endTime || '23:59'})` : '';
+        const remindStr = item.remindMinutesBefore !== null && item.remindMinutesBefore !== undefined
+            ? `<br><small>通知: ${item.remindMinutesBefore} 分前</small>`
+            : '';
         const groupStr = item.group ? `[${item.group}] ` : '';
         const endDateStr = item.endDate ? `<br><small>終了日: ${item.endDate}</small>` : '';
 
         div.innerHTML = `
             <div class="history-info">
                 <strong>${groupStr}${item.text}</strong>${timeStr}
+                ${remindStr}
                 ${item.description ? `<br><small>${item.description}</small>` : ''}
                 ${endDateStr}
             </div>
