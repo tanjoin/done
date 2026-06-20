@@ -13,6 +13,7 @@
     "start": "node tools/server.js",
     "server": "node tools/server.js",
     "migrate": "node tools/migrate_task_history.js",
+    "clean": "node tools/clean_and_sort.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   }
 }

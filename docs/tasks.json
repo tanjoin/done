@@ -8,7 +8,8 @@
     "startTime": "5:00",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-2",
@@ -19,7 +20,8 @@
     "startTime": "21:00",
     "endTime": "2:00",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-3",
@@ -32,7 +34,8 @@
     "description": "【自宅で筋トレ】世界で一番楽な筋トレ9種目です。家で出来る肩こり解消、腰痛改善、運動不足解消、ストレス解消などなどの簡単な運動です。 - YouTube",
     "link": "https://www.youtube.com/watch?si=cSolTKmjyZH7QiHI&t=462&v=hMSUxAJHwyc&feature=youtu.be",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-4",
@@ -47,7 +50,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-5",
@@ -58,7 +62,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-6",
@@ -70,7 +75,8 @@
     "endTime": "11:00",
     "strictMode": false,
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-7",
@@ -82,7 +88,8 @@
     "endTime": "16:59",
     "strictMode": false,
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-8",
@@ -94,7 +101,8 @@
     "endTime": "",
     "strictMode": false,
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-9",
@@ -105,7 +113,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-10",
@@ -116,7 +125,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-11",
@@ -127,7 +137,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-12",
@@ -139,7 +150,8 @@
     "endTime": "8:59",
     "strictMode": false,
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-13",
@@ -151,7 +163,8 @@
     "endTime": "15:59",
     "strictMode": false,
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-14",
@@ -163,7 +176,8 @@
     "endTime": "19:59",
     "strictMode": false,
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-15",
@@ -175,7 +189,8 @@
     "endTime": "23:59",
     "strictMode": false,
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-16",
@@ -186,7 +201,8 @@
     "startTime": "4:00",
     "endTime": "3:59",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-17",
@@ -197,7 +213,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-18",
@@ -208,7 +225,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-19",
@@ -219,7 +237,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-20",
@@ -228,9 +247,10 @@
     "daysOfWeek": [],
     "daysOfMonth": [],
     "startTime": "15:00",
-    "endTime": "",
+    "endTime": "14:59",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-21",
@@ -239,9 +259,10 @@
     "daysOfWeek": [],
     "daysOfMonth": [],
     "startTime": "15:00",
-    "endTime": "",
+    "endTime": "14:59",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-22",
@@ -252,7 +273,8 @@
     "startTime": "1:00",
     "endTime": "0:59",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-23",
@@ -263,7 +285,8 @@
     "startTime": "1:00",
     "endTime": "0:59",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-24",
@@ -274,7 +297,8 @@
     "startTime": "3:00",
     "endTime": "2:59",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-25",
@@ -285,7 +309,8 @@
     "startTime": "3:00",
     "endTime": "2:59",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-26",
@@ -302,7 +327,8 @@
     "startTime": "10:00",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-27",
@@ -319,7 +345,8 @@
     "startTime": "19:00",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-28",
@@ -332,7 +359,8 @@
     "startTime": "7:00",
     "endTime": "6:00",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-29",
@@ -346,7 +374,8 @@
     "startTime": "7:00",
     "endTime": "6:00",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-30",
@@ -357,7 +386,8 @@
     "startTime": "18:00",
     "endTime": "19:00",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-31",
@@ -371,7 +401,8 @@
     "endTime": "",
     "link": "https://www.jreast.co.jp/card/caution/notice220524.html/",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-32",
@@ -383,7 +414,8 @@
     "endTime": "2:59",
     "link": "https://yugioh-duelist-point.konami.net/",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-33",
@@ -397,7 +429,8 @@
     "endTime": "",
     "link": "https://sqex-bridge.jp/webstore/dqwalk",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-34",
@@ -410,7 +443,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-35",
@@ -421,7 +455,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-36",
@@ -432,7 +467,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-37",
@@ -446,7 +482,8 @@
     "endTime": "",
     "link": "https://www.eposcard.co.jp/memberservice/pc/login/login_preload.do",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-38",
@@ -475,7 +512,8 @@
     "endTime": "",
     "link": "https://www.smbc-card.com/mem/index.jsp",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-40",
@@ -489,7 +527,8 @@
     "endTime": "",
     "link": "https://www.smbc-card.com/mem/index.jsp",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-41",
@@ -503,7 +542,8 @@
     "endTime": "",
     "link": "https://www.rakuten-card.co.jp/e-navi/",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-42",
@@ -517,7 +557,8 @@
     "endTime": "",
     "link": "https://dpoint.docomo.ne.jp/use/iDcb_dcard/index.html",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-43",
@@ -531,7 +572,8 @@
     "endTime": "",
     "link": "https://www.amazon.co.jp/auto-deliveries/",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-44",
@@ -545,7 +587,8 @@
     "endTime": "",
     "link": "https://mobile.rakuten.co.jp/",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-45",
@@ -559,7 +602,8 @@
     "endTime": "",
     "link": "https://viewsnet.jp/default.htm",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-46",
@@ -573,7 +617,8 @@
     "endTime": "",
     "link": "https://www.aeon.co.jp/app/",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-47",
@@ -587,7 +632,8 @@
     "endTime": "",
     "link": "https://www.saisoncard.co.jp/customer-support/netanswer/",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-48",
@@ -601,7 +647,8 @@
     "endTime": "",
     "link": "https://ftcard.pocketcard.co.jp/netservice/index.php",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-49",
@@ -615,7 +662,8 @@
     "endTime": "",
     "link": "https://dcard.docomo.ne.jp/st/index.html",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-50",
@@ -629,7 +677,8 @@
     "endTime": "",
     "link": "https://my.jcb.co.jp/Login",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-51",
@@ -644,7 +693,8 @@
     "description": "旧URL: https://7card.jcb.co.jp/Login",
     "link": "https://my.jcb.co.jp/Login",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-52",
@@ -658,7 +708,8 @@
     "endTime": "",
     "link": "https://my.jcb.co.jp/Login",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-53",
@@ -672,7 +723,8 @@
     "endTime": "",
     "link": "https://www2.cr.mufg.jp/newsplus/",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-54",
@@ -685,7 +737,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-55",
@@ -698,7 +751,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-56",
@@ -724,7 +778,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-58",
@@ -735,7 +790,8 @@
     "startTime": "0:00",
     "endTime": "11:59",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-59",
@@ -746,7 +802,8 @@
     "startTime": "12:00",
     "endTime": "23:59",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-60",
@@ -757,7 +814,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-61",
@@ -768,7 +826,8 @@
     "startTime": "",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-62",
@@ -779,7 +838,8 @@
     "startTime": "14:50",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   },
   {
     "id": "task-63",
@@ -790,6 +850,7 @@
     "startTime": "16:50",
     "endTime": "",
     "history": {},
-    "notifiedDate": ""
+    "notifiedDate": "",
+    "remindMinutesBefore": null
   }
 ]
