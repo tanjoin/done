@@ -1,11 +1,5 @@
 let tasks = [];
 
-// --- テーブルソート状態 ---
-let sortState = {
-    column: null,      // ソート対象の列 ('group', 'task', 'time', 'date', 'status')
-    ascending: true    // true: 昇順, false: 降順
-};
-
 // --- 日付ヘルパー関数 ---
 class DateHelper {
     static get today() {
@@ -294,9 +288,9 @@ class SettingsView {
 class ItemView {
     static undoTask(index) {
         const TODAY = DateHelper.today;
-        if (tasks[index].history[TODAY]) {
-            delete tasks[index].history[TODAY];
-            localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
+        if (TaskRepository.tasks[index].history[TODAY]) {
+            delete TaskRepository.tasks[index].history[TODAY];
+            LocalStorageHelper.calendarTasksV3 = TaskRepository.tasks;
             renderCards();
         }
     }
@@ -304,10 +298,18 @@ class ItemView {
     // --- 一時的タスクの完全削除機能 ---
     static deleteActualTask(id) {
         if (confirm('この一時的タスクをリストから完全に削除しますか？')) {
-            tasks = tasks.filter(t => t.id !== id);
-            localStorage.setItem('calendar_tasks_v3', JSON.stringify(tasks));
+            TaskRepository.tasks = TaskRepository.tasks.filter(t => t.id !== id);
+            LocalStorageHelper.calendarTasksV3 = TaskRepository.tasks;
             renderCards();
         }
+    }
+
+    static cancelTask(id) {
+        const TODAY = DateHelper.today;
+        const index = TaskRepository.tasks.findIndex(t => t.id === id);
+        TaskRepository.tasks[index].history[TODAY] = isCancel ? Task.TODAY_STATUS_CANCELLED : Task.TODAY_STATUS_COMPLETED;
+        LocalStorageHelper.calendarTasksV3 = TaskRepository.tasks;
+        renderCards();
     }
 }
  
@@ -352,7 +354,7 @@ class TaskRepository {
         tasks = Array.isArray(array)
             ? array.map(task => ({
                 ...task,
-                remindMinutesBefore: normalizeRemindMinutesBefore(task?.remindMinutesBefore)
+                remindMinutesBefore: new Task(task).normalizeRemindMinutesBefore()
             }))
             : [];
     }
@@ -373,23 +375,6 @@ class TaskRepository {
         LocalStorageHelper.removeCalendarTasksV3();
         await this.loadDefaultTasksFromJSON();    
     }
-}
-
-function normalizeRemindMinutesBefore(rawValue) {
-    if (rawValue === null || rawValue === undefined || rawValue === '') {
-        return null;
-    }
-
-    const minutes = Number(rawValue);
-    if (!Number.isFinite(minutes) || minutes < 0) {
-        return null;
-    }
-
-    return Math.floor(minutes);
-}
-
-function hasExplicitReminderLead(task) {
-    return normalizeRemindMinutesBefore(task?.remindMinutesBefore) !== null;
 }
 
 function parseStartTimeToMinutes(startTime) {
@@ -420,7 +405,8 @@ function buildReminderCandidate(task, scheduledDate) {
     const parsed = parseStartTimeToMinutes(task.startTime);
     if (!parsed) return null;
 
-    const leadMinutes = normalizeRemindMinutesBefore(task.remindMinutesBefore);
+    const taskObject = new Task(task);
+    const leadMinutes = taskObject.normalizeRemindMinutesBefore();
     const remindMinutes = leadMinutes === null ? 0 : leadMinutes;
 
     const startAt = new Date(
@@ -445,10 +431,11 @@ function buildReminderCandidate(task, scheduledDate) {
 
 function getNotificationCandidate(task, now) {
     const dateOffsets = [0, 1];
+    const taskObject = new Task(task);
 
     for (const offset of dateOffsets) {
         const scheduledDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, 12, 0, 0, 0);
-        if (!isTaskScheduledOnDate(task, scheduledDate)) continue;
+        if (!taskObject.isTaskScheduledOnDate(scheduledDate)) continue;
 
         const candidate = buildReminderCandidate(task, scheduledDate);
         if (!candidate) continue;
@@ -463,6 +450,44 @@ function getNotificationCandidate(task, now) {
     return null;
 }
 
+class SortState {
+    constructor() {
+        if (SortState._instance) {
+            return SortState._instance;
+        }
+        this._column = null;
+        this._ascending = true;
+        SortState._instance = this;
+    }
+
+    /**
+     * ソート対象の列 ('group', 'task', 'time', 'date', 'status')
+     */
+    static get column() {
+        return new SortState()._column;
+    }
+
+    /**
+     * true: 昇順, false: 降順
+     */
+    static get ascending() {
+        return new SortState()._ascending;
+    }
+
+    static updateSortState(columnName) {
+        new SortState()._updateSortState(columnName);
+    }
+
+    _updateSortState(columnName) {
+        if (this.column === columnName) {
+            this.ascending = !this.ascending;
+        } else {
+            this.column = columnName;
+            this.ascending = true;
+        }
+    }
+}
+
 // --- 【新規追加】ソート実行マネージャ ---
 class SortManager {
     /**
@@ -470,12 +495,7 @@ class SortManager {
      * @param {string} columnName - ソート対象列名 ('group', 'task', 'time', 'date', 'status')
      */
     static handleSort(columnName) {
-        if (sortState.column === columnName) {
-            sortState.ascending = !sortState.ascending;
-        } else {
-            sortState.column = columnName;
-            sortState.ascending = true;
-        }
+        SortState.updateSortState(columnName);
 
         // タスクをソートして再描画
         SortManager.sortTasks();
@@ -483,13 +503,13 @@ class SortManager {
     }
 
     /**
-     * 現在の sortState に基づいて tasks 配列を並び替える
+     * 現在の SortState に基づいて tasks 配列を並び替える
      */
     static sortTasks() {
-        const col = sortState.column;
+        const col = SortState.column;
         if (!col) return;
 
-        const ascMult = sortState.ascending ? 1 : -1;
+        const ascMult = SortState.ascending ? 1 : -1;
         const TODAY = DateHelper.today;
 
         tasks.sort((a, b) => {
@@ -555,8 +575,8 @@ class SortManager {
             const indicator = th.querySelector('.sort-indicator');
             if (indicator) indicator.textContent = '';
 
-            if (col === sortState.column) {
-                if (sortState.ascending) {
+            if (col === SortState.column) {
+                if (SortState.ascending) {
                     th.classList.add('sort-asc');
                     if (indicator) indicator.textContent = '▲';
                 } else {
@@ -771,68 +791,6 @@ function sendTestNotification() {
     };
 
     NotificationSound.play();
-}
-
-// --- スケジュール合致判定 ---
-function isTaskScheduledOnDate(task, date) {
-
-    if (task.specificDate) {
-        const dStr = DateHelper.toKebabCase(date);
-        if (task.endDate) {
-            const start = DateHelper.createStartDate(task);
-            const end = DateHelper.createEndDate(task);
-            console.log(task.id, task.text, start, end, date);
-            if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
-                return false;
-            }
-            if (date < start || date > end) {
-                return false;
-            }
-            const todayCompleted = task.history && task.history[dStr] === 'completed';
-            if (todayCompleted) {
-                return true;
-            }
-            const completedBeforeToday = Object.keys(task.history || {}).some(histDate => {
-                if (task.history[histDate] !== 'completed') return false;
-                return histDate >= task.specificDate && histDate < dStr;
-            });
-            return !completedBeforeToday;
-        }
-        return task.specificDate === dStr;
-    }
-
-    const currentDayOfWeek = date.getDay();  
-    const currentDayOfMonth = date.getDate(); 
-
-    const noWeekRestriction = !task.daysOfWeek || task.daysOfWeek.length === 0;
-    const noMonthRestriction = !task.daysOfMonth || task.daysOfMonth.length === 0;
-    if (noWeekRestriction && noMonthRestriction) return true;
-
-    if (task.daysOfWeek && task.daysOfWeek.includes(currentDayOfWeek)) return true;
-    if (task.daysOfMonth && task.daysOfMonth.includes(currentDayOfMonth)) return true;
-
-    return false;
-}
-
-function shouldShowTask(task) {
-    const now = new Date();
-    if (isTaskScheduledOnDate(task, now)) return true;
-
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (isTaskScheduledOnDate(task, yesterday)) {
-        if (task.startTime && task.endTime) {
-            const startNorm = DateHelper.normalizeTime(task.startTime);
-            const endNorm = DateHelper.normalizeTime(task.endTime);
-            if (startNorm > endNorm) {
-                const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
-                if (currentStr <= endNorm) {
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
 }
 
 // タイマー周期処理内で画面表示（renderCards）も更新するように拡張
@@ -2094,153 +2052,528 @@ function checkAndSendNotifications() {
     }
 }
 
-function isWithinTime(task) {
-    if (!task.startTime && !task.endTime) return { valid: true, msg: "" };
-    
-    const now = new Date();
-    const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
-    
-    const start = DateHelper.normalizeTime(task.startTime || "00:00");
-    const end = DateHelper.normalizeTime(task.endTime || "23:59");
-    
-    if (start <= end) {
-        // 通常の時間帯（同一日内）
-        if (currentStr < start) return { valid: false, msg: `時間外 (${start}から)` };
-        if (currentStr > end) return { valid: false, msg: `時間外 (${end}まで)` };
-    } else {
-        // 翌日をまたぐ時間帯（start > end）
-        // 前日の履歴をチェック
-        const YESTERDAY = DateHelper.yesterday;
-        const hasYesterdayHistory = task.history && task.history[YESTERDAY];
-        
-        // 前日の履歴がある場合のみ、startTimeまでを時間外にする
-        if (hasYesterdayHistory && currentStr < start) {
-            return { valid: false, msg: `時間外 (${start}から)` };
-        }
-        // currentStr >= start OR currentStr <= end なら時間内
-        if (currentStr < start && currentStr > end) {
-            return { valid: false, msg: `時間外 (${start}〜翌${end})` };
-        }
+class TimeCheck {
+    constructor(data) {
+        this._data = {};
+        Object.assign(this._data, data);
     }
-    return { valid: true, msg: "" };
+
+    get valid() {
+        return this._data.valid;
+    }
+
+    get msg() {
+        return this._data.msg;
+    }
+
+    get ready() {
+        return this._data.ready;
+    }
 }
 
-function getTaskStatusInfo(task, todayStatus, timeCheck, isTargetDay) {
-    if (todayStatus === 'completed') {
-        return { label: '追加済み', className: 'chip-status-done', locked: true };
+class StatusInfo {
+    constructor(data) {
+        this._data = {};
+        Object.assign(this._data, data);
     }
-    if (todayStatus === 'cancelled') {
-        return { label: 'キャンセル済', className: 'chip-status-cancel', locked: true };
+
+    static get CLASSNAME_DONE() {
+        return 'chip-status-done';
     }
-    if (!isTargetDay) {
-        return { label: '対象日外', className: 'chip-status-nontarget', locked: true };
+
+    static get LABEL_DONE() {
+        return '追加済み';
     }
-    if (!timeCheck.valid && hasExplicitReminderLead(task)) {
-        return { label: 'リマインダー', className: 'chip-status-reminder', locked: false };
+
+    static get done() {
+        return new StatusInfo({ label: this.LABEL_DONE, className: this.CLASSNAME_DONE, locked: true });
     }
-    if (timeCheck.valid) {
-        return { label: '実施可能', className: 'chip-status-active', locked: false };
+
+    static get CLASSNAME_CANCELLED() {
+        return 'chip-status-cancel';
     }
-    return { label: '未実施', className: 'chip-status-todo', locked: false };
+
+    static get LABEL_CANCELLED() {
+        return 'キャンセル済';
+    }
+
+    static get cancelled() {
+        return new StatusInfo({ label: this.LABEL_CANCELLED, className: this.CLASSNAME_CANCELLED, locked: true });
+    }
+
+    static get CLASSNAME_NONTARGET() {
+        return 'chip-status-nontarget';
+    }
+
+    static get LABEL_NONTARGET() {
+        return '対象日外';
+    }
+
+    static get nontarget() {
+        return new StatusInfo({ label: this.LABEL_NONTARGET, className: this.CLASSNAME_NONTARGET, locked: true });
+    }
+
+    static get CLASSNAME_ACTIVE() {
+        return 'chip-status-active';
+    }
+
+    static get LABEL_ACTIVE() {
+        return '実施可能';
+    }
+
+    static get active() {
+        return new StatusInfo({ label: this.LABEL_ACTIVE, className: this.CLASSNAME_ACTIVE, locked: false });
+    }
+
+    static get CLASSNAME_REMINDER() {
+        return 'chip-status-reminder';
+    }
+
+    static get LABEL_REMINDER() {
+        return 'リマインダー';
+    }
+
+    static get reminder() {
+        return new StatusInfo({ label: this.LABEL_REMINDER, className: this.CLASSNAME_REMINDER, locked: false });
+    }
+
+    static get CLASSNAME_TODO() {
+        return 'chip-status-todo';
+    }
+
+    static get LABEL_TODO() {
+        return '未実施';
+    }
+
+    static get todo() {
+        return new StatusInfo({ label: this.LABEL_TODO, className: this.CLASSNAME_TODO, locked: false });
+    }
+
+    get label() {
+        return this._data.label;
+    }
+
+    get className() {
+        return this._data.className;
+    }
+
+    get locked() {
+        return this._data.locked;
+    }
 }
 
-function getScheduleLabel(task) {
-    if (task.specificDate) {
-        if (task.endDate) {
-            if (task.endDate === task.specificDate) {
-                return task.specificDate;
+class Task {
+    constructor(data) {
+        this._data = {};
+        Object.assign(this._data, data);
+    }
+
+    get todayStatus() {
+        return this._data.history ? this._data.history[DateHelper.today] : null;
+    }
+
+    get yesterdayStatus() {
+        return this._data.history ? this._data.history[DateHelper.yesterday] : null;
+    }
+
+    get timeLabel() {
+        if (this._data.startTime || this._data.endTime) {
+            return `${this._data.startTime || '00:00'} - ${this._data.endTime || '23:59'}`;
+        }
+        return '-';
+    }
+
+    get specificDate() {
+        return this._data.specificDate || null;
+    }
+
+    static get TODAY_STATUS_COMPLETED() {
+        return 'completed';
+    }
+
+    static get TODAY_STATUS_CANCELLED() {
+        return 'cancelled';
+    }
+
+    // --- スケジュール合致判定 ---
+    isTaskScheduledOnDate(date) {
+        if (this._data.specificDate) {
+            const dStr = DateHelper.toKebabCase(date);
+            if (this._data.endDate) {
+                const start = DateHelper.createStartDate(this._data);
+                const end = DateHelper.createEndDate(this._data);
+                console.log(this._data.id, this._data.text, start, end, date);
+                if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
+                    return false;
+                }
+                if (date < start || date > end) {
+                    return false;
+                }
+                const todayCompleted = this._data.history && this._data.history[dStr] === 'completed';
+                if (todayCompleted) {
+                    return true;
+                }
+                const completedBeforeToday = Object.keys(this._data.history || {}).some(histDate => {
+                    if (this._data.history[histDate] !== 'completed') return false;
+                    return histDate >= this._data.specificDate && histDate < dStr;
+                });
+                return !completedBeforeToday;
             }
-            return `${task.specificDate} 〜 ${task.endDate}`;
+            return this._data.specificDate === dStr;
         }
-        return task.specificDate;
+
+        const currentDayOfWeek = date.getDay();  
+        const currentDayOfMonth = date.getDate(); 
+
+        const noWeekRestriction = !this._data.daysOfWeek || this._data.daysOfWeek.length === 0;
+        const noMonthRestriction = !this._data.daysOfMonth || this._data.daysOfMonth.length === 0;
+        if (noWeekRestriction && noMonthRestriction) return true;
+
+        if (this._data.daysOfWeek && this._data.daysOfWeek.includes(currentDayOfWeek)) return true;
+        if (this._data.daysOfMonth && this._data.daysOfMonth.includes(currentDayOfMonth)) return true;
+
+        return false;
     }
-    if (task.daysOfWeek && task.daysOfWeek.length) {
-        const labels = ['日', '月', '火', '水', '木', '金', '土'];
-        return task.daysOfWeek.map(day => labels[day] + '曜').join(', ');
+
+    shouldShowTask() {
+        const now = new Date();
+        if (this.isTaskScheduledOnDate(now)) {
+            return true;
+        }
+
+        // 前日の履歴があり、かつ startTime > endTime の場合は、前日のタスクがまだ有効な時間帯にいる可能性がある
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (this.isTaskScheduledOnDate(yesterday)) {
+            if (this._data.startTime && this._data.endTime) {
+                const startNorm = DateHelper.normalizeTime(this._data.startTime);
+                const endNorm = DateHelper.normalizeTime(this._data.endTime);
+                if (startNorm > endNorm) {
+                    const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+                    if (currentStr <= endNorm) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // 翌日以降でリマインダー設定があり、かつリマインダーの時間内であれば表示する
+        if (this.hasExplicitReminderLead()) {
+            const reminderLead = this.normalizeRemindMinutesBefore();
+            if (reminderLead !== null) {
+                const reminderTime = new Date(now.getTime() + reminderLead * 60000);
+                if (this.isTaskScheduledOnDate(reminderTime)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
-    if (task.daysOfMonth && task.daysOfMonth.length) {
-        return task.daysOfMonth.map(day => `${day}日`).join(', ');
+
+    isWithinTime() {
+        // startTime と endTime が両方とも未設定の場合は常に有効
+        if (!this._data.startTime && !this._data.endTime) {
+            return new TimeCheck({ valid: true, ready: false, msg: "" });
+        }
+
+        const now = new Date();
+        const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+        
+        const start = DateHelper.normalizeTime(this._data.startTime || "00:00");
+        const end = DateHelper.normalizeTime(this._data.endTime || "23:59");
+        
+        if (start <= end) {
+            // 通常の時間帯（同一日内）
+            if (currentStr < start) {
+                return new TimeCheck({ valid: false, ready: true, msg: `時間外 (${start}から)` });
+            }
+            if (currentStr > end) {
+                return new TimeCheck({ valid: false, ready: false, msg: `時間外 (${end}まで)` });
+            }
+        } else {
+            // 翌日をまたぐ時間帯（start > end）
+            // 前日の履歴をチェック
+            const hasYesterdayHistory = this._data.history && this._data.history[DateHelper.yesterday];
+            
+            // 前日の履歴がある場合のみ、startTimeまでを時間外にする
+            if (hasYesterdayHistory && currentStr < start) {
+                return new TimeCheck({ valid: false, ready: true, msg: `時間外 (${start}から)` });
+            }
+            // currentStr >= start OR currentStr <= end なら時間内
+            if (currentStr < start && currentStr > end) {
+                return new TimeCheck({ valid: false, ready: true, msg: `時間外 (${start}〜翌${end})` });
+            }
+        }
+        return new TimeCheck({ valid: true, ready: false, msg: "" });
     }
-    return '毎日';
-}
 
-function renderTableView(container, filteredTasks, today, targetDayMap) {
-    const YESTERDAY = DateHelper.yesterday;
-    const tableWrapper = document.createElement('div');
-    tableWrapper.className = 'table-wrapper';
+    normalizeRemindMinutesBefore() {
+        const rawValue = this._data?.remindMinutesBefore;
+        if (rawValue === null || rawValue === undefined || rawValue === '') {
+            return null;
+        }
 
-    const table = document.createElement('table');
-    table.className = 'task-table';
-    
-    // ヘッダーセルにソート属性（data-sort-col）とソート指示記号を追加
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th data-sort-col="group" style="cursor: pointer; user-select: none;">グループ <span class="sort-indicator"></span></th>
-                <th data-sort-col="task" style="cursor: pointer; user-select: none;">タスク <span class="sort-indicator"></span></th>
-                <th data-sort-col="time" style="cursor: pointer; user-select: none;">時間 <span class="sort-indicator"></span></th>
-                <th data-sort-col="date" style="cursor: pointer; user-select: none;">日付 <span class="sort-indicator"></span></th>
-                <th data-sort-col="status" style="cursor: pointer; user-select: none;">ステータス <span class="sort-indicator"></span></th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    `;
+        const minutes = Number(rawValue);
+        if (!Number.isFinite(minutes) || minutes < 0) {
+            return null;
+        }
 
-    const tbody = table.querySelector('tbody');
+        return Math.floor(minutes);
+    }
 
-    filteredTasks.forEach((task, idx) => {
-        const taskIndex = tasks.findIndex(t => t.id === task.id);
-        const todayStatus = task.history[today];
-        const yesterdayStatus = task.history[YESTERDAY];
-        const timeCheck = isWithinTime(task);
-        const isTargetDay = targetDayMap[task.id] === true;
-        const statusInfo = getTaskStatusInfo(task, todayStatus, timeCheck, isTargetDay);
-        const isStrict = task.strictMode === true || task.strictMode === 'true';
-        const addDisabled = statusInfo.locked || (!timeCheck.valid && isStrict);
-        const row = document.createElement('tr');
+    // 明示的なリマインド設定があるかどうか（0分も有効）
+    hasExplicitReminderLead() {
+        return this.normalizeRemindMinutesBefore() !== null;
+    }
 
-        if (todayStatus) {
+    get statusInfo() {
+        return this.getTaskStatusInfo(this.todayStatus, this.timeCheck, this.isTaskScheduledOnDate(new Date()));
+    }
+
+    getTaskStatusInfo(todayStatus, timeCheck, isTargetDay) {
+        if (todayStatus === Task.TODAY_STATUS_COMPLETED) {
+            return StatusInfo.done;
+        }
+        if (todayStatus === Task.TODAY_STATUS_CANCELLED) {
+            return StatusInfo.cancelled;
+        }
+        if (!isTargetDay) {
+            return StatusInfo.nontarget;
+        }
+        if (timeCheck.valid) {
+            return StatusInfo.active;
+        }
+        if (!timeCheck.valid && timeCheck.ready && this.hasExplicitReminderLead()) {
+            return StatusInfo.reminder;
+        }
+        return StatusInfo.todo;
+    }
+
+    get statusInfoSpan() {
+        const statusSpan = document.createElement('span');
+        const statusInfo = this.statusInfo;
+        statusSpan.className = `chip ${statusInfo.className}`;
+        statusSpan.textContent = statusInfo.label;
+        return statusSpan;
+    }
+
+    get timeCheck() {
+        return this.isWithinTime();
+    }
+
+    actionSecondary(taskIndex) {
+        const button = document.createElement('button');
+        button.className = 'table-btn';
+        button.disabled = this.statusInfo.locked;
+        button.textContent = this.specificDate ? '削除' : 'キャンセル';
+        if (this.specificDate) {
+            button.textContent = '削除';
+            button.classList.add('table-btn-danger');
+            button.onclick = () => ItemView.deleteActualTask(this._data.id);
+        } else {
+            button.textContent = 'キャンセル';
+            button.onclick = () => executeTask(taskIndex, true);
+        }
+        return button;
+    }
+
+    actionMain(taskIndex) {
+        const button = document.createElement('button');
+        button.className = 'table-btn';
+        if (this.todayStatus) {
+            button.textContent = '戻す';
+            button.onclick = () => ItemView.undoTask(taskIndex);
+        } else {
+            button.textContent = '追加';
+            const isStrict = this._data.strictMode === true || this._data.strictMode === 'true';
+            const addDisabled = this.statusInfo.locked || (!this.timeCheck.valid && isStrict);
+            button.disabled = addDisabled;
+            button.classList.add('table-btn-primary');
+            button.onclick = () => executeTask(taskIndex, false);
+        }
+        return button;
+    }
+
+    static get YESTERDAY_STATUS_COMPLETED() {
+        return 'completed';
+    }
+
+    static get YESTERDAY_STATUS_CANCELLED() {
+        return 'cancelled';
+    }
+
+    get groupChip() {
+        const span = document.createElement('span');
+        span.className = 'chip chip-group';
+        if (this.yesterdayStatus === Task.YESTERDAY_STATUS_COMPLETED) {
+            span.classList.add('chip-group--completed-yesterday');
+        } else if (this.yesterdayStatus === Task.YESTERDAY_STATUS_CANCELLED) {
+            span.classList.add('chip-group--cancelled-yesterday');
+        }
+        if (this._data.group) {
+            span.textContent = this._data.group;
+        } else {
+            span.textContent = 'その他';
+        }
+        return span;
+    }
+
+    get taskNameElement() {
+        if (this._data.link) {
+            const link = document.createElement('a');
+            link.href = this._data.link;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = this._data.text;
+            return link;
+        } else {
+            const span = document.createElement('span');
+            span.textContent = this._data.text;
+            return span;
+        }
+    }
+
+    get scheduleLabel() {
+        if (this._data.specificDate) {
+            if (this._data.endDate) {
+                if (this._data.endDate === this._data.specificDate) {
+                    return this._data.specificDate;
+                }
+                return `${this._data.specificDate} 〜 ${this._data.endDate}`;
+            }
+            return this._data.specificDate;
+        }
+        if (this._data.daysOfWeek && this._data.daysOfWeek.length) {
+            const labels = ['日', '月', '火', '水', '木', '金', '土'];
+            return this._data.daysOfWeek.map(day => labels[day] + '曜').join(', ');
+        }
+        if (this._data.daysOfMonth && this._data.daysOfMonth.length) {
+            return this._data.daysOfMonth.map(day => `${day}日`).join(', ');
+        }
+        return '毎日';
+    }
+
+    insertRowElements(row, taskIndex) {
+        if (this.todayStatus) {
             row.setAttribute('data-done', 'true');
         }
+        const groupChipTd = document.createElement('td');
+        groupChipTd.appendChild(this.groupChip);
+        row.appendChild(groupChipTd);
 
-        const timeLabel = task.startTime || task.endTime
-            ? `${task.startTime || '00:00'} - ${task.endTime || '23:59'}`
-            : '-';
+        const taskNameTd = document.createElement('td');
+        taskNameTd.className = 'task-name';
+        taskNameTd.appendChild(this.taskNameElement);
+        row.appendChild(taskNameTd);
 
-        const actionSecondary = task.specificDate
-            ? `<button class="table-btn table-btn-danger" ${statusInfo.locked ? 'disabled' : ''} onclick="ItemView.deleteActualTask('${task.id}')">削除</button>`
-            : `<button class="table-btn" ${statusInfo.locked ? 'disabled' : ''} onclick="executeTask(${taskIndex}, true)">キャンセル</button>`;
+        const timeLabelTd = document.createElement('td');
+        timeLabelTd.textContent = this.timeLabel;
+        row.appendChild(timeLabelTd);
 
-        const actionMain = todayStatus
-            ? `<button class="table-btn" onclick="ItemView.undoTask(${taskIndex})">戻す</button>`
-            : `<button class="table-btn table-btn-primary" ${addDisabled ? 'disabled' : ''} onclick="executeTask(${taskIndex}, false)">追加</button>`;
+        const dateLabelTd = document.createElement('td');
+        dateLabelTd.textContent = this.scheduleLabel;
+        row.appendChild(dateLabelTd);
 
-        let groupChipClass = 'chip chip-group';
-        if (yesterdayStatus === 'completed') {
-            groupChipClass += ' chip-group--completed-yesterday';
-        } else if (yesterdayStatus === 'cancelled') {
-            groupChipClass += ' chip-group--cancelled-yesterday';
+        const statusTd = document.createElement('td');
+        const statusSpan = this.statusInfoSpan;
+        statusTd.appendChild(statusSpan);
+        row.appendChild(statusTd);
+
+        const actionTd = document.createElement('td');
+        const actionContainer = document.createElement('div');
+        actionContainer.className = 'table-actions';
+        actionContainer.appendChild(this.actionMain(taskIndex));
+        if (!this.todayStatus) {
+            actionContainer.appendChild(this.actionSecondary(taskIndex));
         }
+        actionTd.appendChild(actionContainer);
+        row.appendChild(actionTd);
+    }
+}
 
-        row.innerHTML = `
-            <td><span class="${groupChipClass}">${task.group || 'その他'}</span></td>
-            <td class="task-name">${task.link ? ('<a href="' + task.link + '" target="_blank" rel="noopener noreferrer">' + task.text + '</a>') : task.text}</td>
-            <td>${timeLabel}</td>
-            <td>${getScheduleLabel(task)}</td>
-            <td><span class="chip ${statusInfo.className}">${statusInfo.label}</span></td>
-            <td>
-                <div class="table-actions">
-                    ${actionMain}
-                    ${todayStatus ? '' : actionSecondary}
-                </div>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
+class TableManager {
 
-    tableWrapper.appendChild(table);
-    container.appendChild(tableWrapper);
+    static createTableWrapperDiv() {
+        const tableWrapper = document.createElement('div');
+        tableWrapper.className = 'table-wrapper';
+        return tableWrapper;        
+    }
+
+    static createTableTag() {
+        const table = document.createElement('table');
+        table.className = 'task-table';
+        return table;        
+    }
+
+    static get headers() {
+        return [
+            { group: 'グループ', task: 'タスク', time: '時間', date: '日付', status: 'ステータス' }
+        ];
+    }
+
+    static createTHeadTag() {
+        const thead = document.createElement('thead');
+        const tr = document.createElement('tr');
+
+        TableManager.headers.forEach(header => {
+            for (const key in header) {
+                const th = document.createElement('th');
+
+                th.textContent = header[key];
+                th.setAttribute('data-sort-col', key);
+                th.style.cursor = 'pointer';
+                th.style.userSelect = 'none';
+
+                const sortIndicator = document.createElement('span');
+                sortIndicator.className = 'sort-indicator';
+                th.appendChild(sortIndicator);
+
+                tr.appendChild(th);
+            }
+        });
+
+        const operationHeader = document.createElement('th');
+        operationHeader.textContent = '操作';
+        tr.appendChild(operationHeader);
+
+        thead.appendChild(tr);
+        return thead;
+    }
+
+    static createTBodyTag() {
+        const tbody = document.createElement('tbody');
+        return tbody;        
+    }
+
+    static createTableWrapper(tasks) {
+        const tableWrapper = TableManager.createTableWrapperDiv();
+        const table = TableManager.createTableTag();
+        const thead = TableManager.createTHeadTag();
+        table.appendChild(thead);
+
+        const tbody = TableManager.createTBodyTag();
+        table.appendChild(tbody);
+
+        TableManager.insertTasks(tasks, tbody, DateHelper.today, DateHelper.yesterday);
+
+        tableWrapper.appendChild(table);
+        return tableWrapper;
+    }
+
+    static insertTasks(tasks, tbody, today, yesterday) {
+        tasks.forEach((task, idx) => {
+            const row = document.createElement('tr');
+            const taskObject = new Task(task);
+            const taskIndex = tasks.findIndex(t => t.id === task.id);
+            taskObject.insertRowElements(row, taskIndex);
+            tbody.appendChild(row);
+        });
+    }
+
+    static renderTableView(container, filteredTasks, today, targetDayMap) {
+        container.appendChild(TableManager.createTableWrapper(filteredTasks));
+    }
 }
 
 // --- メイン描画 ---
@@ -2253,7 +2586,7 @@ function renderCards() {
     const YESTERDAY = DateHelper.yesterday;
 
     // ソート条件が設定されていれば、描画の直前にデータをソート
-    if (sortState.column) {
+    if (SortState.column) {
         SortManager.sortTasks();
     }
 
@@ -2261,16 +2594,17 @@ function renderCards() {
     const targetDayMap = {};
     const groups = {};
     tasks.forEach(task => {
-        const isTargetDay = shouldShowTask(task);
+        const taskObject = new Task(task);
+        const isTargetDay = taskObject.shouldShowTask();
         targetDayMap[task.id] = isTargetDay;
         if (!isTargetDay && FilterManager.hideNonTargetDay) return;
 
         const todayStatus = task.history[TODAY];
-        const timeCheck = isWithinTime(task);
+        const timeCheck = taskObject.isWithinTime();
 
         if (todayStatus === 'completed' && FilterManager.hideCompleted) return;
         if (todayStatus === 'cancelled' && FilterManager.hideCancelled) return;
-        if (isTargetDay && !todayStatus && !timeCheck.valid && FilterManager.hideOutOfTime && !hasExplicitReminderLead(task)) return;
+        if (isTargetDay && !todayStatus && !timeCheck.valid && FilterManager.hideOutOfTime && !taskObject.hasExplicitReminderLead()) return;
 
         const groupName = task.group || "その他";
         filteredTasks.push(task);
@@ -2286,7 +2620,7 @@ function renderCards() {
     const currentViewMode = localStorage.getItem('task_view_mode') || 'card';
     document.body.classList.toggle('table-view-mode', currentViewMode === 'table');
     if (currentViewMode === 'table') {
-        renderTableView(container, filteredTasks, TODAY, targetDayMap);
+        TableManager.renderTableView(container, filteredTasks, TODAY, targetDayMap);
         // テーブルレンダリング後にヘッダーUIに現在のソート状態（矢印など）を反映
         SortManager.updateHeaderUI();
         return;
@@ -2294,7 +2628,7 @@ function renderCards() {
 
     for (const groupName in groups) {
         // カードビューモードの場合は、従来どおり累計実績の多い順などでグループ内ソートを優先（ソート状態に左右されない元のロジックを担保）
-        if (!sortState.column) {
+        if (!SortState.column) {
             groups[groupName].sort((a, b) => {
                 const countA = Object.values(a.history || {}).filter(v => v === 'completed').length;
                 const countB = Object.values(b.history || {}).filter(v => v === 'completed').length;
@@ -2318,8 +2652,9 @@ function renderCards() {
             const isTargetDay = targetDayMap[task.id] === true;
             const todayStatus = task.history[TODAY];
             const yesterdayStatus = task.history[YESTERDAY];
-            const timeCheck = isWithinTime(task);
-            const statusInfo = getTaskStatusInfo(task, todayStatus, timeCheck, isTargetDay);
+            const taskObject = new Task(task);
+            const timeCheck = taskObject.isWithinTime();
+            const statusInfo = taskObject.getTaskStatusInfo(todayStatus, timeCheck, isTargetDay);
             
             const totalCompleted = Object.values(task.history || {}).filter(v => v === 'completed').length;
 
