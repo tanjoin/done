@@ -1,0 +1,152 @@
+import { DoneTheme, DoneSwitchViewMode } from './types';
+import DoneTask from './done-task';
+import { TemporaryHistoryItem } from './temporary-history';
+
+export default class LocalStorageManager {
+
+  static get TEMPORARY_INPUT_HISTORY_KEY(): string {
+    return 'done_temporary_input_history';
+  }
+  
+  static get temporaryInputHistory(): TemporaryHistoryItem[] {
+    const historyJson = localStorage.getItem(LocalStorageManager.TEMPORARY_INPUT_HISTORY_KEY);
+    if (!historyJson) {
+      return [];
+    }
+    try {
+      const history = JSON.parse(historyJson) as TemporaryHistoryItem[];
+      if (Array.isArray(history)) {
+        return history;
+      }
+      return [];
+    } catch (e) {
+      console.error('Failed to parse temporary history from localStorage:', e);
+      return [];
+    }
+  }
+
+  static set temporaryInputHistory(history: TemporaryHistoryItem[] | null) {
+    if (history === null) {
+      localStorage.removeItem(LocalStorageManager.TEMPORARY_INPUT_HISTORY_KEY);
+    } else {
+      localStorage.setItem(LocalStorageManager.TEMPORARY_INPUT_HISTORY_KEY, JSON.stringify(history));
+    }
+  }
+
+  static get APP_THEME_KEY(): string {
+    return 'done_app_theme';
+  }
+
+  static get appTheme(): DoneTheme {
+    const savedTheme = localStorage.getItem(LocalStorageManager.APP_THEME_KEY) as DoneTheme | null;
+    if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
+      return savedTheme;
+    }
+    return 'system';
+  }
+
+  static set appTheme(theme: DoneTheme) {
+    localStorage.setItem(LocalStorageManager.APP_THEME_KEY, theme);
+  }
+
+  static get TASKS_KEY(): string {
+    return 'done_tasks';
+  }
+
+  static get tasks(): DoneTask[] {
+    const tasksJson = localStorage.getItem(LocalStorageManager.TASKS_KEY);
+    if (!tasksJson) {
+      return [];
+    }
+    try {
+      const tasks = JSON.parse(tasksJson) as DoneTask[];
+      if (Array.isArray(tasks)) {
+        return tasks;
+      }
+      return [];
+    } catch (e) {
+      console.error('Failed to parse tasks from localStorage:', e);
+      return [];
+    }
+  }
+
+  static set tasks(tasks: DoneTask[] | null) {
+    if (tasks === null) {
+      localStorage.removeItem(LocalStorageManager.TASKS_KEY);
+    } else {
+      localStorage.setItem(LocalStorageManager.TASKS_KEY, JSON.stringify(tasks));
+    }
+  }
+
+  static get taskViewMode(): DoneSwitchViewMode {
+    const savedViewMode = localStorage.getItem('task_view_mode') as DoneSwitchViewMode | null;
+    if (savedViewMode === 'card' || savedViewMode === 'table') {
+      return savedViewMode;
+    }
+    return 'card';
+  }
+
+  static set taskViewMode(mode: DoneSwitchViewMode) {
+    localStorage.setItem('task_view_mode', mode);
+  }
+
+  static get FILTER_HIDE_NON_TARGET_DAY_KEY(): string {
+    return 'filter_hide_non_target_day';
+  }
+
+  static get filterHideNonTargetDay(): boolean {
+    return this.getFilter(LocalStorageManager.FILTER_HIDE_NON_TARGET_DAY_KEY);
+  }
+
+  static set filterHideNonTargetDay(value: boolean) {
+    this.setFilter(LocalStorageManager.FILTER_HIDE_NON_TARGET_DAY_KEY, value);
+  }
+
+  static get FILTER_HIDE_OUT_OF_TIME_KEY(): string {
+    return 'filter_hide_out_of_time';
+  }
+
+  static get filterHideOutOfTime(): boolean {
+    return this.getFilter(LocalStorageManager.FILTER_HIDE_OUT_OF_TIME_KEY);
+  }
+
+  static set filterHideOutOfTime(value: boolean) {
+    this.setFilter(LocalStorageManager.FILTER_HIDE_OUT_OF_TIME_KEY, value);
+  }
+
+  static get FILTER_HIDE_COMPLETED_KEY(): string {
+    return 'filter_hide_completed';
+  }
+
+  static get filterHideCompleted(): boolean {
+    return this.getFilter(LocalStorageManager.FILTER_HIDE_COMPLETED_KEY);
+  }
+
+  static set filterHideCompleted(value: boolean) {
+    this.setFilter(LocalStorageManager.FILTER_HIDE_COMPLETED_KEY, value);
+  }
+
+  static get FILTER_HIDE_CANCELLED_KEY(): string {
+    return 'filter_hide_cancelled';
+  }
+
+  static get filterHideCancelled(): boolean {
+    return this.getFilter(LocalStorageManager.FILTER_HIDE_CANCELLED_KEY);
+  }
+
+  static set filterHideCancelled(value: boolean) {
+    this.setFilter(LocalStorageManager.FILTER_HIDE_CANCELLED_KEY, value);
+  }
+
+  static getFilter(key: string): boolean {
+    const currentValue = localStorage.getItem(key);
+    if (currentValue === null) {
+      return true;
+    }
+    return currentValue === 'true';
+  }
+
+  static setFilter(key: string, value: boolean): void {
+    localStorage.setItem(key, value.toString());
+  }
+}

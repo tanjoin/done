@@ -13,7 +13,23 @@
     "start": "node tools/server.js",
     "server": "node tools/server.js",
     "migrate": "node tools/migrate_task_history.js",
-    "clean": "node tools/clean_and_sort.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "clean:sort": "node tools/clean_and_sort.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "lint": "gts lint",
+    "clean": "gts clean",
+    "compile": "tsc",
+    "fix": "gts fix",
+    "prepare": "npm run compile",
+    "pretest": "npm run compile",
+    "posttest": "npm run lint"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "gts": "^7.0.0"
   }
 }
