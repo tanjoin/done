@@ -50,8 +50,8 @@ export default class SortManager {
           valB = this.getScheduleSortValue(b);
           break;
         case 'status':
-          valA = (a.history && a.history[TODAY]) ? a.history[TODAY] : '';
-          valB = (b.history && b.history[TODAY]) ? b.history[TODAY] : '';
+          valA = a.history && a.history[TODAY] ? a.history[TODAY] : '';
+          valB = b.history && b.history[TODAY] ? b.history[TODAY] : '';
           break;
         default:
           return 0;
@@ -71,8 +71,10 @@ export default class SortManager {
       return 'W-' + task.daysOfWeek.join(',');
     }
     if (task.daysOfMonth && task.daysOfMonth.length) {
-      return 'M-' + task.daysOfMonth.map(n => String(n).padStart(2, '0')).join(',');
+      return (
+        'M-' + task.daysOfMonth.map(n => String(n).padStart(2, '0')).join(',')
+      );
     }
     return 'Daily';
   }
-};
+}

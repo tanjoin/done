@@ -1,5 +1,4 @@
 export default class RequestNotification extends HTMLElement {
-
   static get NAME(): string {
     return 'request-notification';
   }
@@ -29,13 +28,17 @@ export default class RequestNotification extends HTMLElement {
   static checkNotificationPermission(): void {
     const banner = document.getElementById('notificationBanner');
     if (!banner) return;
-    if (!('Notification' in window) || typeof Notification.requestPermission !== 'function') {
+    if (
+      !('Notification' in window) ||
+      typeof Notification.requestPermission !== 'function'
+    ) {
       banner.style.display = 'none';
       return;
     }
-    banner.style.display = (Notification.permission === 'default') ? 'flex' : 'none';
+    banner.style.display =
+      Notification.permission === 'default' ? 'flex' : 'none';
   }
-};
+}
 
 if (!customElements.get(RequestNotification.NAME)) {
   customElements.define(RequestNotification.NAME, RequestNotification);

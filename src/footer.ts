@@ -1,5 +1,4 @@
 export default class Footer extends HTMLElement {
-
   static get NAME(): string {
     return 'done-footer';
   }
@@ -19,7 +18,7 @@ export default class Footer extends HTMLElement {
       </footer>
     `;
   }
-};
+}
 
 if (!customElements.get(Footer.NAME)) {
   customElements.define(Footer.NAME, Footer);

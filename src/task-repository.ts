@@ -28,7 +28,9 @@ export default class TaskRepository {
         this._tasks = tasksFromJson;
         LocalStorageManager.tasks = tasksFromJson;
       } else {
-        throw new Error('Failed to load tasks.json', { cause: response.statusText });
+        throw new Error('Failed to load tasks.json', {
+          cause: response.statusText,
+        });
       }
     }
   }

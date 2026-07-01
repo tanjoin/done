@@ -1,7 +1,6 @@
 type HeaderNavLink = 'index' | 'temporary' | 'settings';
 
 export default class Header extends HTMLElement {
-
   private _activeLink: HeaderNavLink = 'index';
 
   static get NAME(): string {
@@ -19,7 +18,7 @@ export default class Header extends HTMLElement {
   set active(link: HeaderNavLink) {
     this._activeLink = link;
     const links = this.querySelectorAll('.nav-link');
-    links.forEach((el) => el.classList.remove('active'));
+    links.forEach(el => el.classList.remove('active'));
     const activeLink = this.querySelector(`.nav-link[href="${link}.html"]`);
     if (activeLink) {
       activeLink.classList.add('active');
@@ -35,7 +34,7 @@ export default class Header extends HTMLElement {
       </header>
     `;
   }
-};
+}
 
 if (!customElements.get(Header.NAME)) {
   customElements.define(Header.NAME, Header);

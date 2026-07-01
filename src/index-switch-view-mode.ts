@@ -1,8 +1,7 @@
-import { DoneSwitchViewMode } from './types';
+import {DoneSwitchViewMode} from './types';
 import LocalStorageManager from './local-storage-manager';
 
 export default class IndexSwitchViewMode extends HTMLElement {
-
   static get NAME(): string {
     return 'done-index-switch-view-mode';
   }
@@ -37,7 +36,9 @@ export default class IndexSwitchViewMode extends HTMLElement {
   }
 
   private setupEvents(): void {
-    const viewModeToggle = this.querySelector('#viewModeToggle') as HTMLInputElement | null;
+    const viewModeToggle = this.querySelector(
+      '#viewModeToggle',
+    ) as HTMLInputElement | null;
     if (!viewModeToggle) return;
 
     // 1. データの初期同期
@@ -46,17 +47,21 @@ export default class IndexSwitchViewMode extends HTMLElement {
 
     // 2. イベントリスナーの設定
     viewModeToggle.addEventListener('change', () => {
-      const mode: DoneSwitchViewMode = viewModeToggle.checked ? 'table' : 'card';
+      const mode: DoneSwitchViewMode = viewModeToggle.checked
+        ? 'table'
+        : 'card';
       LocalStorageManager.taskViewMode = mode;
 
       // 外部にモード変更を通知（renderCards 等を動かすため）
-      this.dispatchEvent(new CustomEvent(IndexSwitchViewMode.EVENT_VIEW_MODE_CHANGE, {
-        detail: { mode },
-        bubbles: true
-      }));
+      this.dispatchEvent(
+        new CustomEvent(IndexSwitchViewMode.EVENT_VIEW_MODE_CHANGE, {
+          detail: {mode},
+          bubbles: true,
+        }),
+      );
     });
   }
-};
+}
 
 if (!customElements.get(IndexSwitchViewMode.NAME)) {
   customElements.define(IndexSwitchViewMode.NAME, IndexSwitchViewMode);

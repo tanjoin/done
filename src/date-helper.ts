@@ -1,5 +1,4 @@
 export default class DateHelper {
-
   static get today(): string {
     return DateHelper.getFormattedDate();
   }
@@ -36,7 +35,12 @@ export default class DateHelper {
 
   static normalizeTime(timeStr: string): string {
     const [hour, minute] = timeStr.split(':').map(Number);
-    if (!hour && hour !== 0 || !minute && minute !== 0 || isNaN(hour) || isNaN(minute)) {
+    if (
+      (!hour && hour !== 0) ||
+      (!minute && minute !== 0) ||
+      isNaN(hour) ||
+      isNaN(minute)
+    ) {
       return timeStr;
     }
     const normalizedHour = String(hour).padStart(2, '0');
