@@ -18,7 +18,6 @@ import DoneTask from './done-task';
 export const TEMPORARY_EVENT_TASK_PUBLISHED = 'done-temporary-task-published';
 
 export class Temporary extends HTMLElement {
-
   static get NAME(): string {
     return 'done-temporary';
   }
@@ -63,7 +62,7 @@ export class Temporary extends HTMLElement {
     }
 
     // 1. 本番のメインタスクデータをロード
-    let mainTasks = LocalStorageManager.tasks;
+    const mainTasks = LocalStorageManager.tasks;
 
     if (endDateVal && endDateVal < targetDate) {
       alert('終了日は開始日と同じかそれ以降の日付にしてください。');
@@ -71,7 +70,11 @@ export class Temporary extends HTMLElement {
     }
     // 2. 本番用の一時的タスクオブジェクトを作成
     const newTaskInstance = new DoneTask({
-      id: 'actual_temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      id:
+        'actual_temp_' +
+        Date.now() +
+        '_' +
+        Math.random().toString(36).substring(2, 7),
       group: groupVal,
       text: textVal,
       startTime: startVal,
@@ -81,9 +84,9 @@ export class Temporary extends HTMLElement {
       link: linkVal,
       strictMode: strictVal,
       history: {},
-      notifiedDate: "",
+      notifiedDate: '',
       specificDate: targetDate,
-      endDate: endDateVal
+      endDate: endDateVal,
     });
 
     mainTasks.push(newTaskInstance);
@@ -100,13 +103,24 @@ export class Temporary extends HTMLElement {
       remindMinutesBefore: remindVal,
       description: descVal,
       link: linkVal,
-      strictMode: strictVal
+      strictMode: strictVal,
     };
 
-    document.dispatchEvent(new CustomEvent(TEMPORARY_HISTORY_EVENT_HISTORY_ADD, { detail: historyItem, bubbles: true }));
-    document.dispatchEvent(new CustomEvent(TEMPORARY_FORM_RESET_FORM, { bubbles: true }));
-    document.dispatchEvent(new CustomEvent(TEMPORARY_HISTORY_EVENT_RENDER_HISTORY, { bubbles: true }));
-    document.dispatchEvent(new CustomEvent(TEMPORARY_FORM_GROUP_SUGGESTIONS_UPDATE, { bubbles: true }));
+    document.dispatchEvent(
+      new CustomEvent(TEMPORARY_HISTORY_EVENT_HISTORY_ADD, {
+        detail: historyItem,
+        bubbles: true,
+      }),
+    );
+    document.dispatchEvent(
+      new CustomEvent(TEMPORARY_FORM_RESET_FORM, {bubbles: true}),
+    );
+    document.dispatchEvent(
+      new CustomEvent(TEMPORARY_HISTORY_EVENT_RENDER_HISTORY, {bubbles: true}),
+    );
+    document.dispatchEvent(
+      new CustomEvent(TEMPORARY_FORM_GROUP_SUGGESTIONS_UPDATE, {bubbles: true}),
+    );
   }
 
   private static getInputElement(id: string): HTMLInputElement {

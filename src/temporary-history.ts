@@ -2,7 +2,8 @@ import LocalStorageManager from './local-storage-manager.js';
 
 export const TEMPORARY_HISTORY_TAG_NAME = 'done-temporary-history';
 export const TEMPORARY_HISTORY_EVENT_HISTORY_ADD = 'done-temporary-history-add';
-export const TEMPORARY_HISTORY_EVENT_RENDER_HISTORY = 'done-temporary-history-render-history';
+export const TEMPORARY_HISTORY_EVENT_RENDER_HISTORY =
+  'done-temporary-history-render-history';
 
 export type TemporaryHistoryItem = {
   id: string;
@@ -15,10 +16,9 @@ export type TemporaryHistoryItem = {
   text: string;
   link: string | null;
   strictMode: boolean | null;
-}
+};
 
 export class TemporaryHistory extends HTMLElement {
-
   private _tempHistory: TemporaryHistoryItem[] = [];
 
   static get NAME(): string {
@@ -27,14 +27,18 @@ export class TemporaryHistory extends HTMLElement {
 
   handleCopyToFormEvent(detail: TemporaryHistoryItem) {
     if (detail) {
-      let keys = Object.keys(detail) as (keyof TemporaryHistoryItem)[];
+      const keys = Object.keys(detail) as (keyof TemporaryHistoryItem)[];
       for (const inputId of keys) {
-        const inputElement = document.getElementById(inputId) as HTMLInputElement | null;
+        const inputElement = document.getElementById(
+          inputId,
+        ) as HTMLInputElement | null;
         if (inputElement) {
           if (inputId === 'strictMode') {
             inputElement.checked = detail.strictMode || false;
           } else {
-            inputElement.value = String(detail[inputId as keyof TemporaryHistoryItem] ?? '');
+            inputElement.value = String(
+              detail[inputId as keyof TemporaryHistoryItem] ?? '',
+            );
           }
         }
       }
@@ -49,11 +53,14 @@ export class TemporaryHistory extends HTMLElement {
   init() {
     this.loadTempHistoryFromStorage();
     this.renderHistory();
-    
-    document.addEventListener(TEMPORARY_HISTORY_EVENT_HISTORY_ADD, (event: Event) => {
-      const customEvent = event as CustomEvent<TemporaryHistoryItem>;
-      this.addHistoryItem(customEvent.detail);
-    });
+
+    document.addEventListener(
+      TEMPORARY_HISTORY_EVENT_HISTORY_ADD,
+      (event: Event) => {
+        const customEvent = event as CustomEvent<TemporaryHistoryItem>;
+        this.addHistoryItem(customEvent.detail);
+      },
+    );
 
     document.addEventListener(TEMPORARY_HISTORY_EVENT_RENDER_HISTORY, () => {
       this.renderHistory();
@@ -84,17 +91,18 @@ export class TemporaryHistory extends HTMLElement {
   }
 
   // 過去履歴からパラメータをフォームにコピー（再利用）
-  private copyTemplateToForm(id: string) {
+  private copyTemplateToForm(id: string, event: Event) {
+    event.stopPropagation();
     const item = this._tempHistory.find(t => t.id === id);
     if (!item) return;
     this.handleCopyToFormEvent(item);
     // 画面上部へスムーズにスクロール
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({top: 0, behavior: 'smooth'});
   }
 
   // 履歴の削除
   private deleteHistory(id: string, event: Event) {
-    event.stopPropagation(); // コピー処理の発火を防ぐ
+    event.stopPropagation();
     this._tempHistory = this._tempHistory.filter(t => t.id !== id);
     LocalStorageManager.temporaryInputHistory = this._tempHistory;
     this.renderHistory();
@@ -107,7 +115,8 @@ export class TemporaryHistory extends HTMLElement {
     container.innerHTML = '';
 
     if (this._tempHistory.length === 0) {
-      container.innerHTML = '<p style="color: var(--text-muted); font-style: italic;">過去に追加したタスク履歴はありません。</p>';
+      container.innerHTML =
+        '<p style="color: var(--text-muted); font-style: italic;">過去に追加したタスク履歴はありません。</p>';
       return;
     }
 
@@ -115,12 +124,19 @@ export class TemporaryHistory extends HTMLElement {
       const div = document.createElement('div');
       div.className = 'history-item';
 
-      const timeStr = (item.startTime || item.endTime) ? ` (${item.startTime || '00:00'}〜${item.endTime || '23:59'})` : '';
-      const remindStr = item.remindMinutesBefore !== null && item.remindMinutesBefore !== undefined
-        ? `<br><small>通知: ${item.remindMinutesBefore} 分前</small>`
-        : '';
+      const timeStr =
+        item.startTime || item.endTime
+          ? ` (${item.startTime || '00:00'}〜${item.endTime || '23:59'})`
+          : '';
+      const remindStr =
+        item.remindMinutesBefore !== null &&
+        item.remindMinutesBefore !== undefined
+          ? `<br><small>通知: ${item.remindMinutesBefore} 分前</small>`
+          : '';
       const groupStr = item.group ? `[${item.group}] ` : '';
-      const endDateStr = item.endDate ? `<br><small>終了日: ${item.endDate}</small>` : '';
+      const endDateStr = item.endDate
+        ? `<br><small>終了日: ${item.endDate}</small>`
+        : '';
 
       div.innerHTML = `
             <div class="history-info">
@@ -134,10 +150,10 @@ export class TemporaryHistory extends HTMLElement {
                 <button class="btn-delete">削除</button>
             </div>
         `;
-      div.querySelector('.btn-reuse')?.addEventListener('click', (event) => {
-        this.copyTemplateToForm(item.id);
+      div.querySelector('.btn-reuse')?.addEventListener('click', event => {
+        this.copyTemplateToForm(item.id, event);
       });
-      div.querySelector('.btn-delete')?.addEventListener('click', (event) => {
+      div.querySelector('.btn-delete')?.addEventListener('click', event => {
         this.deleteHistory(item.id, event);
       });
       container.appendChild(div);
