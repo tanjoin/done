@@ -119,7 +119,7 @@ class Index extends HTMLElement {
     const calendarTask = new DoneTask(task);
     const skipCalendarOnComplete = calendarTask.skipCalendarOnComplete === true;
     const shouldSkipCalendar =
-      skipCalendarOnComplete === true && isCancel === false;
+      isCancel === true || skipCalendarOnComplete === true;
     if (shouldSkipCalendar) {
       return;
     }
