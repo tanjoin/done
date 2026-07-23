@@ -27,6 +27,10 @@ export default class DateHelper {
     return d;
   }
 
+  static get todayUTC(): string {
+    return DateHelper.formatDateTimeUTC(new Date());
+  }
+
   static normalizeDateString(date: Date): string {
     const hour = String(date.getHours()).padStart(2, '0');
     const minute = String(date.getMinutes()).padStart(2, '0');
@@ -46,6 +50,10 @@ export default class DateHelper {
     const normalizedHour = String(hour).padStart(2, '0');
     const normalizedMinute = String(minute).padStart(2, '0');
     return `${normalizedHour}:${normalizedMinute}`;
+  }
+
+  private static formatDateTimeUTC(date: Date): string {
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   }
 
   private static getFormattedDate(offset = 0) {

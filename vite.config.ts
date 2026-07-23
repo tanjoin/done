@@ -15,7 +15,7 @@ export default defineConfig({
         // バニラ環境で複数のHTML（複数ページ）を管理する場合は、ここにファイルを並べます
         main: resolve(__dirname, 'index.html'),
         temporary: resolve(__dirname, 'temporary.html'),
-        // settings: resolve(__dirname, 'settings.html'),
+        settings: resolve(__dirname, 'settings.html'),
       },
     },
   },

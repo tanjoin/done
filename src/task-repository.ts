@@ -22,17 +22,21 @@ export default class TaskRepository {
     const savedTasks = LocalStorageManager.tasks;
     this._tasks = savedTasks || [];
     if (this._tasks.length === 0) {
-      const response = await fetch('tasks.json');
-      if (response.ok) {
-        const tasksFromJson: DoneTask[] = await response.json();
-        this._tasks = tasksFromJson;
-        LocalStorageManager.tasks = tasksFromJson;
-      } else {
-        throw new Error('Failed to load tasks.json', {
-          cause: response.statusText,
-        });
-      }
+      await this.resetToDefault();
     }
+  }
+
+  async resetToDefault(): Promise<void> {
+    const response = await fetch('tasks.json');
+    if (!response.ok) {
+      throw new Error('Failed to load tasks.json', {
+        cause: response.statusText,
+      });
+    }
+
+    const tasksFromJson: DoneTask[] = await response.json();
+    this._tasks = tasksFromJson;
+    LocalStorageManager.tasks = tasksFromJson;
   }
 
   saveTasks(): void {

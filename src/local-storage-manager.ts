@@ -1,8 +1,67 @@
-import {DoneTheme, DoneSwitchViewMode} from './types';
+import {DoneNotificationSound, DoneTheme, DoneSwitchViewMode} from './types';
 import DoneTask from './done-task';
 import {TemporaryHistoryItem} from './temporary-history';
 
+const DONE_NOTIFICATION_SOUNDS: DoneNotificationSound[] = [
+  'original',
+  'bell',
+  'bell-high',
+  'soft',
+  'loud',
+  'loud-high',
+  'bright',
+  'pulse',
+  'potato',
+  'coin',
+  'levelup1',
+  'levelup2',
+  'slap',
+  'marimba',
+  'recommend1',
+  'recommend2',
+  'dotapun',
+  'success',
+  'magic',
+  'warp',
+  'jojo',
+  'ding',
+  'mail_received',
+  'line_pokipoki',
+  'slack_knock',
+  'discord_ping',
+  'iphone',
+  'android',
+  'mcd_potato',
+  'mario_coin',
+  'dq_levelup',
+  'pokemon_heal',
+  'droplet_dotapun',
+];
+
 export default class LocalStorageManager {
+  static get CALENDAR_TARGET_ID_KEY(): string {
+    return 'calendar_target_id';
+  }
+
+  static get calendarTargetId(): string {
+    return localStorage.getItem(LocalStorageManager.CALENDAR_TARGET_ID_KEY) || '';
+  }
+
+  static set calendarTargetId(value: string) {
+    localStorage.setItem(LocalStorageManager.CALENDAR_TARGET_ID_KEY, value);
+  }
+
+  static supportsLocalStorage(): boolean {
+    try {
+      const key = '__done_local_storage_test__';
+      localStorage.setItem(key, key);
+      localStorage.removeItem(key);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   static get TEMPORARY_INPUT_HISTORY_KEY(): string {
     return 'done_temporary_input_history';
   }
@@ -39,6 +98,30 @@ export default class LocalStorageManager {
 
   static get APP_THEME_KEY(): string {
     return 'done_app_theme';
+  }
+
+  static get NOTIFICATION_SOUND_KEY(): string {
+    return 'notification_sound';
+  }
+
+  static get notificationSound(): DoneNotificationSound {
+    const savedSound = localStorage.getItem(
+      LocalStorageManager.NOTIFICATION_SOUND_KEY,
+    );
+
+    if (
+      savedSound !== null &&
+      DONE_NOTIFICATION_SOUNDS.includes(savedSound as DoneNotificationSound)
+    ) {
+      return savedSound as DoneNotificationSound;
+    }
+    return 'bell';
+  }
+
+  static set notificationSound(sound: string) {
+    if (DONE_NOTIFICATION_SOUNDS.includes(sound as DoneNotificationSound)) {
+      localStorage.setItem(LocalStorageManager.NOTIFICATION_SOUND_KEY, sound);
+    }
   }
 
   static get appTheme(): DoneTheme {
@@ -110,7 +193,7 @@ export default class LocalStorageManager {
   }
 
   static get filterHideNonTargetDay(): boolean {
-    return this.getFilter(LocalStorageManager.FILTER_HIDE_NON_TARGET_DAY_KEY);
+    return this.getFilter(LocalStorageManager.FILTER_HIDE_NON_TARGET_DAY_KEY, true);
   }
 
   static set filterHideNonTargetDay(value: boolean) {
@@ -122,7 +205,7 @@ export default class LocalStorageManager {
   }
 
   static get filterHideOutOfTime(): boolean {
-    return this.getFilter(LocalStorageManager.FILTER_HIDE_OUT_OF_TIME_KEY);
+    return this.getFilter(LocalStorageManager.FILTER_HIDE_OUT_OF_TIME_KEY, false);
   }
 
   static set filterHideOutOfTime(value: boolean) {
@@ -134,7 +217,7 @@ export default class LocalStorageManager {
   }
 
   static get filterHideCompleted(): boolean {
-    return this.getFilter(LocalStorageManager.FILTER_HIDE_COMPLETED_KEY);
+    return this.getFilter(LocalStorageManager.FILTER_HIDE_COMPLETED_KEY, false);
   }
 
   static set filterHideCompleted(value: boolean) {
@@ -146,17 +229,17 @@ export default class LocalStorageManager {
   }
 
   static get filterHideCancelled(): boolean {
-    return this.getFilter(LocalStorageManager.FILTER_HIDE_CANCELLED_KEY);
+    return this.getFilter(LocalStorageManager.FILTER_HIDE_CANCELLED_KEY, false);
   }
 
   static set filterHideCancelled(value: boolean) {
     this.setFilter(LocalStorageManager.FILTER_HIDE_CANCELLED_KEY, value);
   }
 
-  static getFilter(key: string): boolean {
+  static getFilter(key: string, defaultValue = false): boolean {
     const currentValue = localStorage.getItem(key);
     if (currentValue === null) {
-      return true;
+      return defaultValue;
     }
     return currentValue === 'true';
   }

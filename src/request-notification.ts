@@ -1,3 +1,5 @@
+import NotificationManager from './notification-manager';
+
 export default class RequestNotification extends HTMLElement {
   static get NAME(): string {
     return 'request-notification';
@@ -16,27 +18,28 @@ export default class RequestNotification extends HTMLElement {
     this.innerHTML = `
       <div id="notificationBanner" class="notification-banner" style="display: none">
         <span>タスクの時間になったらプッシュ通知でお知らせします</span>
-        <button class="btn btn-cancel" onclick="requestPermission()">通知を有効にする</button>
+        <button id="requestNotificationBtn" class="btn btn-cancel">通知を有効にする</button>
       </div>
     `;
   }
 
   private setupEvents(): void {
-    RequestNotification.checkNotificationPermission();
-  }
+    const banner = this.querySelector('#notificationBanner') as HTMLElement | null;
+    const requestButton = this.querySelector('#requestNotificationBtn') as HTMLButtonElement | null;
 
-  static checkNotificationPermission(): void {
-    const banner = document.getElementById('notificationBanner');
-    if (!banner) return;
-    if (
-      !('Notification' in window) ||
-      typeof Notification.requestPermission !== 'function'
-    ) {
-      banner.style.display = 'none';
+    NotificationManager.syncBannerVisibility(banner);
+
+    if (!requestButton) {
       return;
     }
-    banner.style.display =
-      Notification.permission === 'default' ? 'flex' : 'none';
+
+    requestButton.addEventListener('click', async () => {
+      const permission = await NotificationManager.requestPermission();
+      NotificationManager.syncBannerVisibility(banner);
+      if (permission === 'granted') {
+        alert('プッシュ通知が有効になりました！');
+      }
+    });
   }
 }
 

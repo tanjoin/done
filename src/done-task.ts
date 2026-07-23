@@ -1,25 +1,5 @@
-import type { DoneReminderCandidate, NormalizedTime, StatusInfo, TimeCheck, TodayStatus } from './types';
+import type { DoneReminderCandidate, DoneTaskData, NormalizedTime, StatusInfo, TimeCheck, TodayStatus } from './types';
 import DateHelper from './date-helper';
-
-export interface DoneTaskData {
-
-  id: string;
-  text: string;
-  description?: string | null;
-  link?: string | null;
-  group?: string;
-  daysOfWeek?: number[];
-  daysOfMonth?: number[];
-  startTime?: string | null;
-  endTime?: string | null;
-  history: Record<string, TodayStatus>;
-  notifiedDate?: string | null;
-  remindMinutesBefore?: number | null;
-  strictMode?: boolean | null;
-  specificDate?: string | null;
-  endDate?: string | null;
-
-}
 
 export default class DoneTask implements DoneTaskData {
   id: string;
@@ -217,12 +197,12 @@ export default class DoneTask implements DoneTaskData {
     return this.getTaskStatusInfo(this.todayStatus, this.timeCheck(), this.isTaskScheduledOnDate(new Date()));
   }
 
-  getTaskStatusInfo(todayStatus: TodayStatus, timeCheck: TimeCheck, isTargetDay: boolean) {
+  getTaskStatusInfo(todayStatus: TodayStatus, timeCheck: TimeCheck, isTargetDay: boolean): StatusInfo {
     if (todayStatus === "completed") {
       return { label: "追加済み", className: 'chip-status-done', locked: true };
     }
     if (todayStatus === "cancelled") {
-      return { label: "キャンセル済", className: 'chip-status-cancell', locked: true };
+      return { label: "キャンセル済", className: 'chip-status-cancel', locked: true };
     }
     if (!isTargetDay) {
       return { label: "対象日外", className: 'chip-status-nontarget', locked: true };
@@ -236,7 +216,7 @@ export default class DoneTask implements DoneTaskData {
     return { label: "未実施", className: 'chip-status-todo', locked: true };
   }
 
-  insertRowElements(row: HTMLElement, taskIndex: number): void {
+  insertRowElements(row: HTMLElement): void {
     if (this.todayStatus) {
       row.setAttribute('data-done', 'true');
     }
@@ -265,9 +245,36 @@ export default class DoneTask implements DoneTaskData {
     const actionTd = document.createElement('td');
     const actionContainer = document.createElement('div');
     actionContainer.className = 'table-actions';
-    // TODO: actionContainer.appendChild(this.actionMain(taskIndex));
+
+    const mainButton = document.createElement('button');
+    mainButton.className = 'table-btn table-btn-primary';
+    mainButton.textContent = '追加';
+    mainButton.setAttribute('data-task-action', 'complete');
+    mainButton.setAttribute('data-task-id', this.id);
+
+    const statusInfo = this.statusInfo;
+    const isStrict = this.strictMode === true;
+    const timeCheck = this.timeCheck();
+    if (statusInfo.locked || (!timeCheck.valid && isStrict)) {
+      mainButton.disabled = true;
+    }
+    actionContainer.appendChild(mainButton);
+
     if (!this.todayStatus) {
-      // TODO: actionContainer.appendChild(this.actionSecondary(taskIndex));
+      const secondaryButton = document.createElement('button');
+      secondaryButton.className = this.specificDate
+        ? 'table-btn table-btn-danger'
+        : 'table-btn';
+      secondaryButton.textContent = this.specificDate ? '削除' : 'キャンセル';
+      secondaryButton.setAttribute(
+        'data-task-action',
+        this.specificDate ? 'delete' : 'cancel',
+      );
+      secondaryButton.setAttribute('data-task-id', this.id);
+      if (statusInfo.locked) {
+        secondaryButton.disabled = true;
+      }
+      actionContainer.appendChild(secondaryButton);
     }
     actionTd.appendChild(actionContainer);
     row.appendChild(actionTd);
@@ -280,11 +287,9 @@ export default class DoneTask implements DoneTaskData {
       if (!this.endDate) {
         return this.specificDate === dStr;
       }
-      const start = this.createStartDate();
-      const end = this.createEndDate();
-      console.log(this.id, this.text, start, end, targetDate);
-      // TODO: endDate だけでも動作するようにする
-      if (!start || !end || end < start || start < targetDate || targetDate > end) {
+      const start = this.specificDate;
+      const end = this.endDate;
+      if (!start || !end || end < start || dStr < start || dStr > end) {
         return false;
       }
       const todayCompleted = this.history && this.history[dStr] === 'completed';
@@ -459,7 +464,12 @@ export default class DoneTask implements DoneTaskData {
   validateAndNormalizeStartTime(): NormalizedTime | null {
     const hour = this.hourOfStartTime();
     const minute = this.minuteOfStartTime();
-    if (!hour || !minute || !Number.isInteger(hour) || !Number.isInteger(minute)) {
+    if (
+      hour === null ||
+      minute === null ||
+      !Number.isInteger(hour) ||
+      !Number.isInteger(minute)
+    ) {
       return null;
     }
     if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {

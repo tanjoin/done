@@ -1,4 +1,4 @@
-import LocalStorageManager from './local-storage-manager.js';
+import LocalStorageManager from './local-storage-manager';
 
 export const TEMPORARY_HISTORY_TAG_NAME = 'done-temporary-history';
 export const TEMPORARY_HISTORY_EVENT_HISTORY_ADD = 'done-temporary-history-add';

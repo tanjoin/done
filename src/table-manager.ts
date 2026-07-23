@@ -28,11 +28,10 @@ export default class TableManager {
   }
 
   insertTasks(tasks: DoneTask[], tbody: HTMLElement, today: Date, yesterday: Date): void {
-    tasks.forEach((task, idx) => {
+    tasks.forEach((task) => {
       const row = document.createElement('tr');
       const currentTask = new DoneTask(task);
-      const taskIndex = tasks.findIndex(t => t.id === task.id);
-      currentTask.insertRowElements(row, taskIndex);
+      currentTask.insertRowElements(row);
       tbody.appendChild(row);
     });
   }

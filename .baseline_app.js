@@ -316,7 +316,29 @@ class ItemView {
 class MainController {
     // --- アプリ初期起動 ---
     static async initApp() {
+        let savedTheme = 'system';
+        try {
+            const raw = LocalStorageHelper.calendarAppTheme;
+            if (raw) savedTheme = raw;
+        } catch (e) {
+            // localStorage が利用できない環境では system を使う
+            savedTheme = 'system';
+        }
+        SettingsView.applyTheme(savedTheme);
+
+        const savedTasks = LocalStorageHelper.calendarTasksV3;
+        if (savedTasks) {
+            try {
+                TaskRepository.tasks = JSON.parse(savedTasks);
+            } catch (e) {
+                await TaskRepository.loadDefaultTasksFromJSON();
+            }
+        } else {
+            await TaskRepository.loadDefaultTasksFromJSON();
+        }
+
         setupPageSpecifics(savedTheme);
+        initNotificationTimer();
     }
 }
 
@@ -335,6 +357,23 @@ class TaskRepository {
                 remindMinutesBefore: new Task(task).normalizeRemindMinutesBefore()
             }))
             : [];
+    }
+
+    static async loadDefaultTasksFromJSON() {
+        try {
+            const response = await fetch('tasks.json');
+            if (!response.ok) throw new Error('Network error');
+            TaskRepository.tasks = await response.json();
+            LocalStorageHelper.calendarTasksV3 = JSON.stringify(tasks);
+        } catch (error) {
+            console.error('デフォルトタスクJSONの読み込みに失敗しました:', error);
+            TaskRepository.tasks = [];
+        }
+    }
+
+    static async reset() {
+        LocalStorageHelper.removeCalendarTasksV3();
+        await this.loadDefaultTasksFromJSON();    
     }
 }
 
@@ -358,6 +397,57 @@ function parseStartTimeToMinutes(startTime) {
         normalizedStart,
         startMinutes: (hour * 60) + minute
     };
+}
+
+function buildReminderCandidate(task, scheduledDate) {
+    if (!task?.startTime) return null;
+
+    const parsed = parseStartTimeToMinutes(task.startTime);
+    if (!parsed) return null;
+
+    const taskObject = new Task(task);
+    const leadMinutes = taskObject.normalizeRemindMinutesBefore();
+    const remindMinutes = leadMinutes === null ? 0 : leadMinutes;
+
+    const startAt = new Date(
+        scheduledDate.getFullYear(),
+        scheduledDate.getMonth(),
+        scheduledDate.getDate(),
+        Math.floor(parsed.startMinutes / 60),
+        parsed.startMinutes % 60,
+        0,
+        0
+    );
+
+    const reminderAt = new Date(startAt.getTime() - (remindMinutes * 60 * 1000));
+
+    return {
+        scheduledDateKey: DateHelper.toKebabCase(scheduledDate),
+        startNorm: parsed.normalizedStart,
+        leadMinutes,
+        reminderAt
+    };
+}
+
+function getNotificationCandidate(task, now) {
+    const dateOffsets = [0, 1];
+    const taskObject = new Task(task);
+
+    for (const offset of dateOffsets) {
+        const scheduledDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, 12, 0, 0, 0);
+        if (!taskObject.isTaskScheduledOnDate(scheduledDate)) continue;
+
+        const candidate = buildReminderCandidate(task, scheduledDate);
+        if (!candidate) continue;
+
+        if (task.notifiedDate === candidate.scheduledDateKey) continue;
+        if (task.history && task.history[candidate.scheduledDateKey]) continue;
+        if (now < candidate.reminderAt) continue;
+
+        return candidate;
+    }
+
+    return null;
 }
 
 class SortState {
@@ -499,6 +589,73 @@ class SortManager {
 }
 
 function setupPageSpecifics(currentTheme) {
+    // --- タスク一覧画面用の初期化 ---
+    if (document.getElementById('taskContainer')) {
+        const viewModeToggle = document.getElementById('viewModeToggle');
+        const hideNonTargetDayBtn = document.getElementById('hideNonTargetDayBtn');
+        const hideOutOfTimeBtn = document.getElementById('hideOutOfTimeBtn');
+        const hideCompletedBtn = document.getElementById('hideCompletedBtn');
+        const hideCancelledBtn = document.getElementById('hideCancelledBtn');
+
+        const setFilterButtonState = (btn, isHidden) => {
+            if (!btn) return;
+            btn.classList.toggle('is-hidden', isHidden);
+            btn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+            btn.innerText = isHidden ? '非表示' : '表示';
+        };
+
+        const toggleFilterState = (storageKey, btn) => {
+            const current = localStorage.getItem(storageKey) === 'true';
+            const next = !current;
+            localStorage.setItem(storageKey, next);
+            setFilterButtonState(btn, next);
+            renderCards();
+        };
+
+        if (viewModeToggle) {
+            const savedViewMode = localStorage.getItem('task_view_mode') || 'card';
+            viewModeToggle.checked = savedViewMode === 'table';
+            viewModeToggle.addEventListener('change', () => {
+                const mode = viewModeToggle.checked ? 'table' : 'card';
+                localStorage.setItem('task_view_mode', mode);
+                renderCards();
+            });
+        }
+
+        setFilterButtonState(hideNonTargetDayBtn, LocalStorageHelper.getStoredBool('filter_hide_non_target_day', true));
+        setFilterButtonState(hideOutOfTimeBtn, LocalStorageHelper.getStoredBool('filter_hide_out_of_time', false));
+        setFilterButtonState(hideCompletedBtn, LocalStorageHelper.getStoredBool('filter_hide_completed', false));
+        setFilterButtonState(hideCancelledBtn, LocalStorageHelper.getStoredBool('filter_hide_cancelled', false));
+
+        if (hideNonTargetDayBtn) {
+            hideNonTargetDayBtn.addEventListener('click', () => toggleFilterState('filter_hide_non_target_day', hideNonTargetDayBtn));
+        }
+        if (hideOutOfTimeBtn) {
+            hideOutOfTimeBtn.addEventListener('click', () => toggleFilterState('filter_hide_out_of_time', hideOutOfTimeBtn));
+        }
+        if (hideCompletedBtn) {
+            hideCompletedBtn.addEventListener('click', () => toggleFilterState('filter_hide_completed', hideCompletedBtn));
+        }
+        if (hideCancelledBtn) {
+            hideCancelledBtn.addEventListener('click', () => toggleFilterState('filter_hide_cancelled', hideCancelledBtn));
+        }
+
+        // --- テーブルソートイベントのイベント委譲によるバインド ---
+        const taskContainer = document.getElementById('taskContainer');
+        if (taskContainer) {
+            taskContainer.addEventListener('click', (e) => {
+                const th = e.target.closest('th[data-sort-col]');
+                if (th) {
+                    const colName = th.getAttribute('data-sort-col');
+                    SortManager.handleSort(colName);
+                }
+            });
+        }
+
+        renderCards();
+        checkNotificationPermission();
+    }
+
     updateNotificationTestUI();
     
     // --- 通知音の設定セレクタ初期化 ---
@@ -569,6 +726,15 @@ function setupPageSpecifics(currentTheme) {
 }
 
 // --- プッシュ通知 ---
+function checkNotificationPermission() {
+    const banner = document.getElementById('notificationBanner');
+    if (!banner) return;
+    if (!('Notification' in window) || typeof Notification.requestPermission !== 'function') {
+        banner.style.display = 'none';
+        return;
+    }
+    banner.style.display = (Notification.permission === 'default') ? 'flex' : 'none';
+}
 
 function updateNotificationTestUI() {
     const enableBtn = document.getElementById('notificationEnableBtn');
@@ -625,6 +791,15 @@ function sendTestNotification() {
     };
 
     NotificationSound.play();
+}
+
+// タイマー周期処理内で画面表示（renderCards）も更新するように拡張
+function initNotificationTimer() {
+    checkAndSendNotifications();
+    setInterval(() => {
+        checkAndSendNotifications();
+        renderCards(); // 1分ごとに画面を自動再描画してステータスを同期
+    }, 60000);
 }
 
 // 再利用できる音声音源ユーティリティ
@@ -1857,7 +2032,7 @@ function checkAndSendNotifications() {
         
         const notification = new Notification(`[${groupName}] タスクの時間です`, {
             body: bodyText,
-            icon: 
+            icon: "https://calendar.google.com/calendar/images/favicon_v2014_3.ico"
         });
 
         notification.onclick = function(event) {
@@ -2060,6 +2235,42 @@ class Task {
         return false;
     }
 
+    shouldShowTask() {
+        const now = new Date();
+        if (this.isTaskScheduledOnDate(now)) {
+            return true;
+        }
+
+        // 前日の履歴があり、かつ startTime > endTime の場合は、前日のタスクがまだ有効な時間帯にいる可能性がある
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (this.isTaskScheduledOnDate(yesterday)) {
+            if (this._data.startTime && this._data.endTime) {
+                const startNorm = DateHelper.normalizeTime(this._data.startTime);
+                const endNorm = DateHelper.normalizeTime(this._data.endTime);
+                if (startNorm > endNorm) {
+                    const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+                    if (currentStr <= endNorm) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // 翌日以降でリマインダー設定があり、かつリマインダーの時間内であれば表示する
+        if (this.hasExplicitReminderLead()) {
+            const reminderLead = this.normalizeRemindMinutesBefore();
+            if (reminderLead !== null) {
+                const reminderTime = new Date(now.getTime() + reminderLead * 60000);
+                if (this.isTaskScheduledOnDate(reminderTime)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     isWithinTime() {
         // startTime と endTime が両方とも未設定の場合は常に有効
         if (!this._data.startTime && !this._data.endTime) {
@@ -2130,11 +2341,11 @@ class Task {
         if (!isTargetDay) {
             return StatusInfo.nontarget;
         }
-        if (!timeCheck.valid && timeCheck.ready && this.hasExplicitReminderLead()) {
-            return StatusInfo.reminder;
-        }
         if (timeCheck.valid) {
             return StatusInfo.active;
+        }
+        if (!timeCheck.valid && timeCheck.ready && this.hasExplicitReminderLead()) {
+            return StatusInfo.reminder;
         }
         return StatusInfo.todo;
     }

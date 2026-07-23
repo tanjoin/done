@@ -1,0 +1,856 @@
+[
+  {
+    "id": "task-1",
+    "text": "起床",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "5:00",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-2",
+    "text": "就寝",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "21:00",
+    "endTime": "2:00",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-3",
+    "text": "筋トレ",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "description": "【自宅で筋トレ】世界で一番楽な筋トレ9種目です。家で出来る肩こり解消、腰痛改善、運動不足解消、ストレス解消などなどの簡単な運動です。 - YouTube",
+    "link": "https://www.youtube.com/watch?si=cSolTKmjyZH7QiHI&t=462&v=hMSUxAJHwyc&feature=youtu.be",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-4",
+    "text": "ストレッチ",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [
+      1,
+      3,
+      5
+    ],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-5",
+    "text": "散歩",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-6",
+    "text": "朝食",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "7:00",
+    "endTime": "11:00",
+    "strictMode": false,
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-7",
+    "text": "昼食",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "11:00",
+    "endTime": "16:59",
+    "strictMode": false,
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-8",
+    "text": "夕食",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "17:00",
+    "endTime": "",
+    "strictMode": false,
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-9",
+    "text": "ログイン",
+    "group": "駅メモ",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-10",
+    "text": "10回チェックイン",
+    "group": "駅メモ",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-11",
+    "text": "ログイン",
+    "group": "駅奪取",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-12",
+    "text": "ログイン①",
+    "group": "スパロボDD",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "00:00",
+    "endTime": "8:59",
+    "strictMode": false,
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-13",
+    "text": "ログイン②",
+    "group": "スパロボDD",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "6:00",
+    "endTime": "15:59",
+    "strictMode": false,
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-14",
+    "text": "ログイン③",
+    "group": "スパロボDD",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "14:00",
+    "endTime": "19:59",
+    "strictMode": false,
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-15",
+    "text": "ログイン④",
+    "group": "スパロボDD",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "18:00",
+    "endTime": "23:59",
+    "strictMode": false,
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-16",
+    "text": "ログイン",
+    "group": "ガールズ＆パンツァー 戦車道大作戦！",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "4:00",
+    "endTime": "3:59",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-17",
+    "text": "武芸連戦",
+    "group": "ガールズ＆パンツァー 戦車道大作戦！",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-18",
+    "text": "ログイン",
+    "group": "アワメモ",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-19",
+    "text": "ログイン",
+    "group": "楽天ヘルスケア",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-20",
+    "text": "ログイン",
+    "group": "ポケポケ",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "15:00",
+    "endTime": "14:59",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-21",
+    "text": "ミッション",
+    "group": "ポケポケ",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "15:00",
+    "endTime": "14:59",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-22",
+    "text": "ログイン",
+    "group": "ジージェネエターナル",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "1:00",
+    "endTime": "0:59",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-23",
+    "text": "ミッション",
+    "group": "ジージェネエターナル",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "1:00",
+    "endTime": "0:59",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-24",
+    "text": "ログイン",
+    "group": "ドラクエウォーク",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "3:00",
+    "endTime": "2:59",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-25",
+    "text": "ログイン",
+    "group": "遊戯王マスターデュエル",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "3:00",
+    "endTime": "2:59",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-26",
+    "text": "出社",
+    "group": "仕事",
+    "daysOfWeek": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "daysOfMonth": [],
+    "startTime": "10:00",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-27",
+    "text": "退社",
+    "group": "仕事",
+    "daysOfWeek": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "daysOfMonth": [],
+    "startTime": "19:00",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-28",
+    "text": "ゴミ捨て（資源ごみ）",
+    "group": "家事",
+    "daysOfWeek": [
+      5
+    ],
+    "daysOfMonth": [],
+    "startTime": "7:00",
+    "endTime": "6:00",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-29",
+    "text": "ゴミ捨て（燃えるゴミ）",
+    "group": "家事",
+    "daysOfWeek": [
+      0,
+      3
+    ],
+    "daysOfMonth": [],
+    "startTime": "7:00",
+    "endTime": "6:00",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-30",
+    "text": "掃除",
+    "group": "家事",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "18:00",
+    "endTime": "19:00",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-31",
+    "text": "ビューカード締日",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      5
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://www.jreast.co.jp/card/caution/notice220524.html/",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-32",
+    "text": "遊戯王デュエリストポイント公式サイト　ログイン",
+    "group": "遊戯王マスターデュエル",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "3:00",
+    "endTime": "2:59",
+    "link": "https://yugioh-duelist-point.konami.net/",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-33",
+    "text": "毎月1回のジェム",
+    "group": "ドラクエウォーク",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      1
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://sqex-bridge.jp/webstore/dqwalk",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-34",
+    "text": "医療費計算",
+    "group": "家事",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      1
+    ],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-35",
+    "text": "5000歩",
+    "group": "楽天ヘルスケア",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-36",
+    "text": "デイリーミッション",
+    "group": "スパロボDD",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-37",
+    "text": "エポスカードの明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      6
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://www.eposcard.co.jp/memberservice/pc/login/login_preload.do",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-38",
+    "text": "上坂すみれの土曜闇鍋劇場",
+    "group": "声優",
+    "daysOfWeek": [
+      0
+    ],
+    "daysOfMonth": [],
+    "startTime": "0:00",
+    "endTime": "0:30",
+    "link": "https://radiko.jp/#!/live/INT",
+    "remindMinutesBefore": 5,
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-39",
+    "text": "三井住友カード（VISA・グリーン）の明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      10
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://www.smbc-card.com/mem/index.jsp",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-40",
+    "text": "Amazon MasterCard の明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      10
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://www.smbc-card.com/mem/index.jsp",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-41",
+    "text": "楽天カード の明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      12
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://www.rakuten-card.co.jp/e-navi/",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-42",
+    "text": "dポイントをiDキャッシュバックに交換する",
+    "group": "ポイント",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      17
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://dpoint.docomo.ne.jp/use/iDcb_dcard/index.html",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-43",
+    "text": "Amazon定期おトク便を確認する",
+    "group": "Amazon",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      20
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://www.amazon.co.jp/auto-deliveries/",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-44",
+    "text": "Android Suica 1000円チャージ",
+    "group": "Suica",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      20
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://mobile.rakuten.co.jp/",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-45",
+    "text": "ビックカメラSuicaカードの明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      20
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://viewsnet.jp/default.htm",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-46",
+    "text": "イオンカードセレクト の明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      20
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://www.aeon.co.jp/app/",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-47",
+    "text": "JMBローソンPontaカードVisa の明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      20
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://www.saisoncard.co.jp/customer-support/netanswer/",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-48",
+    "text": "ファミマTカードの明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      15
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://ftcard.pocketcard.co.jp/netservice/index.php",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-49",
+    "text": "dカードの明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      25
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://dcard.docomo.ne.jp/st/index.html",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-50",
+    "text": "JCB CARD W の明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      25
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://my.jcb.co.jp/Login",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-51",
+    "text": "セブンカード・プラスの明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      25
+    ],
+    "startTime": "",
+    "endTime": "",
+    "description": "旧URL: https://7card.jcb.co.jp/Login",
+    "link": "https://my.jcb.co.jp/Login",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-52",
+    "text": "リクルートカード(JCB)の明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      25
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://my.jcb.co.jp/Login",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-53",
+    "text": "リクルートカード(VISA)の明細保存",
+    "group": "クレジットカード",
+    "daysOfWeek": [],
+    "daysOfMonth": [
+      25
+    ],
+    "startTime": "",
+    "endTime": "",
+    "link": "https://www2.cr.mufg.jp/newsplus/",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-54",
+    "text": "Suica (Android) 利用履歴のスクリーンショットをとる",
+    "group": "Suica",
+    "daysOfWeek": [
+      0
+    ],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-55",
+    "text": "Suica (iOS) 利用履歴のスクリーンショットをとる",
+    "group": "Suica",
+    "daysOfWeek": [
+      0
+    ],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-56",
+    "text": "すみぺのすきま 〜知らないんですか？上坂さん！〜",
+    "group": "声優",
+    "daysOfWeek": [
+      3
+    ],
+    "daysOfMonth": [],
+    "startTime": "2:00",
+    "endTime": "2:30",
+    "link": "https://radiko.jp/#!/live/QRR",
+    "remindMinutesBefore": 5,
+    "history": {},
+    "notifiedDate": ""
+  },
+  {
+    "id": "task-57",
+    "text": "風呂",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-58",
+    "text": "歯磨き（午前）",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "0:00",
+    "endTime": "11:59",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-59",
+    "text": "歯磨き（午後）",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "12:00",
+    "endTime": "23:59",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-60",
+    "text": "洗濯",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-61",
+    "text": "薬を飲む",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-62",
+    "text": "立て",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "14:50",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  },
+  {
+    "id": "task-63",
+    "text": "立て",
+    "group": "健康・ルーティン",
+    "daysOfWeek": [],
+    "daysOfMonth": [],
+    "startTime": "16:50",
+    "endTime": "",
+    "history": {},
+    "notifiedDate": "",
+    "remindMinutesBefore": null
+  }
+]

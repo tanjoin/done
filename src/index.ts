@@ -5,7 +5,9 @@ import Footer from './footer';
 import Header from './header';
 import IndexSwitchViewMode from './index-switch-view-mode';
 import IndexFilterControls from './index-filter-controls';
+import IndexCalendarEvent from './index-calendar-event';
 import LocalStorageManager from './local-storage-manager';
+import NotificationManager from './notification-manager';
 import RequestNotification from './request-notification';
 import TaskRepository from './task-repository';
 import DateHelper from './date-helper';
@@ -30,6 +32,71 @@ class Index extends HTMLElement {
 
   set mode(value: DoneSwitchViewMode) {
     this._mode = value;
+  }
+
+  private findTaskIndexById(taskId: string): number {
+    return this._taskRepository.tasks.findIndex(task => task.id === taskId);
+  }
+
+  private executeTask(taskId: string, isCancel: boolean): void {
+    const taskIndex = this.findTaskIndexById(taskId);
+    if (taskIndex < 0) {
+      return;
+    }
+    const task = this._taskRepository.tasks[taskIndex]!;
+
+    const TODAY = DateHelper.today;
+    task.history[TODAY] = isCancel
+      ? 'cancelled'
+      : 'completed';
+    this._taskRepository.saveTasks();
+    this.renderCards();
+
+    IndexCalendarEvent.open(task, isCancel);
+  }
+
+  private undoTask(taskId: string): void {
+    const taskIndex = this.findTaskIndexById(taskId);
+    if (taskIndex < 0) {
+      return;
+    }
+
+    const TODAY = DateHelper.today;
+    if (this._taskRepository.tasks[taskIndex]!.history[TODAY]) {
+      delete this._taskRepository.tasks[taskIndex]!.history[TODAY];
+      this._taskRepository.saveTasks();
+      this.renderCards();
+    }
+  }
+
+  private deleteTask(taskId: string): void {
+    if (!confirm('この一時的タスクをリストから完全に削除しますか？')) {
+      return;
+    }
+
+    this._taskRepository.tasks = this._taskRepository.tasks.filter(
+      task => task.id !== taskId,
+    );
+    this._taskRepository.saveTasks();
+    this.renderCards();
+  }
+
+  private handleTaskAction(action: string, taskId: string): void {
+    if (action === 'complete') {
+      this.executeTask(taskId, false);
+      return;
+    }
+    if (action === 'cancel') {
+      this.executeTask(taskId, true);
+      return;
+    }
+    if (action === 'undo') {
+      this.undoTask(taskId);
+      return;
+    }
+    if (action === 'delete') {
+      this.deleteTask(taskId);
+    }
   }
 
   connectedCallback(): void {
@@ -89,14 +156,15 @@ class Index extends HTMLElement {
       }
 
       filteredTasks.push(task);
-      if (!groups[task.normalizeGroup]) {
-        groups[task.normalizeGroup] = [];
+      const groupName = task.normalizeGroup();
+      if (!groups[groupName]) {
+        groups[groupName] = [];
       }
-      groups[task.normalizeGroup]?.push(task);
+      groups[groupName]?.push(task);
     });
 
     if (filteredTasks.length === 0) {
-      container.innerHTML = '<p class="no-tasks-message">表示するタスクがありません。</p>';
+      container.innerHTML = '<p class="empty-task-msg">表示するタスクがありません。</p>';
       return;
     }
 
@@ -109,6 +177,160 @@ class Index extends HTMLElement {
     }
 
     for (const groupName in groups) {
+      const groupedTasks = groups[groupName] || [];
+      groupedTasks.sort((a, b) => {
+        const countA = Object.values(a.history || {}).filter(
+          status => status === 'completed',
+        ).length;
+        const countB = Object.values(b.history || {}).filter(
+          status => status === 'completed',
+        ).length;
+        return countB - countA;
+      });
+
+      const groupSection = document.createElement('div');
+      groupSection.className = 'group-section';
+
+      const title = document.createElement('h3');
+      title.className = 'group-title';
+      title.innerText = groupName;
+      groupSection.appendChild(title);
+
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+
+      groupedTasks.forEach(task => {
+        const isTargetDay = targetDayMap[task.id] === true;
+        const todayStatus = task.history[TODAY];
+        const yesterdayStatus = task.history[YESTERDAY];
+        const timeCheck = task.timeCheck();
+        const statusInfo = task.getTaskStatusInfo(todayStatus, timeCheck, isTargetDay);
+
+        const totalCompleted = Object.values(task.history || {}).filter(
+          status => status === 'completed',
+        ).length;
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        if (todayStatus) {
+          card.setAttribute('data-done', 'true');
+        } else if (!timeCheck.valid) {
+          card.setAttribute('data-out-of-time', 'true');
+        }
+
+        if (todayStatus) {
+          const undoButton = document.createElement('button');
+          undoButton.className = 'btn-undo';
+          undoButton.textContent = '✕';
+          undoButton.setAttribute('data-task-action', 'undo');
+          undoButton.setAttribute('data-task-id', task.id);
+          card.appendChild(undoButton);
+        }
+
+        const content = document.createElement('div');
+
+        const cardTitle = document.createElement('h4');
+        cardTitle.className = 'card-title';
+        cardTitle.textContent = task.text;
+        content.appendChild(cardTitle);
+
+        const badge = document.createElement('span');
+        badge.className = 'status-badge';
+        if (todayStatus === 'completed') {
+          badge.classList.add('status-completed');
+        } else if (todayStatus === 'cancelled') {
+          badge.classList.add('status-cancelled');
+        } else if (statusInfo.className === 'chip-status-reminder') {
+          badge.classList.add('status-reminder');
+        }
+        badge.textContent = statusInfo.label;
+        content.appendChild(badge);
+
+        if (task.startTime || task.endTime) {
+          const timeInfo = document.createElement('div');
+          const startNorm = DateHelper.normalizeTime(task.startTime || '00:00');
+          const endNorm = DateHelper.normalizeTime(task.endTime || '23:59');
+          const displayEnd =
+            startNorm > endNorm ? `翌${task.endTime || '23:59'}` : task.endTime || '23:59';
+          const modeLabel = task.strictMode ? ' (厳格)' : '';
+          timeInfo.className = 'time-restriction';
+          timeInfo.textContent = `${task.startTime || '00:00'} 〜 ${displayEnd}${modeLabel}`;
+          content.appendChild(timeInfo);
+        }
+
+        if (task.description) {
+          const description = document.createElement('div');
+          description.className = 'task-description';
+          description.textContent = task.description;
+          content.appendChild(description);
+        }
+
+        if (task.link) {
+          const link = document.createElement('a');
+          link.href = task.link;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.className = 'task-link';
+          link.textContent = '関連リンク ↗';
+          content.appendChild(link);
+        }
+
+        const yesterdayInfo = document.createElement('div');
+        yesterdayInfo.className = 'history-status';
+        if (yesterdayStatus === 'completed') {
+          yesterdayInfo.textContent = '昨日: 完了';
+        } else if (yesterdayStatus === 'cancelled') {
+          yesterdayInfo.textContent = '昨日: キャンセル';
+        } else {
+          yesterdayInfo.textContent = '昨日: 履歴なし';
+        }
+        content.appendChild(yesterdayInfo);
+
+        card.appendChild(content);
+
+        const actionContainer = document.createElement('div');
+        actionContainer.className = 'card-actions';
+
+        const mainButton = document.createElement('button');
+        mainButton.className = 'btn btn-action';
+        mainButton.textContent = '追加';
+        mainButton.setAttribute('data-task-action', 'complete');
+        mainButton.setAttribute('data-task-id', task.id);
+
+        const isStrict = task.strictMode === true;
+        if (statusInfo.locked || (!timeCheck.valid && isStrict)) {
+          mainButton.disabled = true;
+        }
+
+        actionContainer.appendChild(mainButton);
+
+        const secondaryButton = document.createElement('button');
+        secondaryButton.className = task.specificDate ? 'btn' : 'btn btn-cancel';
+        secondaryButton.textContent = task.specificDate ? '削除' : 'キャンセル';
+        secondaryButton.setAttribute('data-task-action', task.specificDate ? 'delete' : 'cancel');
+        secondaryButton.setAttribute('data-task-id', task.id);
+        if (task.specificDate) {
+          secondaryButton.style.backgroundColor = '#ef4444';
+          secondaryButton.style.color = '#ffffff';
+          secondaryButton.style.flex = '1';
+        }
+        if (statusInfo.locked) {
+          secondaryButton.disabled = true;
+        }
+
+        actionContainer.appendChild(secondaryButton);
+        card.appendChild(actionContainer);
+
+        const footer = document.createElement('div');
+        footer.className = 'card-footer';
+        footer.textContent = `累計実績: ${totalCompleted} 回`;
+        card.appendChild(footer);
+
+        grid.appendChild(card);
+      });
+
+      groupSection.appendChild(grid);
+      container.appendChild(groupSection);
 
     }
   }
@@ -131,6 +353,17 @@ class Index extends HTMLElement {
         if (!(event.target instanceof HTMLElement)) {
           return;
         }
+
+        const actionButton = event.target.closest('button[data-task-action]') as HTMLButtonElement | null;
+        if (actionButton) {
+          const action = actionButton.getAttribute('data-task-action');
+          const taskId = actionButton.getAttribute('data-task-id');
+          if (action && taskId) {
+            this.handleTaskAction(action, taskId);
+          }
+          return;
+        }
+
         const th = event.target.closest('th[data-sort-col]');
         if (th) {
           const colName = th.getAttribute('data-sort-col');
@@ -142,22 +375,9 @@ class Index extends HTMLElement {
       });
 
       this.renderCards();
-      this.checkNotificationPermission();
+      const banner = document.getElementById('notificationBanner');
+      NotificationManager.syncBannerVisibility(banner);
     }
-
-    // TODO: updateNotificationTestUI();
-
-    // TODO: 
-  }
-
-  checkNotificationPermission(): void {
-    const banner = document.getElementById('notificationBanner');
-    if (!banner) return;
-    if (!('Notification' in window) || typeof Notification.requestPermission !== 'function') {
-      banner.style.display = 'none';
-      return;
-    }
-    banner.style.display = (Notification.permission === 'default') ? 'flex' : 'none';
   }
 
   async loadTasks(): Promise<void> {
@@ -180,24 +400,12 @@ class Index extends HTMLElement {
       }
 
       const descText = task.description ? `\n${task.description}` : '';
-      let bodyText = `「${task.text}」が実行可能な時間になりました。${descText}`;
+      let bodyText = `「${task.text}」が実施可能な時間になりました。${descText}`;
       if (candidate.leadMinutes !== null && candidate.leadMinutes > 0) {
-        bodyText = `「${task.text}」の${candidate.leadMinutes}分前です（開始：${task.startTime}）。${descText}`;
+        bodyText = `「${task.text}」の ${candidate.leadMinutes} 分前です（開始 ${candidate.startNorm}）。${descText}`;
       }
 
-      const notification = new Notification(`[${task.normalizeGroup}] ${task.text} の時間です`, {
-        body: bodyText,
-        icon: "icon.png",
-        badge: "badge.png"
-      });
-
-      notification.onclick = (event) => {
-        event.preventDefault();
-        const targetUrl = new URL('/done', window.location.href).href;
-        window.open(targetUrl, '_blank');
-      };
-
-      // TODO: Notification.play();
+      NotificationManager.notifyTask(task, bodyText);
 
       task.notifiedDate = candidate.scheduleDateKey;
       isUpdated = true;
@@ -231,23 +439,6 @@ if (!customElements.get(Index.NAME)) {
   customElements.define(Index.NAME, Index);
 }
 
-function requestPermission(): void {
-  if (!('Notification' in window) || typeof Notification.requestPermission !== 'function') {
-    alert('このブラウザは通知をサポートしていません。');
-    return;
-  }
-
-  Notification.requestPermission().then(permission => {
-    RequestNotification.checkNotificationPermission();
-    // 設定画面で必要になる 
-    // updateNotificationTestUI();
-    if (permission === 'granted') {
-      alert('プッシュ通知が有効になりました！');
-    }
-  });
-}
-(window as any).requestPermission = requestPermission;
-
 document.addEventListener('DOMContentLoaded', async () => {
   const container = document.querySelector('.container');
   if (container) {
@@ -270,8 +461,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     document.addEventListener(IndexFilterControls.EVENT_FILTER_CHANGE, (event: Event) => {
-      const customEvent = event as CustomEvent<{ filter: string, value: boolean }>;
-      console.log('Filter changed:', customEvent.detail.filter, customEvent.detail.value);
+      const customEvent = event as CustomEvent<{ filter: string, isHidden: boolean }>;
+      console.log('Filter changed:', customEvent.detail.filter, customEvent.detail.isHidden);
       index.renderCards();
     });
 
