@@ -81,7 +81,9 @@ export class TemporaryForm extends HTMLElement {
       '';
     (document.getElementById('description') as HTMLInputElement).value = '';
     (document.getElementById('link') as HTMLInputElement).value = '';
-    (document.getElementById('skipCalendarOnComplete') as HTMLInputElement).checked = false;
+    (
+      document.getElementById('skipCalendarOnComplete') as HTMLInputElement
+    ).checked = false;
     (document.getElementById('strictMode') as HTMLInputElement).checked = false;
   }
 

@@ -20,9 +20,15 @@ export default class SettingsDisplaySection {
   }
 
   static setup(root: ParentNode): void {
-    const input = root.querySelector('#overdueReferenceDateInput') as HTMLInputElement | null;
-    const form = root.querySelector('#overdueReferenceDateForm') as HTMLFormElement | null;
-    const saveStatus = root.querySelector('#displaySaveStatus') as HTMLElement | null;
+    const input = root.querySelector(
+      '#overdueReferenceDateInput',
+    ) as HTMLInputElement | null;
+    const form = root.querySelector(
+      '#overdueReferenceDateForm',
+    ) as HTMLFormElement | null;
+    const saveStatus = root.querySelector(
+      '#displaySaveStatus',
+    ) as HTMLElement | null;
 
     if (!input || !form) {
       return;

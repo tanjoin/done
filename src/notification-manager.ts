@@ -2,12 +2,15 @@ import DoneTask from './done-task';
 import NotificationSound from './notification-sound';
 import type {DoneTaskData} from './types';
 
-const NOTIFICATION_ICON_URL = new URL('../public/icon-192.png', import.meta.url).href;
+const NOTIFICATION_ICON_URL = new URL('../public/icon-192.png', import.meta.url)
+  .href;
 
 export default class NotificationManager {
   static isSupported(): boolean {
-    return 'Notification' in window &&
-      typeof Notification.requestPermission === 'function';
+    return (
+      'Notification' in window &&
+      typeof Notification.requestPermission === 'function'
+    );
   }
 
   static syncBannerVisibility(banner: HTMLElement | null): void {
@@ -18,7 +21,8 @@ export default class NotificationManager {
       banner.style.display = 'none';
       return;
     }
-    banner.style.display = Notification.permission === 'default' ? 'flex' : 'none';
+    banner.style.display =
+      Notification.permission === 'default' ? 'flex' : 'none';
   }
 
   static syncTestButtons(
@@ -53,7 +57,10 @@ export default class NotificationManager {
   }
 
   static sendTestNotification(): boolean {
-    if (!NotificationManager.isSupported() || Notification.permission !== 'granted') {
+    if (
+      !NotificationManager.isSupported() ||
+      Notification.permission !== 'granted'
+    ) {
       return false;
     }
 
@@ -74,10 +81,13 @@ export default class NotificationManager {
   static notifyTask(task: DoneTask | DoneTaskData, bodyText: string): void {
     const normalizedTask = task instanceof DoneTask ? task : new DoneTask(task);
 
-    const notification = new Notification(`[${normalizedTask.normalizeGroup()}] タスクの時間です`, {
-      body: bodyText,
-      icon: NOTIFICATION_ICON_URL,
-    });
+    const notification = new Notification(
+      `[${normalizedTask.normalizeGroup()}] タスクの時間です`,
+      {
+        body: bodyText,
+        icon: NOTIFICATION_ICON_URL,
+      },
+    );
 
     notification.onclick = (event: Event) => {
       event.preventDefault();

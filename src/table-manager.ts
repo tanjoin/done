@@ -1,15 +1,19 @@
-import { DoneOverdueTask, TargetDayMap } from "./types";
-import DoneTask from "./done-task";
-import DateHelper from "./date-helper";
+import {DoneOverdueTask, TargetDayMap} from './types';
+import DoneTask from './done-task';
+import DateHelper from './date-helper';
 
 export default class TableManager {
-
   get headers(): Record<string, string>[] {
     return [
-      { group: 'グループ', task: 'タスク', time: '時間', date: '日付', status: 'ステータス' }
+      {
+        group: 'グループ',
+        task: 'タスク',
+        time: '時間',
+        date: '日付',
+        status: 'ステータス',
+      },
     ];
   }
-
 
   renderTableView(
     container: HTMLElement,
@@ -17,7 +21,9 @@ export default class TableManager {
     targetDayMap: TargetDayMap,
     overdueTasks: DoneOverdueTask[] = [],
   ): void {
-    container.appendChild(this.createTableManager(tasks, targetDayMap, overdueTasks));
+    container.appendChild(
+      this.createTableManager(tasks, targetDayMap, overdueTasks),
+    );
   }
 
   createTableManager(
@@ -32,13 +38,23 @@ export default class TableManager {
     table.appendChild(thead);
     const tbody = this.createTableBody();
     table.appendChild(tbody);
-    this.insertTasks(tasks, tbody, DateHelper.todayDate, DateHelper.yesterdayDate);
+    this.insertTasks(
+      tasks,
+      tbody,
+      DateHelper.todayDate,
+      DateHelper.yesterdayDate,
+    );
     this.insertOverdueTasks(overdueTasks, tbody);
     return tableWrapper;
   }
 
-  insertTasks(tasks: DoneTask[], tbody: HTMLElement, today: Date, yesterday: Date): void {
-    tasks.forEach((task) => {
+  insertTasks(
+    tasks: DoneTask[],
+    tbody: HTMLElement,
+    today: Date,
+    yesterday: Date,
+  ): void {
+    tasks.forEach(task => {
       const row = document.createElement('tr');
       const currentTask = new DoneTask(task);
       currentTask.insertRowElements(row);
@@ -46,7 +62,10 @@ export default class TableManager {
     });
   }
 
-  insertOverdueTasks(overdueTasks: DoneOverdueTask[], tbody: HTMLElement): void {
+  insertOverdueTasks(
+    overdueTasks: DoneOverdueTask[],
+    tbody: HTMLElement,
+  ): void {
     overdueTasks
       .sort((a, b) => {
         if (a.dateKey === b.dateKey) {
@@ -89,7 +108,8 @@ export default class TableManager {
 
         const completeBtn = document.createElement('button');
         completeBtn.className = 'table-btn table-btn-primary';
-        completeBtn.textContent = task.skipCalendarOnComplete === true ? '完了' : '追加';
+        completeBtn.textContent =
+          task.skipCalendarOnComplete === true ? '完了' : '追加';
         completeBtn.setAttribute('data-task-action', 'complete');
         completeBtn.setAttribute('data-task-id', task.id);
         completeBtn.setAttribute('data-task-date', overdue.dateKey);
@@ -97,7 +117,9 @@ export default class TableManager {
         actionContainer.appendChild(completeBtn);
 
         const secondaryBtn = document.createElement('button');
-        secondaryBtn.className = task.specificDate ? 'table-btn table-btn-danger' : 'table-btn';
+        secondaryBtn.className = task.specificDate
+          ? 'table-btn table-btn-danger'
+          : 'table-btn';
         secondaryBtn.textContent = task.specificDate ? '削除' : 'キャンセル';
         secondaryBtn.setAttribute(
           'data-task-action',

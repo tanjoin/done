@@ -48,7 +48,9 @@ export default class LocalStorageManager {
   }
 
   static get overdueReferenceDate(): string {
-    const saved = localStorage.getItem(LocalStorageManager.OVERDUE_REFERENCE_DATE_KEY);
+    const saved = localStorage.getItem(
+      LocalStorageManager.OVERDUE_REFERENCE_DATE_KEY,
+    );
     if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) {
       return saved;
     }
@@ -73,7 +75,9 @@ export default class LocalStorageManager {
   }
 
   static get calendarTargetId(): string {
-    return localStorage.getItem(LocalStorageManager.CALENDAR_TARGET_ID_KEY) || '';
+    return (
+      localStorage.getItem(LocalStorageManager.CALENDAR_TARGET_ID_KEY) || ''
+    );
   }
 
   static set calendarTargetId(value: string) {
@@ -176,14 +180,17 @@ export default class LocalStorageManager {
   }
 
   private static tryMigrateLegacyTasksToDoneTasks(): void {
-    const hasDoneTasks = localStorage.getItem(LocalStorageManager.TASKS_KEY) !== null;
+    const hasDoneTasks =
+      localStorage.getItem(LocalStorageManager.TASKS_KEY) !== null;
     if (hasDoneTasks) {
       // done_tasks が既に正なので、参照ぶれ防止のため v3 のみ掃除する
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
       return;
     }
 
-    const legacyV3 = localStorage.getItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
+    const legacyV3 = localStorage.getItem(
+      LocalStorageManager.LEGACY_V3_TASKS_KEY,
+    );
     if (legacyV3 !== null) {
       localStorage.setItem(LocalStorageManager.TASKS_KEY, legacyV3);
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
@@ -206,7 +213,7 @@ export default class LocalStorageManager {
       return [];
     }
     try {
-      const parsed = JSON.parse(tasksJson) as DoneTask[] | { tasks?: DoneTask[] };
+      const parsed = JSON.parse(tasksJson) as DoneTask[] | {tasks?: DoneTask[]};
       if (Array.isArray(parsed)) {
         return parsed;
       }
@@ -251,7 +258,10 @@ export default class LocalStorageManager {
   }
 
   static get filterHideNonTargetDay(): boolean {
-    return this.getFilter(LocalStorageManager.FILTER_HIDE_NON_TARGET_DAY_KEY, true);
+    return this.getFilter(
+      LocalStorageManager.FILTER_HIDE_NON_TARGET_DAY_KEY,
+      true,
+    );
   }
 
   static set filterHideNonTargetDay(value: boolean) {
@@ -263,7 +273,10 @@ export default class LocalStorageManager {
   }
 
   static get filterHideOutOfTime(): boolean {
-    return this.getFilter(LocalStorageManager.FILTER_HIDE_OUT_OF_TIME_KEY, false);
+    return this.getFilter(
+      LocalStorageManager.FILTER_HIDE_OUT_OF_TIME_KEY,
+      false,
+    );
   }
 
   static set filterHideOutOfTime(value: boolean) {
@@ -299,7 +312,10 @@ export default class LocalStorageManager {
   }
 
   static get filterForceShowOverdue(): boolean {
-    return this.getFilter(LocalStorageManager.FILTER_FORCE_SHOW_OVERDUE_KEY, true);
+    return this.getFilter(
+      LocalStorageManager.FILTER_FORCE_SHOW_OVERDUE_KEY,
+      true,
+    );
   }
 
   static set filterForceShowOverdue(value: boolean) {

@@ -1,5 +1,11 @@
 import './style.css';
-import { DoneSwitchViewMode, DoneTheme, TargetDayMap, DoneGroups as DoneGroups, DoneOverdueTask } from './types';
+import {
+  DoneSwitchViewMode,
+  DoneTheme,
+  TargetDayMap,
+  DoneGroups as DoneGroups,
+  DoneOverdueTask,
+} from './types';
 import DoneTask from './done-task';
 import Footer from './footer';
 import Header from './header';
@@ -15,7 +21,6 @@ import SortManager from './sort-manager';
 import TableManager from './table-manager';
 
 class Index extends HTMLElement {
-
   private _mode: DoneSwitchViewMode = 'card';
   private _theme: DoneTheme = 'system';
   private _taskRepository: TaskRepository = new TaskRepository();
@@ -50,7 +55,9 @@ class Index extends HTMLElement {
   }
 
   private collectOverdueTasks(task: DoneTask): DoneOverdueTask[] {
-    const referenceDate = this.parseDateKey(LocalStorageManager.overdueReferenceDate);
+    const referenceDate = this.parseDateKey(
+      LocalStorageManager.overdueReferenceDate,
+    );
     if (!referenceDate) {
       return [];
     }
@@ -78,7 +85,9 @@ class Index extends HTMLElement {
     const todayDate = DateHelper.todayDate;
     const todayKey = task.toKebabCase(todayDate);
     const timeCheck = task.timeCheck();
-    const alreadyAddedToday = overdueTasks.some(item => item.dateKey === todayKey);
+    const alreadyAddedToday = overdueTasks.some(
+      item => item.dateKey === todayKey,
+    );
     if (
       !alreadyAddedToday &&
       !task.history[todayKey] &&
@@ -103,13 +112,12 @@ class Index extends HTMLElement {
     }
     const task = this._taskRepository.tasks[taskIndex]!;
 
-    task.history[targetDateKey] = isCancel
-      ? 'cancelled'
-      : 'completed';
+    task.history[targetDateKey] = isCancel ? 'cancelled' : 'completed';
     this._taskRepository.saveTasks();
     this.renderCards();
 
-    const shouldSkipCalendar = isCancel || task.skipCalendarOnComplete;
+    const shouldSkipCalendar =
+      task.skipCalendarOnComplete === true && isCancel === false;
     if (shouldSkipCalendar) {
       return;
     }
@@ -222,15 +230,27 @@ class Index extends HTMLElement {
       const todayStatus = task.history[TODAY];
       const timeCheck = task.timeCheck();
       // 完了済みタスクを非表示にする設定が有効で、かつ完了済みの場合はスキップ
-      if (todayStatus === 'completed' && LocalStorageManager.filterHideCompleted) {
+      if (
+        todayStatus === 'completed' &&
+        LocalStorageManager.filterHideCompleted
+      ) {
         return;
       }
       // キャンセル済みタスクを非表示にする設定が有効で、かつキャンセル済みの場合はスキップ
-      if (todayStatus === 'cancelled' && LocalStorageManager.filterHideCancelled) {
+      if (
+        todayStatus === 'cancelled' &&
+        LocalStorageManager.filterHideCancelled
+      ) {
         return;
       }
       // 時間外のタスクを非表示にする設定が有効で、かつ時間外であり、かつリマインドが設定されていない場合は非表示
-      if (isTargetDay && !todayStatus && !timeCheck.valid && LocalStorageManager.filterHideOutOfTime && !task.hasExplicitReminderLead()) {
+      if (
+        isTargetDay &&
+        !todayStatus &&
+        !timeCheck.valid &&
+        LocalStorageManager.filterHideOutOfTime &&
+        !task.hasExplicitReminderLead()
+      ) {
         return;
       }
 
@@ -242,15 +262,21 @@ class Index extends HTMLElement {
       groups[groupName]?.push(task);
     });
 
-    const overdueCount = Object.values(overdueGroups)
-      .reduce((sum, items) => sum + items.length, 0);
+    const overdueCount = Object.values(overdueGroups).reduce(
+      (sum, items) => sum + items.length,
+      0,
+    );
     if (filteredTasks.length === 0 && overdueCount === 0) {
-      container.innerHTML = '<p class="empty-task-msg">表示するタスクがありません。</p>';
+      container.innerHTML =
+        '<p class="empty-task-msg">表示するタスクがありません。</p>';
       return;
     }
 
     const currentViewMode = LocalStorageManager.taskViewMode;
-    document.body.classList.toggle("table-view-mode", currentViewMode === 'table');
+    document.body.classList.toggle(
+      'table-view-mode',
+      currentViewMode === 'table',
+    );
     if (currentViewMode === 'table') {
       const overdueTasks = Object.values(overdueGroups)
         .flat()
@@ -298,7 +324,11 @@ class Index extends HTMLElement {
         const todayStatus = task.history[TODAY];
         const yesterdayStatus = task.history[YESTERDAY];
         const timeCheck = task.timeCheck();
-        const statusInfo = task.getTaskStatusInfo(todayStatus, timeCheck, isTargetDay);
+        const statusInfo = task.getTaskStatusInfo(
+          todayStatus,
+          timeCheck,
+          isTargetDay,
+        );
 
         const totalCompleted = Object.values(task.history || {}).filter(
           status => status === 'completed',
@@ -345,7 +375,9 @@ class Index extends HTMLElement {
           const startNorm = DateHelper.normalizeTime(task.startTime || '00:00');
           const endNorm = DateHelper.normalizeTime(task.endTime || '23:59');
           const displayEnd =
-            startNorm > endNorm ? `翌${task.endTime || '23:59'}` : task.endTime || '23:59';
+            startNorm > endNorm
+              ? `翌${task.endTime || '23:59'}`
+              : task.endTime || '23:59';
           const modeLabel = task.strictMode ? ' (厳格)' : '';
           timeInfo.className = 'time-restriction';
           timeInfo.textContent = `${task.startTime || '00:00'} 〜 ${displayEnd}${modeLabel}`;
@@ -387,7 +419,8 @@ class Index extends HTMLElement {
 
         const mainButton = document.createElement('button');
         mainButton.className = 'btn btn-action';
-        mainButton.textContent = task.skipCalendarOnComplete === true ? '完了' : '追加';
+        mainButton.textContent =
+          task.skipCalendarOnComplete === true ? '完了' : '追加';
         mainButton.setAttribute('data-task-action', 'complete');
         mainButton.setAttribute('data-task-id', task.id);
         mainButton.setAttribute('data-task-date', TODAY);
@@ -400,9 +433,14 @@ class Index extends HTMLElement {
         actionContainer.appendChild(mainButton);
 
         const secondaryButton = document.createElement('button');
-        secondaryButton.className = task.specificDate ? 'btn' : 'btn btn-cancel';
+        secondaryButton.className = task.specificDate
+          ? 'btn'
+          : 'btn btn-cancel';
         secondaryButton.textContent = task.specificDate ? '削除' : 'キャンセル';
-        secondaryButton.setAttribute('data-task-action', task.specificDate ? 'delete' : 'cancel');
+        secondaryButton.setAttribute(
+          'data-task-action',
+          task.specificDate ? 'delete' : 'cancel',
+        );
         secondaryButton.setAttribute('data-task-id', task.id);
         secondaryButton.setAttribute('data-task-date', TODAY);
         if (task.specificDate) {
@@ -457,10 +495,14 @@ class Index extends HTMLElement {
 
           if (task.startTime || task.endTime) {
             const timeInfo = document.createElement('div');
-            const startNorm = DateHelper.normalizeTime(task.startTime || '00:00');
+            const startNorm = DateHelper.normalizeTime(
+              task.startTime || '00:00',
+            );
             const endNorm = DateHelper.normalizeTime(task.endTime || '23:59');
             const displayEnd =
-              startNorm > endNorm ? `翌${task.endTime || '23:59'}` : task.endTime || '23:59';
+              startNorm > endNorm
+                ? `翌${task.endTime || '23:59'}`
+                : task.endTime || '23:59';
             const modeLabel = task.strictMode ? ' (厳格)' : '';
             timeInfo.className = 'time-restriction';
             timeInfo.textContent = `${task.startTime || '00:00'} 〜 ${displayEnd}${modeLabel}`;
@@ -491,7 +533,8 @@ class Index extends HTMLElement {
 
           const mainButton = document.createElement('button');
           mainButton.className = 'btn btn-action';
-          mainButton.textContent = task.skipCalendarOnComplete === true ? '完了' : '追加';
+          mainButton.textContent =
+            task.skipCalendarOnComplete === true ? '完了' : '追加';
           mainButton.setAttribute('data-task-action', 'complete');
           mainButton.setAttribute('data-task-id', task.id);
           mainButton.setAttribute('data-task-date', overdue.dateKey);
@@ -499,9 +542,16 @@ class Index extends HTMLElement {
           actionContainer.appendChild(mainButton);
 
           const secondaryButton = document.createElement('button');
-          secondaryButton.className = task.specificDate ? 'btn' : 'btn btn-cancel';
-          secondaryButton.textContent = task.specificDate ? '削除' : 'キャンセル';
-          secondaryButton.setAttribute('data-task-action', task.specificDate ? 'delete' : 'cancel');
+          secondaryButton.className = task.specificDate
+            ? 'btn'
+            : 'btn btn-cancel';
+          secondaryButton.textContent = task.specificDate
+            ? '削除'
+            : 'キャンセル';
+          secondaryButton.setAttribute(
+            'data-task-action',
+            task.specificDate ? 'delete' : 'cancel',
+          );
           secondaryButton.setAttribute('data-task-id', task.id);
           secondaryButton.setAttribute('data-task-date', overdue.dateKey);
           secondaryButton.setAttribute('data-task-overdue', 'true');
@@ -524,12 +574,11 @@ class Index extends HTMLElement {
 
       groupSection.appendChild(grid);
       container.appendChild(groupSection);
-
     }
   }
 
   applyTheme(): void {
-    let savedTheme: DoneTheme = LocalStorageManager.appTheme;
+    const savedTheme: DoneTheme = LocalStorageManager.appTheme;
     const root = document.documentElement;
     if (savedTheme === 'system') {
       root.removeAttribute('data-theme');
@@ -542,16 +591,19 @@ class Index extends HTMLElement {
   setupPageSpecifics(): void {
     const taskContainer = document.getElementById('taskContainer');
     if (taskContainer) {
-      taskContainer.addEventListener('click', (event) => {
+      taskContainer.addEventListener('click', event => {
         if (!(event.target instanceof HTMLElement)) {
           return;
         }
 
-        const actionButton = event.target.closest('button[data-task-action]') as HTMLButtonElement | null;
+        const actionButton = event.target.closest(
+          'button[data-task-action]',
+        ) as HTMLButtonElement | null;
         if (actionButton) {
           const action = actionButton.getAttribute('data-task-action');
           const taskId = actionButton.getAttribute('data-task-id');
-          const targetDate = actionButton.getAttribute('data-task-date') || undefined;
+          const targetDate =
+            actionButton.getAttribute('data-task-date') || undefined;
           if (action && taskId) {
             this.handleTaskAction(action, taskId, targetDate);
           }
@@ -640,25 +692,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     header.active = 'index';
     container.appendChild(header);
 
-    const requestNotification = document.createElement(RequestNotification.NAME) as RequestNotification;
+    const requestNotification = document.createElement(
+      RequestNotification.NAME,
+    ) as RequestNotification;
     container.appendChild(requestNotification);
 
     const index = document.createElement(Index.NAME) as Index;
     container.appendChild(index);
     await index.init();
 
-    document.addEventListener(IndexSwitchViewMode.EVENT_VIEW_MODE_CHANGE, (event: Event) => {
-      const customEvent = event as CustomEvent<{ mode: DoneSwitchViewMode }>;
-      index.mode = customEvent.detail.mode;
-      console.log('View mode changed to:', index.mode);
-      index.renderCards();
-    });
+    document.addEventListener(
+      IndexSwitchViewMode.EVENT_VIEW_MODE_CHANGE,
+      (event: Event) => {
+        const customEvent = event as CustomEvent<{mode: DoneSwitchViewMode}>;
+        index.mode = customEvent.detail.mode;
+        console.log('View mode changed to:', index.mode);
+        index.renderCards();
+      },
+    );
 
-    document.addEventListener(IndexFilterControls.EVENT_FILTER_CHANGE, (event: Event) => {
-      const customEvent = event as CustomEvent<{ filter: string, isHidden: boolean }>;
-      console.log('Filter changed:', customEvent.detail.filter, customEvent.detail.isHidden);
-      index.renderCards();
-    });
+    document.addEventListener(
+      IndexFilterControls.EVENT_FILTER_CHANGE,
+      (event: Event) => {
+        const customEvent = event as CustomEvent<{
+          filter: string;
+          isHidden: boolean;
+        }>;
+        console.log(
+          'Filter changed:',
+          customEvent.detail.filter,
+          customEvent.detail.isHidden,
+        );
+        index.renderCards();
+      },
+    );
 
     const footer = document.createElement(Footer.NAME) as Footer;
     container.appendChild(footer);

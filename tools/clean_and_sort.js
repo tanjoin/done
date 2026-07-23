@@ -28,14 +28,14 @@ try {
       return {
         ...task,
         history: {},
-        notifiedDate: ""
+        notifiedDate: '',
       };
     });
 
   // 3. 数値順（task-〇〇の連番昇順）に並べ替え
   processedTasks.sort((a, b) => {
     // IDから数値部分を抽出する関数
-    const getNumber = (id) => {
+    const getNumber = id => {
       const match = id.match(/^task-(\d+)$/);
       return match ? parseInt(match[1], 10) : 0;
     };
@@ -49,17 +49,20 @@ try {
   // 出力先ディレクトリが存在しない場合は作成
   const outputDir = path.dirname(outputFilePath);
   if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
+    fs.mkdirSync(outputDir, {recursive: true});
   }
 
   // 4. 新しいJSONファイルとして書き出し
   // インデントを2スペースにして整形保存
-  fs.writeFileSync(outputFilePath, JSON.stringify(processedTasks, null, 2), 'utf8');
+  fs.writeFileSync(
+    outputFilePath,
+    JSON.stringify(processedTasks, null, 2),
+    'utf8',
+  );
 
-  console.log(`\n処理が完了しました！`);
+  console.log('\n処理が完了しました！');
   console.log(`除外後のタスク数: ${processedTasks.length} 件`);
   console.log(`保存先: ${outputFilePath}`);
-
 } catch (error) {
   console.error('処理中にエラーが発生しました:', error);
 }

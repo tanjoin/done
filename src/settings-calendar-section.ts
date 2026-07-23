@@ -25,9 +25,15 @@ export default class SettingsCalendarSection {
   }
 
   static setup(root: ParentNode): void {
-    const section = root.querySelector('#calendarSection') as HTMLElement | null;
-    const input = root.querySelector('#calendarIdInput') as HTMLInputElement | null;
-    const form = root.querySelector('#calendarIdForm') as HTMLFormElement | null;
+    const section = root.querySelector(
+      '#calendarSection',
+    ) as HTMLElement | null;
+    const input = root.querySelector(
+      '#calendarIdInput',
+    ) as HTMLInputElement | null;
+    const form = root.querySelector(
+      '#calendarIdForm',
+    ) as HTMLFormElement | null;
     const saveStatus = root.querySelector('#saveStatus') as HTMLElement | null;
 
     const supportsStorage = LocalStorageManager.supportsLocalStorage();

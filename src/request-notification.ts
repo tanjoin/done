@@ -24,8 +24,12 @@ export default class RequestNotification extends HTMLElement {
   }
 
   private setupEvents(): void {
-    const banner = this.querySelector('#notificationBanner') as HTMLElement | null;
-    const requestButton = this.querySelector('#requestNotificationBtn') as HTMLButtonElement | null;
+    const banner = this.querySelector(
+      '#notificationBanner',
+    ) as HTMLElement | null;
+    const requestButton = this.querySelector(
+      '#requestNotificationBtn',
+    ) as HTMLButtonElement | null;
 
     NotificationManager.syncBannerVisibility(banner);
 

@@ -45,7 +45,9 @@ export default class SettingsThemeSection {
       selectedRadio.checked = true;
     }
 
-    const radios = root.querySelectorAll('input[name="theme"]') as NodeListOf<HTMLInputElement>;
+    const radios = root.querySelectorAll(
+      'input[name="theme"]',
+    ) as NodeListOf<HTMLInputElement>;
 
     radios.forEach(radio => {
       radio.addEventListener('change', () => {

@@ -1,4 +1,11 @@
-import type { DoneReminderCandidate, DoneTaskData, NormalizedTime, StatusInfo, TimeCheck, TodayStatus } from './types';
+import type {
+  DoneReminderCandidate,
+  DoneTaskData,
+  NormalizedTime,
+  StatusInfo,
+  TimeCheck,
+  TodayStatus,
+} from './types';
 import DateHelper from './date-helper';
 
 export default class DoneTask implements DoneTaskData {
@@ -65,7 +72,7 @@ export default class DoneTask implements DoneTaskData {
   }
 
   normalizeRemindMinutesBefore(): number | null {
-    const raw = this.remindMinutesBefore
+    const raw = this.remindMinutesBefore;
     if (raw === null || raw === undefined) {
       return null;
     }
@@ -81,7 +88,14 @@ export default class DoneTask implements DoneTaskData {
       return '';
     }
     const parts = this.startTime.split(':');
-    if (!parts || parts.length !== 2 || !parts[0] || !parts[1] || isNaN(Number(parts[0])) || isNaN(Number(parts[1]))) {
+    if (
+      !parts ||
+      parts.length !== 2 ||
+      !parts[0] ||
+      !parts[1] ||
+      isNaN(Number(parts[0])) ||
+      isNaN(Number(parts[1]))
+    ) {
       return this.startTime;
     }
     return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
@@ -92,7 +106,14 @@ export default class DoneTask implements DoneTaskData {
       return '';
     }
     const parts = this.endTime.split(':');
-    if (!parts || parts.length !== 2 || !parts[0] || !parts[1] || isNaN(Number(parts[0])) || isNaN(Number(parts[1]))) {
+    if (
+      !parts ||
+      parts.length !== 2 ||
+      !parts[0] ||
+      !parts[1] ||
+      isNaN(Number(parts[0])) ||
+      isNaN(Number(parts[1]))
+    ) {
       return this.endTime;
     }
     return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
@@ -113,7 +134,9 @@ export default class DoneTask implements DoneTaskData {
     if (!this.specificDate) {
       return null;
     }
-    const [year, month, day]: number[] = this.specificDate.split('-').map(Number);
+    const [year, month, day]: number[] = this.specificDate
+      .split('-')
+      .map(Number);
     if (!year || !month || !day || isNaN(year) || isNaN(month) || isNaN(day)) {
       return null;
     }
@@ -143,7 +166,6 @@ export default class DoneTask implements DoneTaskData {
     span.textContent = this.normalizeGroup();
     return span;
   }
-
 
   get taskNameElement() {
     if (this.link) {
@@ -196,29 +218,53 @@ export default class DoneTask implements DoneTaskData {
   }
 
   get statusInfo() {
-    return this.getTaskStatusInfo(this.todayStatus, this.timeCheck(), this.isTaskScheduledOnDate(new Date()));
+    return this.getTaskStatusInfo(
+      this.todayStatus,
+      this.timeCheck(),
+      this.isTaskScheduledOnDate(new Date()),
+    );
   }
 
-  getTaskStatusInfo(todayStatus: TodayStatus, timeCheck: TimeCheck, isTargetDay: boolean): StatusInfo {
-    if (todayStatus === "completed") {
-      return { label: "追加済み", className: 'chip-status-done', locked: true };
+  getTaskStatusInfo(
+    todayStatus: TodayStatus,
+    timeCheck: TimeCheck,
+    isTargetDay: boolean,
+  ): StatusInfo {
+    if (todayStatus === 'completed') {
+      return {label: '追加済み', className: 'chip-status-done', locked: true};
     }
-    if (todayStatus === "cancelled") {
-      return { label: "キャンセル済", className: 'chip-status-cancel', locked: true };
+    if (todayStatus === 'cancelled') {
+      return {
+        label: 'キャンセル済',
+        className: 'chip-status-cancel',
+        locked: true,
+      };
     }
     if (!isTargetDay) {
-      return { label: "対象日外", className: 'chip-status-nontarget', locked: true };
+      return {
+        label: '対象日外',
+        className: 'chip-status-nontarget',
+        locked: true,
+      };
     }
     if (
       this.isReminderActiveOnDate(DateHelper.todayDate, new Date()) ||
       this.isReminderActiveOnDate(DateHelper.tomorrowDate, new Date())
     ) {
-      return { label: "リマインダー", className: 'chip-status-reminder', locked: false };
+      return {
+        label: 'リマインダー',
+        className: 'chip-status-reminder',
+        locked: false,
+      };
     }
     if (timeCheck.valid) {
-      return { label: "実施可能", className: 'chip-status-active', locked: false };
+      return {
+        label: '実施可能',
+        className: 'chip-status-active',
+        locked: false,
+      };
     }
-    return { label: "時間外", className: 'chip-status-nontarget', locked: false };
+    return {label: '時間外', className: 'chip-status-nontarget', locked: false};
   }
 
   isReminderActiveOnDate(targetDate: Date, now: Date): boolean {
@@ -229,7 +275,9 @@ export default class DoneTask implements DoneTaskData {
     if (!candidate || candidate.leadMinutes === null) {
       return false;
     }
-    const startAt = new Date(candidate.reminderAt.getTime() + candidate.leadMinutes * 60 * 1000);
+    const startAt = new Date(
+      candidate.reminderAt.getTime() + candidate.leadMinutes * 60 * 1000,
+    );
     return now >= candidate.reminderAt && now < startAt;
   }
 
@@ -265,7 +313,8 @@ export default class DoneTask implements DoneTaskData {
 
     const mainButton = document.createElement('button');
     mainButton.className = 'table-btn table-btn-primary';
-    mainButton.textContent = this.skipCalendarOnComplete === true ? '完了' : '追加';
+    mainButton.textContent =
+      this.skipCalendarOnComplete === true ? '完了' : '追加';
     mainButton.setAttribute('data-task-action', 'complete');
     mainButton.setAttribute('data-task-id', this.id);
 
@@ -315,28 +364,33 @@ export default class DoneTask implements DoneTaskData {
       }
       const specificDate = this.specificDate;
       // 過去に特定の日付以降で完了した履歴があるかどうかを確認する
-      const completedBeforeToday = Object.keys(this.history || {}).some((key): boolean => {
-        if (this.history[key] !== 'completed') {
-          return false;
-        }
-        return key >= specificDate && key < dStr;
-      });
+      const completedBeforeToday = Object.keys(this.history || {}).some(
+        (key): boolean => {
+          if (this.history[key] !== 'completed') {
+            return false;
+          }
+          return key >= specificDate && key < dStr;
+        },
+      );
       return !completedBeforeToday;
     }
 
-    const currentDayOfWeek = targetDate.getDay();   // 0 (日曜日) から 6 (土曜日) の範囲で取得
+    const currentDayOfWeek = targetDate.getDay(); // 0 (日曜日) から 6 (土曜日) の範囲で取得
     const currentDayOfMonth = targetDate.getDate(); // 1 から 31 の範囲で取得
 
     const noWeekRestriction = !this.daysOfWeek || this.daysOfWeek.length === 0;
-    const noMonthRestriction = !this.daysOfMonth || this.daysOfMonth.length === 0;
+    const noMonthRestriction =
+      !this.daysOfMonth || this.daysOfMonth.length === 0;
 
     // 曜日制限も日付制限もない場合は、常にスケジュールされているとみなす
     if (noWeekRestriction && noMonthRestriction) return true;
 
     // 曜日制限がある場合、現在の曜日が制限に含まれているかを確認
-    if (this.daysOfWeek && this.daysOfWeek.includes(currentDayOfWeek)) return true;
+    if (this.daysOfWeek && this.daysOfWeek.includes(currentDayOfWeek))
+      return true;
     // 日付制限がある場合、現在の日付が制限に含まれているかを確認
-    if (this.daysOfMonth && this.daysOfMonth.includes(currentDayOfMonth)) return true;
+    if (this.daysOfMonth && this.daysOfMonth.includes(currentDayOfMonth))
+      return true;
 
     return false;
   }
@@ -344,38 +398,42 @@ export default class DoneTask implements DoneTaskData {
   timeCheck(): TimeCheck {
     // startTime と endTime が両方とも未設定の場合は常に有効
     if (!this.startTime && !this.endTime) {
-      return { valid: true, ready: false, msg: "" };
+      return {valid: true, ready: false, msg: ''};
     }
 
     const now = new Date();
-    const currentStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+    const currentStr =
+      String(now.getHours()).padStart(2, '0') +
+      ':' +
+      String(now.getMinutes()).padStart(2, '0');
 
-    const start = DateHelper.normalizeTime(this.startTime || "00:00");
-    const end = DateHelper.normalizeTime(this.endTime || "23:59");
+    const start = DateHelper.normalizeTime(this.startTime || '00:00');
+    const end = DateHelper.normalizeTime(this.endTime || '23:59');
 
     if (start <= end) {
       // 通常の時間帯（同一日内）
       if (currentStr < start) {
-        return { valid: false, ready: true, msg: `時間外 (${start}から)` };
+        return {valid: false, ready: true, msg: `時間外 (${start}から)`};
       }
       if (currentStr > end) {
-        return { valid: false, ready: false, msg: `時間外 (${end}まで)` };
+        return {valid: false, ready: false, msg: `時間外 (${end}まで)`};
       }
     } else {
       // 翌日をまたぐ時間帯（start > end）
       // 前日の履歴をチェック
-      const hasYesterdayHistory = this.history && this.history[DateHelper.yesterday];
+      const hasYesterdayHistory =
+        this.history && this.history[DateHelper.yesterday];
 
       // 前日の履歴がある場合のみ、startTimeまでを時間外にする
       if (hasYesterdayHistory && currentStr < start) {
-        return { valid: false, ready: true, msg: `時間外 (${start}から)` };
+        return {valid: false, ready: true, msg: `時間外 (${start}から)`};
       }
       // currentStr >= start OR currentStr <= end なら時間内
       if (currentStr < start && currentStr > end) {
-        return { valid: false, ready: true, msg: `時間外 (${start}〜翌${end})` };
+        return {valid: false, ready: true, msg: `時間外 (${start}〜翌${end})`};
       }
     }
-    return { valid: true, ready: false, msg: "" };
+    return {valid: true, ready: false, msg: ''};
   }
 
   shouldShowTask(): boolean {
@@ -387,7 +445,11 @@ export default class DoneTask implements DoneTaskData {
 
     const yesterday = DateHelper.yesterdayDate;
     // 前日の履歴があり、かつ startTime > endTime の場合は、前日のタスクがまだ有効な時間帯にいる可能性がある
-    if (this.isTaskScheduledOnDate(yesterday) && this.startTime && this.endTime) {
+    if (
+      this.isTaskScheduledOnDate(yesterday) &&
+      this.startTime &&
+      this.endTime
+    ) {
       const startNorm = this.normalizeStartTime();
       const endNorm = this.normalizeEndTime();
       if (startNorm > endNorm) {
@@ -413,11 +475,13 @@ export default class DoneTask implements DoneTaskData {
   }
 
   toKebabCase(date: Date): string {
-    return date.toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).replace(/\//g, '-');
+    return date
+      .toLocaleDateString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+      .replace(/\//g, '-');
   }
 
   toNotificationCandidate(now: Date): DoneReminderCandidate | null {
@@ -425,7 +489,15 @@ export default class DoneTask implements DoneTaskData {
 
     for (const offset of dateOffsets) {
       // スケジュールされている日付を計算
-      const scheduledDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, 12, 0, 0, 0);
+      const scheduledDate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + offset,
+        12,
+        0,
+        0,
+        0,
+      );
       if (!this.isTaskScheduledOnDate(scheduledDate)) {
         continue;
       }
@@ -467,14 +539,14 @@ export default class DoneTask implements DoneTaskData {
       Math.floor(normalizedStartTime.startMinutes / 60),
       normalizedStartTime.startMinutes % 60,
       0,
-      0
+      0,
     );
     const reminderAt = new Date(startAt.getTime() - remindMinutes * 60 * 1000);
     return {
       scheduleDateKey: this.toKebabCase(scheduledDate),
       startNorm: normalizedStartTime.normalizedStart,
       leadMinutes,
-      reminderAt
+      reminderAt,
     };
   }
 
@@ -494,7 +566,7 @@ export default class DoneTask implements DoneTaskData {
     }
     return {
       normalizedStart: this.normalizeStartTime(),
-      startMinutes: hour * 60 + minute
+      startMinutes: hour * 60 + minute,
     };
   }
-};
+}

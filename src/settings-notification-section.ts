@@ -53,8 +53,12 @@ export default class SettingsNotificationSection {
   }
 
   private static setupSound(root: ParentNode): void {
-    const soundSelect = root.querySelector('#notificationSoundSelect') as HTMLSelectElement | null;
-    const playBtn = root.querySelector('#playSoundTestBtn') as HTMLButtonElement | null;
+    const soundSelect = root.querySelector(
+      '#notificationSoundSelect',
+    ) as HTMLSelectElement | null;
+    const playBtn = root.querySelector(
+      '#playSoundTestBtn',
+    ) as HTMLButtonElement | null;
 
     if (soundSelect) {
       soundSelect.value = LocalStorageManager.notificationSound;
@@ -71,9 +75,15 @@ export default class SettingsNotificationSection {
   }
 
   private static setupNotification(root: ParentNode): void {
-    const notificationSection = root.querySelector('#notificationSection') as HTMLElement | null;
-    const enableBtn = root.querySelector('#notificationEnableBtn') as HTMLButtonElement | null;
-    const testBtn = root.querySelector('#sendTestNotificationBtn') as HTMLButtonElement | null;
+    const notificationSection = root.querySelector(
+      '#notificationSection',
+    ) as HTMLElement | null;
+    const enableBtn = root.querySelector(
+      '#notificationEnableBtn',
+    ) as HTMLButtonElement | null;
+    const testBtn = root.querySelector(
+      '#sendTestNotificationBtn',
+    ) as HTMLButtonElement | null;
 
     if (!NotificationManager.isSupported()) {
       if (notificationSection) {
