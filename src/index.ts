@@ -116,12 +116,14 @@ class Index extends HTMLElement {
     this._taskRepository.saveTasks();
     this.renderCards();
 
+    const calendarTask = new DoneTask(task);
+    const skipCalendarOnComplete = calendarTask.skipCalendarOnComplete === true;
     const shouldSkipCalendar =
-      task.skipCalendarOnComplete === true && isCancel === false;
+      skipCalendarOnComplete === true && isCancel === false;
     if (shouldSkipCalendar) {
       return;
     }
-    IndexCalendarEvent.open(task, isCancel);
+    IndexCalendarEvent.open(calendarTask, isCancel);
   }
 
   private undoTask(taskId: string): void {

@@ -39,7 +39,10 @@ export default class DoneTask implements DoneTaskData {
     this.history = task.history || {};
     this.notifiedDate = task.notifiedDate || null;
     this.remindMinutesBefore = task.remindMinutesBefore ?? null;
-    this.skipCalendarOnComplete = task.skipCalendarOnComplete === true;
+    const rawSkipCalendar = (task as {skipCalendarOnComplete?: unknown})
+      .skipCalendarOnComplete;
+    this.skipCalendarOnComplete =
+      rawSkipCalendar === true || rawSkipCalendar === 'true';
     this.strictMode = task.strictMode ?? false;
     this.specificDate = task.specificDate || null;
     this.endDate = task.endDate || null;
