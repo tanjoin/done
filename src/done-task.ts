@@ -32,7 +32,7 @@ export default class DoneTask implements DoneTaskData {
     this.history = task.history || {};
     this.notifiedDate = task.notifiedDate || null;
     this.remindMinutesBefore = task.remindMinutesBefore ?? null;
-    this.skipCalendarOnComplete = task.skipCalendarOnComplete ?? false;
+    this.skipCalendarOnComplete = task.skipCalendarOnComplete === true;
     this.strictMode = task.strictMode ?? false;
     this.specificDate = task.specificDate || null;
     this.endDate = task.endDate || null;
@@ -265,7 +265,7 @@ export default class DoneTask implements DoneTaskData {
 
     const mainButton = document.createElement('button');
     mainButton.className = 'table-btn table-btn-primary';
-    mainButton.textContent = this.skipCalendarOnComplete ? '完了' : '追加';
+    mainButton.textContent = this.skipCalendarOnComplete === true ? '完了' : '追加';
     mainButton.setAttribute('data-task-action', 'complete');
     mainButton.setAttribute('data-task-id', this.id);
 

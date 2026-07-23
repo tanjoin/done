@@ -89,7 +89,7 @@ export default class TableManager {
 
         const completeBtn = document.createElement('button');
         completeBtn.className = 'table-btn table-btn-primary';
-        completeBtn.textContent = task.skipCalendarOnComplete ? '完了' : '追加';
+        completeBtn.textContent = task.skipCalendarOnComplete === true ? '完了' : '追加';
         completeBtn.setAttribute('data-task-action', 'complete');
         completeBtn.setAttribute('data-task-id', task.id);
         completeBtn.setAttribute('data-task-date', overdue.dateKey);
