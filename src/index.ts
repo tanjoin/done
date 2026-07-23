@@ -109,8 +109,7 @@ class Index extends HTMLElement {
     this._taskRepository.saveTasks();
     this.renderCards();
 
-    const shouldSkipCalendar =
-      task.skipCalendarOnComplete === true && isCancel === false;
+    const shouldSkipCalendar = isCancel || task.skipCalendarOnComplete;
     if (shouldSkipCalendar) {
       return;
     }
