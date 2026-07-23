@@ -179,7 +179,26 @@ export default class LocalStorageManager {
     return 'done_tasks';
   }
 
+  private static tryMigrateLegacyTasksToDoneTasks(): void {
+    const hasDoneTasks = localStorage.getItem(LocalStorageManager.TASKS_KEY) !== null;
+    if (hasDoneTasks) {
+      return;
+    }
+
+    const legacyV3 = localStorage.getItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
+    if (legacyV3 !== null) {
+      localStorage.setItem(LocalStorageManager.TASKS_KEY, legacyV3);
+      return;
+    }
+
+    const legacy = localStorage.getItem(LocalStorageManager.LEGACY_TASKS_KEY);
+    if (legacy !== null) {
+      localStorage.setItem(LocalStorageManager.TASKS_KEY, legacy);
+    }
+  }
+
   static hasStoredTasksData(): boolean {
+    LocalStorageManager.tryMigrateLegacyTasksToDoneTasks();
     return (
       localStorage.getItem(LocalStorageManager.TASKS_KEY) !== null ||
       localStorage.getItem(LocalStorageManager.LEGACY_V3_TASKS_KEY) !== null ||
@@ -188,6 +207,7 @@ export default class LocalStorageManager {
   }
 
   static get tasks(): DoneTask[] {
+    LocalStorageManager.tryMigrateLegacyTasksToDoneTasks();
     const tasksJson =
       localStorage.getItem(LocalStorageManager.TASKS_KEY) ||
       localStorage.getItem(LocalStorageManager.LEGACY_V3_TASKS_KEY) ||
