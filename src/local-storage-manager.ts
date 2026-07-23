@@ -182,9 +182,8 @@ export default class LocalStorageManager {
   private static tryMigrateLegacyTasksToDoneTasks(): void {
     const hasDoneTasks = localStorage.getItem(LocalStorageManager.TASKS_KEY) !== null;
     if (hasDoneTasks) {
-      // done_tasks が既に正なので、legacyキーは参照ぶれ防止のため掃除する
+      // done_tasks が既に正なので、参照ぶれ防止のため v3 のみ掃除する
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
-      localStorage.removeItem(LocalStorageManager.LEGACY_TASKS_KEY);
       return;
     }
 
@@ -192,14 +191,12 @@ export default class LocalStorageManager {
     if (legacyV3 !== null) {
       localStorage.setItem(LocalStorageManager.TASKS_KEY, legacyV3);
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
-      localStorage.removeItem(LocalStorageManager.LEGACY_TASKS_KEY);
       return;
     }
 
     const legacy = localStorage.getItem(LocalStorageManager.LEGACY_TASKS_KEY);
     if (legacy !== null) {
       localStorage.setItem(LocalStorageManager.TASKS_KEY, legacy);
-      localStorage.removeItem(LocalStorageManager.LEGACY_TASKS_KEY);
     }
   }
 
@@ -237,13 +234,11 @@ export default class LocalStorageManager {
     if (tasks === null) {
       localStorage.removeItem(LocalStorageManager.TASKS_KEY);
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
-      localStorage.removeItem(LocalStorageManager.LEGACY_TASKS_KEY);
     } else {
       const serialized = JSON.stringify(tasks);
       // 移行後は done_tasks を単一の正とする
       localStorage.setItem(LocalStorageManager.TASKS_KEY, serialized);
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
-      localStorage.removeItem(LocalStorageManager.LEGACY_TASKS_KEY);
     }
   }
 
