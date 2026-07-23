@@ -2,8 +2,6 @@
 
 [![Code Style: Google](https://img.shields.io/badge/code%20style-google-blueviolet.svg)](https://github.com/google/gts)
 
-TypeScript + Vite + classベースで構成したタスク管理アプリです。
-
 ## 開発
 
 ```bash
