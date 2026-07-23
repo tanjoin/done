@@ -20,6 +20,7 @@ export class TemporaryForm extends HTMLElement {
     this.renderRemindMinutesBefore(form);
     this.renderDescription(form);
     this.renderLink(form);
+    this.renderSkipCalendarOnComplete(form);
     this.renderStrictMode(form);
     this.renderSubmitButton(form);
     this.setup();
@@ -80,6 +81,7 @@ export class TemporaryForm extends HTMLElement {
       '';
     (document.getElementById('description') as HTMLInputElement).value = '';
     (document.getElementById('link') as HTMLInputElement).value = '';
+    (document.getElementById('skipCalendarOnComplete') as HTMLInputElement).checked = false;
     (document.getElementById('strictMode') as HTMLInputElement).checked = false;
   }
 
@@ -187,6 +189,20 @@ export class TemporaryForm extends HTMLElement {
     div.innerHTML = `
         <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">関連リンク（省略可）</label>
         <input type="url" id="link" placeholder="https://..." class="setting-input">
+    `;
+    form.appendChild(div);
+  }
+
+  private renderSkipCalendarOnComplete(form: HTMLFormElement): void {
+    const div = document.createElement('div');
+    div.style.width = '100%';
+    div.style.marginTop = '4px';
+    div.style.marginBottom = '8px';
+    div.innerHTML = `
+        <label class="theme-option" style="margin-bottom: 0;">
+            <input type="checkbox" id="skipCalendarOnComplete">
+            <span>完了時にGoogleカレンダーへ追加しない</span>
+        </label>
     `;
     form.appendChild(div);
   }

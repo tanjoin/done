@@ -4,6 +4,7 @@ import Header from './header';
 import TaskRepository from './task-repository';
 import SettingsCalendarSection from './settings-calendar-section';
 import SettingsDataSection from './settings-data-section';
+import SettingsDisplaySection from './settings-display-section';
 import SettingsNotificationSection from './settings-notification-section';
 import SettingsThemeSection from './settings-theme-section';
 
@@ -24,6 +25,7 @@ class Settings extends HTMLElement {
       <main>
         ${SettingsCalendarSection.render()}
         ${SettingsThemeSection.render()}
+        ${SettingsDisplaySection.render()}
         ${SettingsNotificationSection.render()}
         ${SettingsDataSection.render()}
       </main>
@@ -34,6 +36,7 @@ class Settings extends HTMLElement {
     await this._taskRepository.loadTasks();
     SettingsThemeSection.setup(this);
     SettingsCalendarSection.setup(this);
+    SettingsDisplaySection.setup(this);
     SettingsNotificationSection.setup(this);
     SettingsDataSection.setup(this, this._taskRepository);
   }

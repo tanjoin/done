@@ -15,6 +15,7 @@ export type TemporaryHistoryItem = {
   remindMinutesBefore: number | null;
   text: string;
   link: string | null;
+  skipCalendarOnComplete: boolean | null;
   strictMode: boolean | null;
 };
 
@@ -35,6 +36,8 @@ export class TemporaryHistory extends HTMLElement {
         if (inputElement) {
           if (inputId === 'strictMode') {
             inputElement.checked = detail.strictMode || false;
+          } else if (inputId === 'skipCalendarOnComplete') {
+            inputElement.checked = detail.skipCalendarOnComplete || false;
           } else {
             inputElement.value = String(
               detail[inputId as keyof TemporaryHistoryItem] ?? '',
@@ -137,6 +140,9 @@ export class TemporaryHistory extends HTMLElement {
       const endDateStr = item.endDate
         ? `<br><small>終了日: ${item.endDate}</small>`
         : '';
+      const skipCalendarStr = item.skipCalendarOnComplete
+        ? '<br><small>完了時カレンダー追加: しない</small>'
+        : '';
 
       div.innerHTML = `
             <div class="history-info">
@@ -144,6 +150,7 @@ export class TemporaryHistory extends HTMLElement {
                 ${remindStr}
                 ${item.description ? `<br><small>${item.description}</small>` : ''}
                 ${endDateStr}
+                ${skipCalendarStr}
             </div>
             <div>
                 <button class="btn-reuse">再利用</button>

@@ -1,5 +1,5 @@
 import './style.css';
-import { DoneSwitchViewMode, DoneTheme, TargetDayMap, DoneGroups as DoneGroups } from './types';
+import { DoneSwitchViewMode, DoneTheme, TargetDayMap, DoneGroups as DoneGroups, DoneOverdueTask } from './types';
 import DoneTask from './done-task';
 import Footer from './footer';
 import Header from './header';
@@ -38,20 +38,83 @@ class Index extends HTMLElement {
     return this._taskRepository.tasks.findIndex(task => task.id === taskId);
   }
 
-  private executeTask(taskId: string, isCancel: boolean): void {
+  private parseDateKey(dateKey: string): Date | null {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      return null;
+    }
+    const [year, month, day] = dateKey.split('-').map(Number);
+    if (!year || !month || !day) {
+      return null;
+    }
+    return new Date(year, month - 1, day, 12, 0, 0, 0);
+  }
+
+  private collectOverdueTasks(task: DoneTask): DoneOverdueTask[] {
+    const referenceDate = this.parseDateKey(LocalStorageManager.overdueReferenceDate);
+    if (!referenceDate) {
+      return [];
+    }
+
+    const yesterday = new Date();
+    yesterday.setHours(12, 0, 0, 0);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (referenceDate > yesterday) {
+      return [];
+    }
+
+    const overdueTasks: DoneOverdueTask[] = [];
+    const cursor = new Date(referenceDate);
+    let guard = 0;
+    while (cursor <= yesterday && guard < 370) {
+      const dateKey = task.toKebabCase(cursor);
+      if (!task.history[dateKey] && task.isTaskScheduledOnDate(cursor)) {
+        overdueTasks.push({task, dateKey});
+      }
+      cursor.setDate(cursor.getDate() + 1);
+      guard++;
+    }
+
+    const todayDate = DateHelper.todayDate;
+    const todayKey = task.toKebabCase(todayDate);
+    const timeCheck = task.timeCheck();
+    const alreadyAddedToday = overdueTasks.some(item => item.dateKey === todayKey);
+    if (
+      !alreadyAddedToday &&
+      !task.history[todayKey] &&
+      task.isTaskScheduledOnDate(todayDate) &&
+      !timeCheck.valid &&
+      !timeCheck.ready
+    ) {
+      overdueTasks.push({task, dateKey: todayKey});
+    }
+
+    return overdueTasks;
+  }
+
+  private executeTask(
+    taskId: string,
+    isCancel: boolean,
+    targetDateKey = DateHelper.today,
+    isOverdueCard = false,
+  ): void {
     const taskIndex = this.findTaskIndexById(taskId);
     if (taskIndex < 0) {
       return;
     }
     const task = this._taskRepository.tasks[taskIndex]!;
 
-    const TODAY = DateHelper.today;
-    task.history[TODAY] = isCancel
+    task.history[targetDateKey] = isCancel
       ? 'cancelled'
       : 'completed';
     this._taskRepository.saveTasks();
     this.renderCards();
 
+    const shouldSkipCalendar =
+      task.skipCalendarOnComplete === true && isCancel === false;
+    if (isOverdueCard || targetDateKey !== DateHelper.today || shouldSkipCalendar) {
+      return;
+    }
     IndexCalendarEvent.open(task, isCancel);
   }
 
@@ -81,13 +144,18 @@ class Index extends HTMLElement {
     this.renderCards();
   }
 
-  private handleTaskAction(action: string, taskId: string): void {
+  private handleTaskAction(
+    action: string,
+    taskId: string,
+    targetDateKey?: string,
+    isOverdueCard?: boolean,
+  ): void {
     if (action === 'complete') {
-      this.executeTask(taskId, false);
+      this.executeTask(taskId, false, targetDateKey, isOverdueCard);
       return;
     }
     if (action === 'cancel') {
-      this.executeTask(taskId, true);
+      this.executeTask(taskId, true, targetDateKey, isOverdueCard);
       return;
     }
     if (action === 'undo') {
@@ -131,9 +199,23 @@ class Index extends HTMLElement {
     const filteredTasks: DoneTask[] = [];
     const targetDayMap: TargetDayMap = {};
     const groups: DoneGroups = {};
+    const overdueGroups: Record<string, DoneOverdueTask[]> = {};
+
+    const forceShowOverdue = LocalStorageManager.filterForceShowOverdue;
 
     this._taskRepository.tasks.forEach((task: DoneTask) => {
       task = new DoneTask(task);
+      if (forceShowOverdue) {
+        const overdueTasks = this.collectOverdueTasks(task);
+        if (overdueTasks.length > 0) {
+          const overdueGroup = task.normalizeGroup();
+          if (!overdueGroups[overdueGroup]) {
+            overdueGroups[overdueGroup] = [];
+          }
+          overdueGroups[overdueGroup]?.push(...overdueTasks);
+        }
+      }
+
       const isTargetDay = task.shouldShowTask();
       targetDayMap[task.id] = isTargetDay;
       // 該当日でないタスクを非表示にする設定が有効で、かつ該当日でない場合はスキップ
@@ -163,7 +245,9 @@ class Index extends HTMLElement {
       groups[groupName]?.push(task);
     });
 
-    if (filteredTasks.length === 0) {
+    const overdueCount = Object.values(overdueGroups)
+      .reduce((sum, items) => sum + items.length, 0);
+    if (filteredTasks.length === 0 && overdueCount === 0) {
       container.innerHTML = '<p class="empty-task-msg">表示するタスクがありません。</p>';
       return;
     }
@@ -171,13 +255,26 @@ class Index extends HTMLElement {
     const currentViewMode = LocalStorageManager.taskViewMode;
     document.body.classList.toggle("table-view-mode", currentViewMode === 'table');
     if (currentViewMode === 'table') {
-      this._tableManager.renderTableView(container, filteredTasks, targetDayMap);
+      const overdueTasks = Object.values(overdueGroups)
+        .flat()
+        .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+      this._tableManager.renderTableView(
+        container,
+        filteredTasks,
+        targetDayMap,
+        overdueTasks,
+      );
       // SortManager.updateHeaderUI();
       return;
     }
 
-    for (const groupName in groups) {
+    const groupNames = Array.from(
+      new Set([...Object.keys(groups), ...Object.keys(overdueGroups)]),
+    );
+
+    for (const groupName of groupNames) {
       const groupedTasks = groups[groupName] || [];
+      const overdueTasks = overdueGroups[groupName] || [];
       groupedTasks.sort((a, b) => {
         const countA = Object.values(a.history || {}).filter(
           status => status === 'completed',
@@ -296,6 +393,7 @@ class Index extends HTMLElement {
         mainButton.textContent = '追加';
         mainButton.setAttribute('data-task-action', 'complete');
         mainButton.setAttribute('data-task-id', task.id);
+        mainButton.setAttribute('data-task-date', TODAY);
 
         const isStrict = task.strictMode === true;
         if (statusInfo.locked || (!timeCheck.valid && isStrict)) {
@@ -309,6 +407,7 @@ class Index extends HTMLElement {
         secondaryButton.textContent = task.specificDate ? '削除' : 'キャンセル';
         secondaryButton.setAttribute('data-task-action', task.specificDate ? 'delete' : 'cancel');
         secondaryButton.setAttribute('data-task-id', task.id);
+        secondaryButton.setAttribute('data-task-date', TODAY);
         if (task.specificDate) {
           secondaryButton.style.backgroundColor = '#ef4444';
           secondaryButton.style.color = '#ffffff';
@@ -328,6 +427,103 @@ class Index extends HTMLElement {
 
         grid.appendChild(card);
       });
+
+      overdueTasks
+        .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+        .forEach(overdue => {
+          const task = overdue.task;
+
+          const totalCompleted = Object.values(task.history || {}).filter(
+            status => status === 'completed',
+          ).length;
+
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.setAttribute('data-overdue', 'true');
+
+          const content = document.createElement('div');
+
+          const overdueDate = document.createElement('div');
+          overdueDate.className = 'overdue-date-label';
+          overdueDate.textContent = `未完了日: ${overdue.dateKey}`;
+          content.appendChild(overdueDate);
+
+          const cardTitle = document.createElement('h4');
+          cardTitle.className = 'card-title';
+          cardTitle.textContent = task.text;
+          content.appendChild(cardTitle);
+
+          const badge = document.createElement('span');
+          badge.className = 'status-badge';
+          badge.textContent = '未実施';
+          content.appendChild(badge);
+
+          if (task.startTime || task.endTime) {
+            const timeInfo = document.createElement('div');
+            const startNorm = DateHelper.normalizeTime(task.startTime || '00:00');
+            const endNorm = DateHelper.normalizeTime(task.endTime || '23:59');
+            const displayEnd =
+              startNorm > endNorm ? `翌${task.endTime || '23:59'}` : task.endTime || '23:59';
+            const modeLabel = task.strictMode ? ' (厳格)' : '';
+            timeInfo.className = 'time-restriction';
+            timeInfo.textContent = `${task.startTime || '00:00'} 〜 ${displayEnd}${modeLabel}`;
+            content.appendChild(timeInfo);
+          }
+
+          if (task.description) {
+            const description = document.createElement('div');
+            description.className = 'task-description';
+            description.textContent = task.description;
+            content.appendChild(description);
+          }
+
+          if (task.link) {
+            const link = document.createElement('a');
+            link.href = task.link;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.className = 'task-link';
+            link.textContent = '関連リンク ↗';
+            content.appendChild(link);
+          }
+
+          card.appendChild(content);
+
+          const actionContainer = document.createElement('div');
+          actionContainer.className = 'card-actions';
+
+          const mainButton = document.createElement('button');
+          mainButton.className = 'btn btn-action';
+          mainButton.textContent = '追加';
+          mainButton.setAttribute('data-task-action', 'complete');
+          mainButton.setAttribute('data-task-id', task.id);
+          mainButton.setAttribute('data-task-date', overdue.dateKey);
+          mainButton.setAttribute('data-task-overdue', 'true');
+          actionContainer.appendChild(mainButton);
+
+          const secondaryButton = document.createElement('button');
+          secondaryButton.className = task.specificDate ? 'btn' : 'btn btn-cancel';
+          secondaryButton.textContent = task.specificDate ? '削除' : 'キャンセル';
+          secondaryButton.setAttribute('data-task-action', task.specificDate ? 'delete' : 'cancel');
+          secondaryButton.setAttribute('data-task-id', task.id);
+          secondaryButton.setAttribute('data-task-date', overdue.dateKey);
+          secondaryButton.setAttribute('data-task-overdue', 'true');
+          if (task.specificDate) {
+            secondaryButton.style.backgroundColor = '#ef4444';
+            secondaryButton.style.color = '#ffffff';
+            secondaryButton.style.flex = '1';
+          }
+          actionContainer.appendChild(secondaryButton);
+
+          card.appendChild(actionContainer);
+
+          const footer = document.createElement('div');
+          footer.className = 'card-footer';
+          footer.textContent = `累計実績: ${totalCompleted} 回`;
+          card.appendChild(footer);
+
+          grid.appendChild(card);
+        });
 
       groupSection.appendChild(grid);
       container.appendChild(groupSection);
@@ -358,8 +554,10 @@ class Index extends HTMLElement {
         if (actionButton) {
           const action = actionButton.getAttribute('data-task-action');
           const taskId = actionButton.getAttribute('data-task-id');
+          const targetDate = actionButton.getAttribute('data-task-date') || undefined;
+          const isOverdueCard = actionButton.getAttribute('data-task-overdue') === 'true';
           if (action && taskId) {
-            this.handleTaskAction(action, taskId);
+            this.handleTaskAction(action, taskId, targetDate, isOverdueCard);
           }
           return;
         }

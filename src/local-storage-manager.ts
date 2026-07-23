@@ -39,6 +39,31 @@ const DONE_NOTIFICATION_SOUNDS: DoneNotificationSound[] = [
 ];
 
 export default class LocalStorageManager {
+  static get OVERDUE_REFERENCE_DATE_KEY(): string {
+    return 'overdue_reference_date';
+  }
+
+  static get overdueReferenceDate(): string {
+    const saved = localStorage.getItem(LocalStorageManager.OVERDUE_REFERENCE_DATE_KEY);
+    if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) {
+      return saved;
+    }
+
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  static set overdueReferenceDate(value: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return;
+    }
+    localStorage.setItem(LocalStorageManager.OVERDUE_REFERENCE_DATE_KEY, value);
+  }
+
   static get CALENDAR_TARGET_ID_KEY(): string {
     return 'calendar_target_id';
   }
@@ -234,6 +259,18 @@ export default class LocalStorageManager {
 
   static set filterHideCancelled(value: boolean) {
     this.setFilter(LocalStorageManager.FILTER_HIDE_CANCELLED_KEY, value);
+  }
+
+  static get FILTER_FORCE_SHOW_OVERDUE_KEY(): string {
+    return 'filter_force_show_overdue';
+  }
+
+  static get filterForceShowOverdue(): boolean {
+    return this.getFilter(LocalStorageManager.FILTER_FORCE_SHOW_OVERDUE_KEY, true);
+  }
+
+  static set filterForceShowOverdue(value: boolean) {
+    this.setFilter(LocalStorageManager.FILTER_FORCE_SHOW_OVERDUE_KEY, value);
   }
 
   static getFilter(key: string, defaultValue = false): boolean {

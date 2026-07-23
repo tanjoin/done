@@ -336,6 +336,19 @@ a:not(.nav-link):hover {
     opacity: 0.5;
 }
 
+.card[data-overdue="true"] {
+    opacity: 0.65;
+    filter: grayscale(0.2);
+    border-style: dashed;
+}
+
+.overdue-date-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #b45309;
+    margin-bottom: 10px;
+}
+
 /* 設定画面など */
 .theme-options, .data-box {
     background-color: var(--card-bg);
@@ -469,6 +482,11 @@ a:not(.nav-link):hover {
 
 .task-table tr[data-done="true"] {
     opacity: 0.6;
+}
+
+.task-table tr[data-overdue="true"] {
+    opacity: 0.65;
+    background-color: rgba(15, 23, 42, 0.04);
 }
 
 .task-index {

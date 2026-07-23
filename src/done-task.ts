@@ -14,6 +14,7 @@ export default class DoneTask implements DoneTaskData {
   history: Record<string, TodayStatus>;
   notifiedDate?: string | null;
   remindMinutesBefore?: number | null;
+  skipCalendarOnComplete?: boolean | null;
   strictMode?: boolean | null;
   specificDate?: string | null;
   endDate?: string | null;
@@ -31,6 +32,7 @@ export default class DoneTask implements DoneTaskData {
     this.history = task.history || {};
     this.notifiedDate = task.notifiedDate || null;
     this.remindMinutesBefore = task.remindMinutesBefore ?? null;
+    this.skipCalendarOnComplete = task.skipCalendarOnComplete ?? false;
     this.strictMode = task.strictMode ?? false;
     this.specificDate = task.specificDate || null;
     this.endDate = task.endDate || null;
@@ -207,13 +209,28 @@ export default class DoneTask implements DoneTaskData {
     if (!isTargetDay) {
       return { label: "対象日外", className: 'chip-status-nontarget', locked: true };
     }
-    if (!timeCheck.valid && timeCheck.ready && this.hasExplicitReminderLead()) {
+    if (
+      this.isReminderActiveOnDate(DateHelper.todayDate, new Date()) ||
+      this.isReminderActiveOnDate(DateHelper.tomorrowDate, new Date())
+    ) {
       return { label: "リマインダー", className: 'chip-status-reminder', locked: false };
     }
     if (timeCheck.valid) {
       return { label: "実施可能", className: 'chip-status-active', locked: false };
     }
-    return { label: "未実施", className: 'chip-status-todo', locked: true };
+    return { label: "時間外", className: 'chip-status-nontarget', locked: false };
+  }
+
+  isReminderActiveOnDate(targetDate: Date, now: Date): boolean {
+    if (!this.hasExplicitReminderLead()) {
+      return false;
+    }
+    const candidate = this.toReminderCandidate(targetDate);
+    if (!candidate || candidate.leadMinutes === null) {
+      return false;
+    }
+    const startAt = new Date(candidate.reminderAt.getTime() + candidate.leadMinutes * 60 * 1000);
+    return now >= candidate.reminderAt && now < startAt;
   }
 
   insertRowElements(row: HTMLElement): void {

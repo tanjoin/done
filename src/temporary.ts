@@ -49,6 +49,8 @@ export class Temporary extends HTMLElement {
     const remindValRaw = Temporary.getInputElement('remindMinutesBefore').value;
     const descVal = Temporary.getInputElement('description').value.trim();
     const linkVal = Temporary.getInputElement('link').value.trim();
+    const skipCalendarOnCompleteVal =
+      Temporary.getInputElement('skipCalendarOnComplete').checked;
     const strictVal = Temporary.getInputElement('strictMode').checked;
 
     let remindVal = null;
@@ -82,6 +84,7 @@ export class Temporary extends HTMLElement {
       remindMinutesBefore: remindVal,
       description: descVal,
       link: linkVal,
+      skipCalendarOnComplete: skipCalendarOnCompleteVal,
       strictMode: strictVal,
       history: {},
       notifiedDate: '',
@@ -103,6 +106,7 @@ export class Temporary extends HTMLElement {
       remindMinutesBefore: remindVal,
       description: descVal,
       link: linkVal,
+      skipCalendarOnComplete: skipCalendarOnCompleteVal,
       strictMode: strictVal,
     };
 

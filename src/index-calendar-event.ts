@@ -4,6 +4,10 @@ import LocalStorageManager from './local-storage-manager';
 
 export default class IndexCalendarEvent {
   static open(task: DoneTask, isCancel: boolean): void {
+    if (!isCancel && task.skipCalendarOnComplete === true) {
+      return;
+    }
+
     const startTime = DateHelper.todayUTC;
     const endTime = startTime;
 

@@ -50,6 +50,7 @@ export type DoneTaskData = {
   history: Record<string, TodayStatus>;
   notifiedDate?: string | null;
   remindMinutesBefore?: number | null;
+  skipCalendarOnComplete?: boolean | null;
   strictMode?: boolean | null;
   specificDate?: string | null;
   endDate?: string | null;
@@ -78,6 +79,10 @@ export type NormalizedTime = {
 };
 export type TargetDayMap = Record<string, boolean>;
 export type DoneGroups = Record<string, DoneTask[]>;
+export type DoneOverdueTask = {
+  task: DoneTask;
+  dateKey: string;
+};
 export type TimeCheck = {
   valid: boolean;
   ready: boolean;

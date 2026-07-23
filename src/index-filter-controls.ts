@@ -45,6 +45,12 @@ export default class IndexFilterControls extends HTMLElement {
             表示
           </button>
         </div>
+        <div class="filter-button-item">
+          <span class="view-mode-label">未完了強制表示</span>
+          <button id="forceShowOverdueBtn" type="button" class="filter-toggle-btn" aria-pressed="true">
+            有効
+          </button>
+        </div>
       </div>
       `;
   }
@@ -54,6 +60,7 @@ export default class IndexFilterControls extends HTMLElement {
     this.setupHideOutOfTimeBtn();
     this.setupHideCompletedBtn();
     this.setupHideCancelledBtn();
+    this.setupForceShowOverdueBtn();
   }
 
   private setupHideNonTargetDayBtn(): void {
@@ -122,6 +129,39 @@ export default class IndexFilterControls extends HTMLElement {
         LocalStorageManager.FILTER_HIDE_CANCELLED_KEY,
       ),
     );
+  }
+
+  private setupForceShowOverdueBtn(): void {
+    const forceShowOverdueBtn = this.querySelector(
+      '#forceShowOverdueBtn',
+    ) as HTMLButtonElement | null;
+    if (!forceShowOverdueBtn) return;
+
+    this.setForceButtonState(
+      forceShowOverdueBtn,
+      LocalStorageManager.filterForceShowOverdue,
+    );
+
+    forceShowOverdueBtn.addEventListener('click', () => {
+      const newState = !LocalStorageManager.filterForceShowOverdue;
+      LocalStorageManager.filterForceShowOverdue = newState;
+      this.setForceButtonState(forceShowOverdueBtn, newState);
+      this.dispatchEvent(
+        new CustomEvent(IndexFilterControls.EVENT_FILTER_CHANGE, {
+          detail: {filter: forceShowOverdueBtn.id, isHidden: !newState},
+          bubbles: true,
+        }),
+      );
+    });
+  }
+
+  private setForceButtonState(
+    button: HTMLButtonElement,
+    enabled: boolean,
+  ): void {
+    button.classList.toggle('is-hidden', !enabled);
+    button.setAttribute('aria-pressed', String(enabled));
+    button.textContent = enabled ? '有効' : '無効';
   }
 
   private setFilterButtonState(
