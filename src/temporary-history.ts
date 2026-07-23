@@ -35,9 +35,9 @@ export class TemporaryHistory extends HTMLElement {
         ) as HTMLInputElement | null;
         if (inputElement) {
           if (inputId === 'strictMode') {
-            inputElement.checked = detail.strictMode || false;
+            inputElement.checked = detail.strictMode === true;
           } else if (inputId === 'skipCalendarOnComplete') {
-            inputElement.checked = detail.skipCalendarOnComplete || false;
+            inputElement.checked = detail.skipCalendarOnComplete === true;
           } else {
             inputElement.value = String(
               detail[inputId as keyof TemporaryHistoryItem] ?? '',
@@ -140,7 +140,7 @@ export class TemporaryHistory extends HTMLElement {
       const endDateStr = item.endDate
         ? `<br><small>終了日: ${item.endDate}</small>`
         : '';
-      const skipCalendarStr = item.skipCalendarOnComplete
+      const skipCalendarStr = item.skipCalendarOnComplete === true
         ? '<br><small>完了時カレンダー追加: しない</small>'
         : '';
 

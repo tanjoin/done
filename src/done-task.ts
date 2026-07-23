@@ -7,6 +7,7 @@ import type {
   TodayStatus,
 } from './types';
 import DateHelper from './date-helper';
+import {normalizeBoolean} from './boolean-helper';
 
 export default class DoneTask implements DoneTaskData {
   id: string;
@@ -39,11 +40,11 @@ export default class DoneTask implements DoneTaskData {
     this.history = task.history || {};
     this.notifiedDate = task.notifiedDate || null;
     this.remindMinutesBefore = task.remindMinutesBefore ?? null;
-    const rawSkipCalendar = (task as {skipCalendarOnComplete?: unknown})
-      .skipCalendarOnComplete;
-    this.skipCalendarOnComplete =
-      rawSkipCalendar === true || rawSkipCalendar === 'true';
-    this.strictMode = task.strictMode ?? false;
+    this.skipCalendarOnComplete = normalizeBoolean(
+      task.skipCalendarOnComplete,
+      false,
+    );
+    this.strictMode = normalizeBoolean(task.strictMode, false);
     this.specificDate = task.specificDate || null;
     this.endDate = task.endDate || null;
   }
