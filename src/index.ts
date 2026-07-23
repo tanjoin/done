@@ -96,7 +96,6 @@ class Index extends HTMLElement {
     taskId: string,
     isCancel: boolean,
     targetDateKey = DateHelper.today,
-    isOverdueCard = false,
   ): void {
     const taskIndex = this.findTaskIndexById(taskId);
     if (taskIndex < 0) {
@@ -112,7 +111,7 @@ class Index extends HTMLElement {
 
     const shouldSkipCalendar =
       task.skipCalendarOnComplete === true && isCancel === false;
-    if (isOverdueCard || targetDateKey !== DateHelper.today || shouldSkipCalendar) {
+    if (shouldSkipCalendar) {
       return;
     }
     IndexCalendarEvent.open(task, isCancel);
@@ -148,14 +147,13 @@ class Index extends HTMLElement {
     action: string,
     taskId: string,
     targetDateKey?: string,
-    isOverdueCard?: boolean,
   ): void {
     if (action === 'complete') {
-      this.executeTask(taskId, false, targetDateKey, isOverdueCard);
+      this.executeTask(taskId, false, targetDateKey);
       return;
     }
     if (action === 'cancel') {
-      this.executeTask(taskId, true, targetDateKey, isOverdueCard);
+      this.executeTask(taskId, true, targetDateKey);
       return;
     }
     if (action === 'undo') {
@@ -555,9 +553,8 @@ class Index extends HTMLElement {
           const action = actionButton.getAttribute('data-task-action');
           const taskId = actionButton.getAttribute('data-task-id');
           const targetDate = actionButton.getAttribute('data-task-date') || undefined;
-          const isOverdueCard = actionButton.getAttribute('data-task-overdue') === 'true';
           if (action && taskId) {
-            this.handleTaskAction(action, taskId, targetDate, isOverdueCard);
+            this.handleTaskAction(action, taskId, targetDate);
           }
           return;
         }
