@@ -43,10 +43,6 @@ export default class LocalStorageManager {
     return 'calendar_tasks_v3';
   }
 
-  static get LEGACY_TASKS_KEY(): string {
-    return 'data_tasks';
-  }
-
   static get OVERDUE_REFERENCE_DATE_KEY(): string {
     return 'overdue_reference_date';
   }
@@ -193,19 +189,13 @@ export default class LocalStorageManager {
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
       return;
     }
-
-    const legacy = localStorage.getItem(LocalStorageManager.LEGACY_TASKS_KEY);
-    if (legacy !== null) {
-      localStorage.setItem(LocalStorageManager.TASKS_KEY, legacy);
-    }
   }
 
   static hasStoredTasksData(): boolean {
     LocalStorageManager.tryMigrateLegacyTasksToDoneTasks();
     return (
       localStorage.getItem(LocalStorageManager.TASKS_KEY) !== null ||
-      localStorage.getItem(LocalStorageManager.LEGACY_V3_TASKS_KEY) !== null ||
-      localStorage.getItem(LocalStorageManager.LEGACY_TASKS_KEY) !== null
+      localStorage.getItem(LocalStorageManager.LEGACY_V3_TASKS_KEY) !== null
     );
   }
 
