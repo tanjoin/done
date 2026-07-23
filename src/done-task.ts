@@ -265,7 +265,7 @@ export default class DoneTask implements DoneTaskData {
 
     const mainButton = document.createElement('button');
     mainButton.className = 'table-btn table-btn-primary';
-    mainButton.textContent = '追加';
+    mainButton.textContent = this.skipCalendarOnComplete ? '完了' : '追加';
     mainButton.setAttribute('data-task-action', 'complete');
     mainButton.setAttribute('data-task-id', this.id);
 

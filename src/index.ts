@@ -390,7 +390,7 @@ class Index extends HTMLElement {
 
         const mainButton = document.createElement('button');
         mainButton.className = 'btn btn-action';
-        mainButton.textContent = '追加';
+        mainButton.textContent = task.skipCalendarOnComplete ? '完了' : '追加';
         mainButton.setAttribute('data-task-action', 'complete');
         mainButton.setAttribute('data-task-id', task.id);
         mainButton.setAttribute('data-task-date', TODAY);
@@ -494,7 +494,7 @@ class Index extends HTMLElement {
 
           const mainButton = document.createElement('button');
           mainButton.className = 'btn btn-action';
-          mainButton.textContent = '追加';
+          mainButton.textContent = task.skipCalendarOnComplete ? '完了' : '追加';
           mainButton.setAttribute('data-task-action', 'complete');
           mainButton.setAttribute('data-task-id', task.id);
           mainButton.setAttribute('data-task-date', overdue.dateKey);
