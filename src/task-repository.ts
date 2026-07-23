@@ -21,7 +21,7 @@ export default class TaskRepository {
   async loadTasks(): Promise<void> {
     const savedTasks = LocalStorageManager.tasks;
     this._tasks = savedTasks || [];
-    if (this._tasks.length === 0) {
+    if (this._tasks.length === 0 && !LocalStorageManager.hasStoredTasksData()) {
       await this.resetToDefault();
     }
   }

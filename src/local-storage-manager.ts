@@ -39,6 +39,14 @@ const DONE_NOTIFICATION_SOUNDS: DoneNotificationSound[] = [
 ];
 
 export default class LocalStorageManager {
+  static get LEGACY_V3_TASKS_KEY(): string {
+    return 'calendar_tasks_v3';
+  }
+
+  static get LEGACY_TASKS_KEY(): string {
+    return 'data_tasks';
+  }
+
   static get OVERDUE_REFERENCE_DATE_KEY(): string {
     return 'overdue_reference_date';
   }
@@ -171,15 +179,29 @@ export default class LocalStorageManager {
     return 'done_tasks';
   }
 
+  static hasStoredTasksData(): boolean {
+    return (
+      localStorage.getItem(LocalStorageManager.TASKS_KEY) !== null ||
+      localStorage.getItem(LocalStorageManager.LEGACY_V3_TASKS_KEY) !== null ||
+      localStorage.getItem(LocalStorageManager.LEGACY_TASKS_KEY) !== null
+    );
+  }
+
   static get tasks(): DoneTask[] {
-    const tasksJson = localStorage.getItem(LocalStorageManager.TASKS_KEY);
+    const tasksJson =
+      localStorage.getItem(LocalStorageManager.TASKS_KEY) ||
+      localStorage.getItem(LocalStorageManager.LEGACY_V3_TASKS_KEY) ||
+      localStorage.getItem(LocalStorageManager.LEGACY_TASKS_KEY);
     if (!tasksJson) {
       return [];
     }
     try {
-      const tasks = JSON.parse(tasksJson) as DoneTask[];
-      if (Array.isArray(tasks)) {
-        return tasks;
+      const parsed = JSON.parse(tasksJson) as DoneTask[] | { tasks?: DoneTask[] };
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.tasks)) {
+        return parsed.tasks;
       }
       return [];
     } catch (e) {
@@ -191,11 +213,13 @@ export default class LocalStorageManager {
   static set tasks(tasks: DoneTask[] | null) {
     if (tasks === null) {
       localStorage.removeItem(LocalStorageManager.TASKS_KEY);
+      localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
+      localStorage.removeItem(LocalStorageManager.LEGACY_TASKS_KEY);
     } else {
-      localStorage.setItem(
-        LocalStorageManager.TASKS_KEY,
-        JSON.stringify(tasks),
-      );
+      const serialized = JSON.stringify(tasks);
+      // 移行期間中は新旧キーを同期して、どちらの参照経路でも同じデータを使う
+      localStorage.setItem(LocalStorageManager.TASKS_KEY, serialized);
+      localStorage.setItem(LocalStorageManager.LEGACY_V3_TASKS_KEY, serialized);
     }
   }
 
