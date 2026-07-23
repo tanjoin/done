@@ -2,6 +2,8 @@ import DoneTask from './done-task';
 import NotificationSound from './notification-sound';
 import type {DoneTaskData} from './types';
 
+const NOTIFICATION_ICON_URL = new URL('../public/icon-192.png', import.meta.url).href;
+
 export default class NotificationManager {
   static isSupported(): boolean {
     return 'Notification' in window &&
@@ -57,7 +59,7 @@ export default class NotificationManager {
 
     const notification = new Notification('通知テスト', {
       body: 'done からのテスト通知です。表示されていれば設定は正常です。',
-      icon: 'https://calendar.google.com/calendar/images/favicon_v2014_3.ico',
+      icon: NOTIFICATION_ICON_URL,
     });
 
     notification.onclick = (event: Event) => {
@@ -74,7 +76,7 @@ export default class NotificationManager {
 
     const notification = new Notification(`[${normalizedTask.normalizeGroup()}] タスクの時間です`, {
       body: bodyText,
-      icon: 'https://calendar.google.com/calendar/images/favicon_v2014_3.ico',
+      icon: NOTIFICATION_ICON_URL,
     });
 
     notification.onclick = (event: Event) => {
