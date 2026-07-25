@@ -79,7 +79,13 @@ class Index extends HTMLElement {
       ':' +
       String(now.getMinutes()).padStart(2, '0');
 
-    const cursor = new Date(referenceDate);
+    // 翌日またぎの場合はループを一日前から開始
+    let loopStart = new Date(referenceDate);
+    if (startNorm > endNorm) {
+      loopStart.setDate(loopStart.getDate() - 1);
+    }
+
+    const cursor = new Date(loopStart);
     let guard = 0;
     while (cursor <= yesterday && guard < 370) {
       const dateKey = task.toKebabCase(cursor);
@@ -106,12 +112,22 @@ class Index extends HTMLElement {
     const alreadyAddedToday = overdueTasks.some(
       item => item.dateKey === todayKey,
     );
+    
+    // 翌日またぎで前日未完了の場合、当日も「未実施」扱い
+    const yesterdayKey = task.toKebabCase(yesterday);
+    const isOvernightAndYesterdayIncomplete =
+      startNorm > endNorm &&
+      !task.history[yesterdayKey] &&
+      task.isTaskScheduledOnDate(yesterday);
+
     if (
       !alreadyAddedToday &&
       !task.history[todayKey] &&
       task.isTaskScheduledOnDate(todayDate) &&
-      !timeCheck.valid &&
-      !timeCheck.ready
+      (
+        (!timeCheck.valid && !timeCheck.ready) ||
+        isOvernightAndYesterdayIncomplete
+      )
     ) {
       overdueTasks.push({task, dateKey: todayKey});
     }

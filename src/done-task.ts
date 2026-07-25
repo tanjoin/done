@@ -424,8 +424,8 @@ export default class DoneTask implements DoneTaskData {
       }
     } else {
       // 翌日をまたぐ時間帯（start > end）
-      // currentStr >= start OR currentStr <= end なら時間内
-      if (currentStr >= start || currentStr <= end) {
+      // 当日は start 以後のみ有効
+      if (currentStr >= start) {
         return {valid: true, ready: false, msg: ''};
       }
       // それ以外は時間外
