@@ -71,11 +71,29 @@ class Index extends HTMLElement {
     }
 
     const overdueTasks: DoneOverdueTask[] = [];
+    const startNorm = task.normalizeStartTime();
+    const endNorm = task.normalizeEndTime();
+    const now = new Date();
+    const currentStr =
+      String(now.getHours()).padStart(2, '0') +
+      ':' +
+      String(now.getMinutes()).padStart(2, '0');
+
     const cursor = new Date(referenceDate);
     let guard = 0;
     while (cursor <= yesterday && guard < 370) {
       const dateKey = task.toKebabCase(cursor);
-      if (!task.history[dateKey] && task.isTaskScheduledOnDate(cursor)) {
+      // 翌日またぎで前日でかつ実施中の場合はスキップ
+      const isOvernightAndStillExecuting =
+        cursor.getTime() === yesterday.getTime() &&
+        startNorm > endNorm &&
+        currentStr <= endNorm;
+
+      if (
+        !task.history[dateKey] &&
+        task.isTaskScheduledOnDate(cursor) &&
+        !isOvernightAndStillExecuting
+      ) {
         overdueTasks.push({task, dateKey});
       }
       cursor.setDate(cursor.getDate() + 1);

@@ -424,18 +424,12 @@ export default class DoneTask implements DoneTaskData {
       }
     } else {
       // 翌日をまたぐ時間帯（start > end）
-      // 前日の履歴をチェック
-      const hasYesterdayHistory =
-        this.history && this.history[DateHelper.yesterday];
-
-      // 前日の履歴がある場合のみ、startTimeまでを時間外にする
-      if (hasYesterdayHistory && currentStr < start) {
-        return {valid: false, ready: true, msg: `時間外 (${start}から)`};
-      }
       // currentStr >= start OR currentStr <= end なら時間内
-      if (currentStr < start && currentStr > end) {
-        return {valid: false, ready: true, msg: `時間外 (${start}〜翌${end})`};
+      if (currentStr >= start || currentStr <= end) {
+        return {valid: true, ready: false, msg: ''};
       }
+      // それ以外は時間外
+      return {valid: false, ready: true, msg: `時間外 (${start}〜翌${end})`};
     }
     return {valid: true, ready: false, msg: ''};
   }
