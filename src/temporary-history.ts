@@ -140,10 +140,9 @@ export class TemporaryHistory extends HTMLElement {
       const endDateStr = item.endDate
         ? `<br><small>終了日: ${item.endDate}</small>`
         : '';
-      const skipCalendarStr =
-        item.skipCalendarOnComplete === true
-          ? '<br><small>完了時カレンダー追加: しない</small>'
-          : '';
+      const skipCalendarStr = item.skipCalendarOnComplete === true
+        ? '<br><small>完了時カレンダー追加: しない</small>'
+        : '';
 
       div.innerHTML = `
             <div class="history-info">

@@ -396,40 +396,6 @@ export default class DoneTask implements DoneTaskData {
     if (this.daysOfMonth && this.daysOfMonth.includes(currentDayOfMonth))
       return true;
 
-    // 翌日をまたぐタスク（startTime > endTime）の場合、endTimeを超えるまでは当日扱い
-    if (this.startTime && this.endTime) {
-      const startNorm = this.normalizeStartTime();
-      const endNorm = this.normalizeEndTime();
-      if (startNorm > endNorm) {
-        // 翌日またぎの場合、現在時刻がendTimeを超えているかチェック
-        const now = new Date();
-        const currentStr =
-          String(now.getHours()).padStart(2, '0') +
-          ':' +
-          String(now.getMinutes()).padStart(2, '0');
-
-        // endTimeをまだ超えていない場合は、前日の曜日要件をチェック（当日扱い）
-        if (currentStr <= endNorm) {
-          const yesterday = new Date(targetDate);
-          yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayDayOfWeek = yesterday.getDay();
-          const yesterdayDayOfMonth = yesterday.getDate();
-
-          // 前日が曜日制限に含まれている場合は対象日
-          if (this.daysOfWeek && this.daysOfWeek.includes(yesterdayDayOfWeek)) {
-            return true;
-          }
-          // 前日が月の日付制限に含まれている場合は対象日
-          if (
-            this.daysOfMonth &&
-            this.daysOfMonth.includes(yesterdayDayOfMonth)
-          ) {
-            return true;
-          }
-        }
-      }
-    }
-
     return false;
   }
 
