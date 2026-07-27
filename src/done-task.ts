@@ -415,6 +415,8 @@ export default class DoneTask implements DoneTaskData {
     const end = DateHelper.normalizeTime(this.endTime || '23:59');
     const today = DateHelper.todayDate;
     const yesterday = DateHelper.yesterdayDate;
+    const yesterdayKey = this.toKebabCase(yesterday);
+    const hasYesterdayHistory = !!this.history?.[yesterdayKey];
     const isTodayScheduled = this.isTaskScheduledOnDate(today);
     const isYesterdayScheduled = this.isTaskScheduledOnDate(yesterday);
 
@@ -435,8 +437,8 @@ export default class DoneTask implements DoneTaskData {
       if (currentStr >= start && isTodayScheduled) {
         return {valid: true, ready: false, msg: ''};
       }
-      // 翌日 end までの繰り越しは、前日が対象日の場合のみ有効
-      if (currentStr <= end && isYesterdayScheduled) {
+      // 翌日側（00:00〜end）は、前日が対象日かつ前日未処理の場合のみ有効
+      if (currentStr <= end && isYesterdayScheduled && !hasYesterdayHistory) {
         return {valid: true, ready: false, msg: ''};
       }
       // それ以外は時間外
@@ -447,25 +449,27 @@ export default class DoneTask implements DoneTaskData {
 
   shouldShowTask(): boolean {
     const now = new Date();
+    const startNorm = this.normalizeStartTime();
+    const endNorm = this.normalizeEndTime();
+    const currentStr = DateHelper.normalizeDateString(now);
+    const yesterday = DateHelper.yesterdayDate;
+
     // タスクが特定の日付にスケジュールされている場合、その日付と現在の日付を比較する
     if (this.isTaskScheduledOnDate(now)) {
       return true;
     }
 
-    const yesterday = DateHelper.yesterdayDate;
-    // 前日の履歴があり、かつ startTime > endTime の場合は、前日のタスクがまだ有効な時間帯にいる可能性がある
+    // 日跨ぎの翌日側（00:00〜end）は、前日が対象日かつ前日未処理の場合は表示する
     if (
-      this.isTaskScheduledOnDate(yesterday) &&
-      this.startTime &&
-      this.endTime
+      startNorm &&
+      endNorm &&
+      startNorm > endNorm &&
+      currentStr <= endNorm &&
+      this.isTaskScheduledOnDate(yesterday)
     ) {
-      const startNorm = this.normalizeStartTime();
-      const endNorm = this.normalizeEndTime();
-      if (startNorm > endNorm) {
-        const currentStr = DateHelper.normalizeDateString(now);
-        if (currentStr <= endNorm) {
-          return true;
-        }
+      const yesterdayKey = this.toKebabCase(yesterday);
+      if (!this.history?.[yesterdayKey]) {
+        return true;
       }
     }
 

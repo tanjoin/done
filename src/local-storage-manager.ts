@@ -43,6 +43,26 @@ const DONE_NOTIFICATION_SOUNDS: DoneNotificationSound[] = [
 ];
 
 export default class LocalStorageManager {
+  private static sortHistoryByDate(
+    history: DoneTaskData['history'] | undefined,
+  ): DoneTaskData['history'] {
+    const source = history || {};
+    const sorted: DoneTaskData['history'] = {};
+    Object.entries(source)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([dateKey, status]) => {
+        sorted[dateKey] = status;
+      });
+    return sorted;
+  }
+
+  private static normalizeTasksForStorage(tasks: DoneTaskData[]): DoneTaskData[] {
+    return tasks.map(task => ({
+      ...task,
+      history: LocalStorageManager.sortHistoryByDate(task.history),
+    }));
+  }
+
   static get LEGACY_V3_TASKS_KEY(): string {
     return 'calendar_tasks_v3';
   }
@@ -238,7 +258,9 @@ export default class LocalStorageManager {
       localStorage.removeItem(LocalStorageManager.TASKS_KEY);
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
     } else {
-      const serialized = JSON.stringify(tasks);
+      const serialized = JSON.stringify(
+        LocalStorageManager.normalizeTasksForStorage(tasks),
+      );
       // 移行後は done_tasks を単一の正とする
       localStorage.setItem(LocalStorageManager.TASKS_KEY, serialized);
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);

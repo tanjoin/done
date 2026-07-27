@@ -98,22 +98,6 @@ class Index extends HTMLElement {
       guard++;
     }
 
-    const todayDate = DateHelper.todayDate;
-    const todayKey = task.toKebabCase(todayDate);
-    const alreadyAddedToday = overdueTasks.some(
-      item => item.dateKey === todayKey,
-    );
-    const todayWindowEnded = task.hasExecutionWindowEndedOnDate(todayDate, now);
-
-    if (
-      !alreadyAddedToday &&
-      !task.history[todayKey] &&
-      task.isTaskScheduledOnDate(todayDate) &&
-      todayWindowEnded
-    ) {
-      overdueTasks.push({task, dateKey: todayKey});
-    }
-
     return overdueTasks;
   }
 
