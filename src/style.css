@@ -718,6 +718,37 @@ a:not(.nav-link):hover {
     font-size: 14px;
     margin-top: 48px;
 }
+
+.json-tool-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+@media (min-width: 900px) {
+    .json-tool-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.json-editor {
+    min-height: 420px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    line-height: 1.45;
+    resize: vertical;
+}
+
+.json-status-msg {
+    margin: 12px 0 0;
+    color: #10b981;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.json-status-msg--error {
+    color: #ef4444;
+}
+
 .app-footer {
     text-align: center;
     margin-top: 80px;

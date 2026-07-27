@@ -1,5 +1,9 @@
-import {DoneNotificationSound, DoneTheme, DoneSwitchViewMode} from './types';
-import DoneTask from './done-task';
+import {
+  DoneNotificationSound,
+  DoneTheme,
+  DoneSwitchViewMode,
+  DoneTaskData,
+} from './types';
 import {TemporaryHistoryItem} from './temporary-history';
 
 const DONE_NOTIFICATION_SOUNDS: DoneNotificationSound[] = [
@@ -206,14 +210,16 @@ export default class LocalStorageManager {
     );
   }
 
-  static get tasks(): DoneTask[] {
+  static get tasks(): DoneTaskData[] {
     LocalStorageManager.tryMigrateLegacyTasksToDoneTasks();
     const tasksJson = localStorage.getItem(LocalStorageManager.TASKS_KEY);
     if (!tasksJson) {
       return [];
     }
     try {
-      const parsed = JSON.parse(tasksJson) as DoneTask[] | {tasks?: DoneTask[]};
+      const parsed = JSON.parse(tasksJson) as
+        | DoneTaskData[]
+        | {tasks?: DoneTaskData[]};
       if (Array.isArray(parsed)) {
         return parsed;
       }
@@ -227,7 +233,7 @@ export default class LocalStorageManager {
     }
   }
 
-  static set tasks(tasks: DoneTask[] | null) {
+  static set tasks(tasks: DoneTaskData[] | null) {
     if (tasks === null) {
       localStorage.removeItem(LocalStorageManager.TASKS_KEY);
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);

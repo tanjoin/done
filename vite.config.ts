@@ -16,6 +16,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         temporary: resolve(__dirname, 'temporary.html'),
         settings: resolve(__dirname, 'settings.html'),
+        jsonOrganizer: resolve(__dirname, 'json-organizer.html'),
       },
     },
   },
