@@ -74,10 +74,6 @@ class Index extends HTMLElement {
     const startNorm = task.normalizeStartTime();
     const endNorm = task.normalizeEndTime();
     const now = new Date();
-    const currentStr =
-      String(now.getHours()).padStart(2, '0') +
-      ':' +
-      String(now.getMinutes()).padStart(2, '0');
 
     // 翌日またぎの場合はループを一日前から開始
     let loopStart = new Date(referenceDate);
@@ -89,16 +85,12 @@ class Index extends HTMLElement {
     let guard = 0;
     while (cursor <= yesterday && guard < 370) {
       const dateKey = task.toKebabCase(cursor);
-      // 翌日またぎで前日でかつ実施中の場合はスキップ
-      const isOvernightAndStillExecuting =
-        cursor.getTime() === yesterday.getTime() &&
-        startNorm > endNorm &&
-        currentStr <= endNorm;
+      const hasEnded = task.hasExecutionWindowEndedOnDate(cursor, now);
 
       if (
         !task.history[dateKey] &&
         task.isTaskScheduledOnDate(cursor) &&
-        !isOvernightAndStillExecuting
+        hasEnded
       ) {
         overdueTasks.push({task, dateKey});
       }
@@ -108,26 +100,16 @@ class Index extends HTMLElement {
 
     const todayDate = DateHelper.todayDate;
     const todayKey = task.toKebabCase(todayDate);
-    const timeCheck = task.timeCheck();
     const alreadyAddedToday = overdueTasks.some(
       item => item.dateKey === todayKey,
     );
-    
-    // 翌日またぎで前日未完了の場合、当日も「未実施」扱い
-    const yesterdayKey = task.toKebabCase(yesterday);
-    const isOvernightAndYesterdayIncomplete =
-      startNorm > endNorm &&
-      !task.history[yesterdayKey] &&
-      task.isTaskScheduledOnDate(yesterday);
+    const todayWindowEnded = task.hasExecutionWindowEndedOnDate(todayDate, now);
 
     if (
       !alreadyAddedToday &&
       !task.history[todayKey] &&
       task.isTaskScheduledOnDate(todayDate) &&
-      (
-        (!timeCheck.valid && !timeCheck.ready) ||
-        isOvernightAndYesterdayIncomplete
-      )
+      todayWindowEnded
     ) {
       overdueTasks.push({task, dateKey: todayKey});
     }

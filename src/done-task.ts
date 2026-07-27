@@ -225,7 +225,7 @@ export default class DoneTask implements DoneTaskData {
     return this.getTaskStatusInfo(
       this.todayStatus,
       this.timeCheck(),
-      this.isTaskScheduledOnDate(new Date()),
+      this.shouldShowTask(),
     );
   }
 
@@ -413,9 +413,16 @@ export default class DoneTask implements DoneTaskData {
 
     const start = DateHelper.normalizeTime(this.startTime || '00:00');
     const end = DateHelper.normalizeTime(this.endTime || '23:59');
+    const today = DateHelper.todayDate;
+    const yesterday = DateHelper.yesterdayDate;
+    const isTodayScheduled = this.isTaskScheduledOnDate(today);
+    const isYesterdayScheduled = this.isTaskScheduledOnDate(yesterday);
 
     if (start <= end) {
       // 通常の時間帯（同一日内）
+      if (!isTodayScheduled) {
+        return {valid: false, ready: false, msg: '対象日外'};
+      }
       if (currentStr < start) {
         return {valid: false, ready: true, msg: `時間外 (${start}から)`};
       }
@@ -424,8 +431,12 @@ export default class DoneTask implements DoneTaskData {
       }
     } else {
       // 翌日をまたぐ時間帯（start > end）
-      // 当日は start 以後のみ有効
-      if (currentStr >= start) {
+      // 当日 start 以後は、当日が対象日の場合のみ有効
+      if (currentStr >= start && isTodayScheduled) {
+        return {valid: true, ready: false, msg: ''};
+      }
+      // 翌日 end までの繰り越しは、前日が対象日の場合のみ有効
+      if (currentStr <= end && isYesterdayScheduled) {
         return {valid: true, ready: false, msg: ''};
       }
       // それ以外は時間外
@@ -566,5 +577,57 @@ export default class DoneTask implements DoneTaskData {
       normalizedStart: this.normalizeStartTime(),
       startMinutes: hour * 60 + minute,
     };
+  }
+
+  private static parseTimeToHourMinute(
+    time: string,
+  ): {hour: number; minute: number} | null {
+    if (!/^\d{2}:\d{2}$/.test(time)) {
+      return null;
+    }
+    const parts = time.split(':');
+    if (parts.length !== 2) {
+      return null;
+    }
+    const hour = Number(parts[0]);
+    const minute = Number(parts[1]);
+    if (
+      !Number.isInteger(hour) ||
+      !Number.isInteger(minute) ||
+      hour < 0 ||
+      hour > 23 ||
+      minute < 0 ||
+      minute > 59
+    ) {
+      return null;
+    }
+    return {hour, minute};
+  }
+
+  hasExecutionWindowEndedOnDate(scheduleDate: Date, now: Date = new Date()): boolean {
+    const startNorm = this.normalizeStartTime() || '00:00';
+    const endNorm = this.normalizeEndTime() || '23:59';
+    const endTime = DoneTask.parseTimeToHourMinute(endNorm);
+    if (!endTime) {
+      // 時刻解釈に失敗した場合は未実施判定を許容する
+      return true;
+    }
+
+    const endAt = new Date(
+      scheduleDate.getFullYear(),
+      scheduleDate.getMonth(),
+      scheduleDate.getDate(),
+      endTime.hour,
+      endTime.minute,
+      0,
+      0,
+    );
+
+    // start > end の場合は翌日終了
+    if (startNorm > endNorm) {
+      endAt.setDate(endAt.getDate() + 1);
+    }
+
+    return now > endAt;
   }
 }
