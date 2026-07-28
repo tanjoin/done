@@ -1,8 +1,13 @@
 import DoneTask from './done-task';
 import LocalStorageManager from './local-storage-manager';
+import type {DoneTaskData} from './types';
 
 export default class TaskRepository {
   private _tasks: DoneTask[] = [];
+
+  private hydrateTasks(rawTasks: DoneTaskData[]): DoneTask[] {
+    return rawTasks.map(task => new DoneTask(task));
+  }
 
   get tasks(): DoneTask[] {
     return this._tasks;
@@ -20,7 +25,7 @@ export default class TaskRepository {
 
   async loadTasks(): Promise<void> {
     const savedTasks = LocalStorageManager.tasks;
-    this._tasks = savedTasks || [];
+    this._tasks = this.hydrateTasks(savedTasks || []);
     if (this._tasks.length === 0 && !LocalStorageManager.hasStoredTasksData()) {
       await this.resetToDefault();
     }
@@ -34,9 +39,9 @@ export default class TaskRepository {
       });
     }
 
-    const tasksFromJson: DoneTask[] = await response.json();
-    this._tasks = tasksFromJson;
-    LocalStorageManager.tasks = tasksFromJson;
+    const tasksFromJson = (await response.json()) as DoneTaskData[];
+    this._tasks = this.hydrateTasks(tasksFromJson);
+    LocalStorageManager.tasks = this._tasks;
   }
 
   saveTasks(): void {

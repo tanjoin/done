@@ -224,9 +224,13 @@ class Index extends HTMLElement {
       }
 
       const isTargetDay = task.shouldShowTask();
-      targetDayMap[task.id] = isTargetDay;
+      const isScheduledToday = task.isTaskScheduledOnDate(DateHelper.todayDate);
+      const isDisplayTargetDay =
+        isTargetDay ||
+        (!LocalStorageManager.filterHideOutOfTime && isScheduledToday);
+      targetDayMap[task.id] = isDisplayTargetDay;
       // 該当日でないタスクを非表示にする設定が有効で、かつ該当日でない場合はスキップ
-      if (!isTargetDay && LocalStorageManager.filterHideNonTargetDay) {
+      if (!isDisplayTargetDay && LocalStorageManager.filterHideNonTargetDay) {
         return;
       }
       const todayStatus = task.history[TODAY];
@@ -251,7 +255,7 @@ class Index extends HTMLElement {
       }
       // 時間外のタスクを非表示にする設定が有効で、かつ時間外であり、かつリマインドが設定されていない場合は非表示
       if (
-        isTargetDay &&
+        isDisplayTargetDay &&
         !todayStatus &&
         !timeCheck.valid &&
         !isUnprocessedAfterWindow &&
