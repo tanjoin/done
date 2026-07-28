@@ -409,6 +409,12 @@ class DoneTask {
         const yesterday = date_helper_1.default.yesterdayDate;
         // タスクが特定の日付にスケジュールされている場合、その日付と現在の日付を比較する
         if (this.isTaskScheduledOnDate(now)) {
+            if (this.specificDate && this.startTime) {
+                const reminderCandidate = this.toReminderCandidate(now);
+                if (reminderCandidate) {
+                    return now >= reminderCandidate.reminderAt;
+                }
+            }
             return true;
         }
         // 日跨ぎの翌日側（00:00〜end）は、前日が対象日かつ前日未処理の場合は表示する

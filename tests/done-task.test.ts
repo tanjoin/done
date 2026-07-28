@@ -92,3 +92,33 @@ test('過去日付の一時タスクは未実施ではなく対象日外にな�
     assert.equal(task.statusInfo.label, '対象日外');
   });
 });
+
+test('当日開始前の日付指定タスクは表示対象にならない', () => {
+  withMockedNow('2026-07-28T12:00:00+09:00', () => {
+    const task = new DoneTask({
+      id: 'temp-2',
+      text: 'ナイター',
+      group: '野球',
+      startTime: '18:30',
+      endTime: '23:59',
+      specificDate: '2026-07-28',
+      history: {},
+    });
+    assert.equal(task.shouldShowTask(), false);
+  });
+});
+
+test('当日開始後の日付指定タスクは表示対象になる', () => {
+  withMockedNow('2026-07-28T18:31:00+09:00', () => {
+    const task = new DoneTask({
+      id: 'temp-3',
+      text: 'ナイター',
+      group: '野球',
+      startTime: '18:30',
+      endTime: '23:59',
+      specificDate: '2026-07-28',
+      history: {},
+    });
+    assert.equal(task.shouldShowTask(), true);
+  });
+});

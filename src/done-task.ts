@@ -484,6 +484,12 @@ export default class DoneTask implements DoneTaskData {
 
     // タスクが特定の日付にスケジュールされている場合、その日付と現在の日付を比較する
     if (this.isTaskScheduledOnDate(now)) {
+      if (this.specificDate && this.startTime) {
+        const reminderCandidate = this.toReminderCandidate(now);
+        if (reminderCandidate) {
+          return now >= reminderCandidate.reminderAt;
+        }
+      }
       return true;
     }
 

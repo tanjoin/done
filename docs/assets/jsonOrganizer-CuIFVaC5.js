@@ -1,4 +1,4 @@
-import{a as e,c as t,d as n,f as r,i,n as a,o,r as s,s as c,t as l}from"./local-storage-manager-Bz-5tod_.js";r((()=>{n(),o(),i(),a(),t();var r=class extends HTMLElement{_tasks=[];static get NAME(){return`done-json-organizer`}connectedCallback(){this.render(),this.loadTasks(),this.setupEvents()}render(){this.innerHTML=`
+import{a as e,c as t,d as n,f as r,i,n as a,o,r as s,s as c,t as l}from"./local-storage-manager-DXHEJaMj.js";r((()=>{n(),o(),i(),a(),t();var r=class extends HTMLElement{_tasks=[];static get NAME(){return`done-json-organizer`}connectedCallback(){this.render(),this.loadTasks(),this.setupEvents()}render(){this.innerHTML=`
       <main>
         <h3 class="group-title">タスク JSON 編集</h3>
         <div class="data-box">
