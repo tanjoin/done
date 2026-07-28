@@ -260,7 +260,7 @@ class Index extends HTMLElement {
         !timeCheck.valid &&
         !isUnprocessedAfterWindow &&
         LocalStorageManager.filterHideOutOfTime &&
-        !task.hasExplicitReminderLead()
+        !task.isReminderWindowActive()
       ) {
         return;
       }

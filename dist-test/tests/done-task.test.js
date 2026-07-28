@@ -114,3 +114,24 @@ function createDailyTask(startTime, endTime) {
         strict_1.default.equal(task.shouldShowTask(), true);
     });
 });
+(0, node_test_1.default)('リマインド時間帯の判定は開始前の限定時間だけ true になる', () => {
+    const task = new done_task_1.default({
+        id: 'task-reminder',
+        text: '深夜ラジオ',
+        group: '声優',
+        specificDate: '2026-07-29',
+        startTime: '02:00',
+        endTime: '02:30',
+        remindMinutesBefore: 5,
+        history: {},
+    });
+    withMockedNow('2026-07-29T01:30:00+09:00', () => {
+        strict_1.default.equal(task.isReminderWindowActive(), false);
+    });
+    withMockedNow('2026-07-29T01:56:00+09:00', () => {
+        strict_1.default.equal(task.isReminderWindowActive(), true);
+    });
+    withMockedNow('2026-07-29T02:01:00+09:00', () => {
+        strict_1.default.equal(task.isReminderWindowActive(), false);
+    });
+});

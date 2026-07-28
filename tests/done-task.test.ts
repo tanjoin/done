@@ -122,3 +122,28 @@ test('当日開始後の日付指定タスクは表示対象になる', () => {
     assert.equal(task.shouldShowTask(), true);
   });
 });
+
+test('リマインド時間帯の判定は開始前の限定時間だけ true になる', () => {
+  const task = new DoneTask({
+    id: 'task-reminder',
+    text: '深夜ラジオ',
+    group: '声優',
+    specificDate: '2026-07-29',
+    startTime: '02:00',
+    endTime: '02:30',
+    remindMinutesBefore: 5,
+    history: {},
+  });
+
+  withMockedNow('2026-07-29T01:30:00+09:00', () => {
+    assert.equal(task.isReminderWindowActive(), false);
+  });
+
+  withMockedNow('2026-07-29T01:56:00+09:00', () => {
+    assert.equal(task.isReminderWindowActive(), true);
+  });
+
+  withMockedNow('2026-07-29T02:01:00+09:00', () => {
+    assert.equal(task.isReminderWindowActive(), false);
+  });
+});

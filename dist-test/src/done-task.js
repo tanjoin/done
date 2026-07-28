@@ -129,6 +129,21 @@ class DoneTask {
     hasExplicitReminderLead() {
         return this.normalizeRemindMinutesBefore() !== null;
     }
+    isReminderWindowActive(now = new Date()) {
+        const leadMinutes = this.normalizeRemindMinutesBefore();
+        if (leadMinutes === null || leadMinutes <= 0) {
+            return false;
+        }
+        if (!this.startTime || !this.isTaskScheduledOnDate(now)) {
+            return false;
+        }
+        const candidate = this.toReminderCandidate(now);
+        if (!candidate) {
+            return false;
+        }
+        const startAt = new Date(candidate.reminderAt.getTime() + leadMinutes * 60000);
+        return now >= candidate.reminderAt && now < startAt;
+    }
     get todayStatus() {
         return this.history ? this.history[date_helper_1.default.today] : undefined;
     }
