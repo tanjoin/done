@@ -231,6 +231,10 @@ class Index extends HTMLElement {
       }
       const todayStatus = task.history[TODAY];
       const timeCheck = task.timeCheck();
+      const isUnprocessedAfterWindow =
+        !todayStatus &&
+        task.isTaskScheduledOnDate(DateHelper.todayDate) &&
+        task.hasExecutionWindowEndedOnDate(DateHelper.todayDate, new Date());
       // 完了済みタスクを非表示にする設定が有効で、かつ完了済みの場合はスキップ
       if (
         todayStatus === 'completed' &&
@@ -250,6 +254,7 @@ class Index extends HTMLElement {
         isTargetDay &&
         !todayStatus &&
         !timeCheck.valid &&
+        !isUnprocessedAfterWindow &&
         LocalStorageManager.filterHideOutOfTime &&
         !task.hasExplicitReminderLead()
       ) {
@@ -340,6 +345,8 @@ class Index extends HTMLElement {
         card.className = 'card';
         if (todayStatus) {
           card.setAttribute('data-done', 'true');
+        } else if (statusInfo.className === 'chip-status-todo') {
+          card.setAttribute('data-overdue', 'true');
         } else if (!timeCheck.valid) {
           card.setAttribute('data-out-of-time', 'true');
         }
@@ -355,6 +362,13 @@ class Index extends HTMLElement {
 
         const content = document.createElement('div');
 
+        if (statusInfo.className === 'chip-status-todo') {
+          const overdueDate = document.createElement('div');
+          overdueDate.className = 'overdue-date-label';
+          overdueDate.textContent = task.resolveDateLabelByStatus(statusInfo);
+          content.appendChild(overdueDate);
+        }
+
         const cardTitle = document.createElement('h4');
         cardTitle.className = 'card-title';
         cardTitle.textContent = task.text;
@@ -366,6 +380,8 @@ class Index extends HTMLElement {
           badge.classList.add('status-completed');
         } else if (todayStatus === 'cancelled') {
           badge.classList.add('status-cancelled');
+        } else if (statusInfo.className === 'chip-status-todo') {
+          badge.classList.add('status-todo');
         } else if (statusInfo.className === 'chip-status-reminder') {
           badge.classList.add('status-reminder');
         }
@@ -482,7 +498,9 @@ class Index extends HTMLElement {
 
           const overdueDate = document.createElement('div');
           overdueDate.className = 'overdue-date-label';
-          overdueDate.textContent = `未完了日: ${overdue.dateKey}`;
+          overdueDate.textContent = task.formatUnfinishedDateLabel(
+            overdue.dateKey,
+          );
           content.appendChild(overdueDate);
 
           const cardTitle = document.createElement('h4');

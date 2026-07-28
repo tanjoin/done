@@ -280,6 +280,12 @@ a:not(.nav-link):hover {
     color: #1d4ed8;
 }
 
+.status-todo {
+    background-color: #ffedd5;
+    border-color: #fdba74;
+    color: #9a3412;
+}
+
 /* アクションボタン */
 .card-actions {
     display: flex;

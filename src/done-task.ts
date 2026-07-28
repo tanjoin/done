@@ -213,6 +213,17 @@ export default class DoneTask implements DoneTaskData {
     return '毎日';
   }
 
+  formatUnfinishedDateLabel(dateKey: string): string {
+    return `未完了日: ${dateKey}`;
+  }
+
+  resolveDateLabelByStatus(statusInfo: StatusInfo, dateKey = DateHelper.today) {
+    if (statusInfo.className === 'chip-status-todo') {
+      return this.formatUnfinishedDateLabel(dateKey);
+    }
+    return this.scheduleLabel;
+  }
+
   get statusInfoSpan() {
     const statusSpan = document.createElement('span');
     const statusInfo = this.statusInfo;
@@ -244,13 +255,6 @@ export default class DoneTask implements DoneTaskData {
         locked: true,
       };
     }
-    if (!isTargetDay) {
-      return {
-        label: '対象日外',
-        className: 'chip-status-nontarget',
-        locked: true,
-      };
-    }
     if (
       this.isReminderActiveOnDate(DateHelper.todayDate, new Date()) ||
       this.isReminderActiveOnDate(DateHelper.tomorrowDate, new Date())
@@ -268,6 +272,24 @@ export default class DoneTask implements DoneTaskData {
         locked: false,
       };
     }
+
+    const now = new Date();
+    const today = DateHelper.todayDate;
+    if (
+      this.isTaskScheduledOnDate(today) &&
+      this.hasExecutionWindowEndedOnDate(today, now)
+    ) {
+      return {label: '未実施', className: 'chip-status-todo', locked: false};
+    }
+
+    if (!isTargetDay) {
+      return {
+        label: '対象日外',
+        className: 'chip-status-nontarget',
+        locked: true,
+      };
+    }
+
     return {label: '時間外', className: 'chip-status-nontarget', locked: false};
   }
 
@@ -289,6 +311,11 @@ export default class DoneTask implements DoneTaskData {
     if (this.todayStatus) {
       row.setAttribute('data-done', 'true');
     }
+    const statusInfo = this.statusInfo;
+    if (statusInfo.className === 'chip-status-todo') {
+      row.setAttribute('data-overdue', 'true');
+    }
+
     const groupChipTd = document.createElement('td');
     groupChipTd.appendChild(this.groupChip);
     row.appendChild(groupChipTd);
@@ -303,11 +330,13 @@ export default class DoneTask implements DoneTaskData {
     row.appendChild(timeLabelTd);
 
     const dateLabelTd = document.createElement('td');
-    dateLabelTd.textContent = this.scheduleLabel;
+    dateLabelTd.textContent = this.resolveDateLabelByStatus(statusInfo);
     row.appendChild(dateLabelTd);
 
     const statusTd = document.createElement('td');
-    const statusSpan = this.statusInfoSpan;
+    const statusSpan = document.createElement('span');
+    statusSpan.className = `chip ${statusInfo.className}`;
+    statusSpan.textContent = statusInfo.label;
     statusTd.appendChild(statusSpan);
     row.appendChild(statusTd);
 
@@ -322,7 +351,6 @@ export default class DoneTask implements DoneTaskData {
     mainButton.setAttribute('data-task-action', 'complete');
     mainButton.setAttribute('data-task-id', this.id);
 
-    const statusInfo = this.statusInfo;
     const isStrict = this.strictMode === true;
     const timeCheck = this.timeCheck();
     if (statusInfo.locked || (!timeCheck.valid && isStrict)) {
@@ -608,15 +636,26 @@ export default class DoneTask implements DoneTaskData {
     return {hour, minute};
   }
 
-  hasExecutionWindowEndedOnDate(scheduleDate: Date, now: Date = new Date()): boolean {
+  private getExecutionWindowBoundsOnDate(
+    scheduleDate: Date,
+  ): {startAt: Date; endAt: Date} | null {
     const startNorm = this.normalizeStartTime() || '00:00';
     const endNorm = this.normalizeEndTime() || '23:59';
+    const startTime = DoneTask.parseTimeToHourMinute(startNorm);
     const endTime = DoneTask.parseTimeToHourMinute(endNorm);
-    if (!endTime) {
-      // 時刻解釈に失敗した場合は未実施判定を許容する
-      return true;
+    if (!startTime || !endTime) {
+      return null;
     }
 
+    const startAt = new Date(
+      scheduleDate.getFullYear(),
+      scheduleDate.getMonth(),
+      scheduleDate.getDate(),
+      startTime.hour,
+      startTime.minute,
+      0,
+      0,
+    );
     const endAt = new Date(
       scheduleDate.getFullYear(),
       scheduleDate.getMonth(),
@@ -627,11 +666,19 @@ export default class DoneTask implements DoneTaskData {
       0,
     );
 
-    // start > end の場合は翌日終了
+    // start > end の場合は翌日終了として扱う
     if (startNorm > endNorm) {
       endAt.setDate(endAt.getDate() + 1);
     }
 
-    return now > endAt;
+    return {startAt, endAt};
+  }
+
+  hasExecutionWindowEndedOnDate(scheduleDate: Date, now: Date = new Date()): boolean {
+    const bounds = this.getExecutionWindowBoundsOnDate(scheduleDate);
+    if (!bounds) {
+      return false;
+    }
+    return now >= bounds.endAt;
   }
 }
