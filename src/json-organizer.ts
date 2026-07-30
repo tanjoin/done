@@ -25,15 +25,30 @@ class JsonOrganizer extends HTMLElement {
         <div class="data-box">
           <p class="setting-desc">
             done_tasks を読み込み、1タスクずつ JSON で直接編集できます。<br />
+            一時タスクは specificDate を設定したタスクとして管理します。<br />
             保存前に JSON 整形で確認してください。
           </p>
 
           <div class="btn-group-wrap">
             <button id="jsonReloadTasksBtn" class="btn">再読込</button>
             <button id="jsonSaveAllTasksBtn" class="btn btn-action">done_tasks 全体を保存</button>
-            <button id="jsonAddTaskBtn" class="btn">新規タスク追加</button>
+            <button id="jsonAddTaskBtn" class="btn">タスク追加</button>
             <button id="jsonDeleteTaskBtn" class="btn">選択タスク削除</button>
           </div>
+
+          <dialog id="jsonAddTaskDialog" class="task-type-dialog">
+            <form method="dialog" class="task-type-dialog__form">
+              <h4 class="task-type-dialog__title">追加するタスク種別を選択</h4>
+              <p class="task-type-dialog__desc">通常タスクか一時タスクを明示的に選んでください。</p>
+              <div class="task-type-dialog__actions">
+                <button value="normal" class="btn task-type-dialog__choice-btn">通常タスク</button>
+                <button value="temporary" class="btn task-type-dialog__choice-btn">一時タスク</button>
+              </div>
+              <div class="task-type-dialog__actions task-type-dialog__actions--cancel">
+                <button value="cancel" class="btn btn-cancel">キャンセル</button>
+              </div>
+            </form>
+          </dialog>
 
           <div class="setting-row">
             <label for="jsonTaskSelect">編集対象タスク</label>
@@ -76,12 +91,23 @@ class JsonOrganizer extends HTMLElement {
 
     this.getElement<HTMLButtonElement>('jsonAddTaskBtn').addEventListener(
       'click',
-      () => {
-        const newTask = this.createEmptyTask();
+      async () => {
+        const taskType = await this.openAddTaskDialog();
+        if (!taskType) {
+          this.setStatus('タスク追加をキャンセルしました。');
+          return;
+        }
+
+        const isTemporaryTask = taskType === 'temporary';
+        const newTask = this.createTaskTemplate(isTemporaryTask);
         this._tasks.push(newTask);
         this.renderTaskSelectOptions(newTask.id);
         this.renderSelectedTaskJson();
-        this.setStatus('新規タスクを追加しました。内容を編集して保存してください。');
+        this.setStatus(
+          isTemporaryTask
+            ? '一時タスクを追加しました。specificDate や時刻を調整して保存してください。'
+            : '通常タスクを追加しました。繰り返し条件などを編集して保存してください。',
+        );
       },
     );
 
@@ -215,12 +241,14 @@ class JsonOrganizer extends HTMLElement {
     editor.value = JSON.stringify(data, null, 2);
   }
 
-  private createEmptyTask(): DoneTaskData {
+  private createTaskTemplate(isTemporaryTask: boolean): DoneTaskData {
     const now = Date.now();
+    const today = new Date().toISOString().slice(0, 10);
+    const idPrefix = isTemporaryTask ? 'temp' : 'task';
     return {
-      id: `task_${now}`,
-      text: '新規タスク',
-      group: 'その他',
+      id: `${idPrefix}_${now}`,
+      text: isTemporaryTask ? '一時タスク' : '新規タスク',
+      group: isTemporaryTask ? '一時' : 'その他',
       description: '',
       link: '',
       daysOfWeek: [],
@@ -232,9 +260,32 @@ class JsonOrganizer extends HTMLElement {
       remindMinutesBefore: null,
       skipCalendarOnComplete: false,
       strictMode: false,
-      specificDate: '',
+      specificDate: isTemporaryTask ? today : '',
       endDate: '',
     };
+  }
+
+  private openAddTaskDialog(): Promise<'normal' | 'temporary' | null> {
+    const dialog = this.getElement<HTMLDialogElement>('jsonAddTaskDialog');
+    if (typeof dialog.showModal !== 'function') {
+      return Promise.resolve(null);
+    }
+
+    if (!dialog.open) {
+      dialog.showModal();
+    }
+
+    return new Promise(resolve => {
+      const handleClose = () => {
+        dialog.removeEventListener('close', handleClose);
+        if (dialog.returnValue === 'normal' || dialog.returnValue === 'temporary') {
+          resolve(dialog.returnValue);
+          return;
+        }
+        resolve(null);
+      };
+      dialog.addEventListener('close', handleClose);
+    });
   }
 
   private readTaskEditorJson(): DoneTaskData | null {

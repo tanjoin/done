@@ -4,7 +4,6 @@ import {
   DoneSwitchViewMode,
   DoneTaskData,
 } from './types';
-import {TemporaryHistoryItem} from './temporary-history';
 
 const DONE_NOTIFICATION_SOUNDS: DoneNotificationSound[] = [
   'original',
@@ -116,40 +115,6 @@ export default class LocalStorageManager {
       return true;
     } catch {
       return false;
-    }
-  }
-
-  static get TEMPORARY_INPUT_HISTORY_KEY(): string {
-    return 'done_temporary_input_history';
-  }
-
-  static get temporaryInputHistory(): TemporaryHistoryItem[] {
-    const historyJson = localStorage.getItem(
-      LocalStorageManager.TEMPORARY_INPUT_HISTORY_KEY,
-    );
-    if (!historyJson) {
-      return [];
-    }
-    try {
-      const history = JSON.parse(historyJson) as TemporaryHistoryItem[];
-      if (Array.isArray(history)) {
-        return history;
-      }
-      return [];
-    } catch (e) {
-      console.error('Failed to parse temporary history from localStorage:', e);
-      return [];
-    }
-  }
-
-  static set temporaryInputHistory(history: TemporaryHistoryItem[] | null) {
-    if (history === null) {
-      localStorage.removeItem(LocalStorageManager.TEMPORARY_INPUT_HISTORY_KEY);
-    } else {
-      localStorage.setItem(
-        LocalStorageManager.TEMPORARY_INPUT_HISTORY_KEY,
-        JSON.stringify(history),
-      );
     }
   }
 

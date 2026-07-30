@@ -63,6 +63,7 @@ class DoneTask {
     normalizeGroup() {
         return this.group ? this.group.trim() : 'その他';
     }
+    // リマインド猶予時間を正規化して返す。無効な値の場合は null を返す。
     normalizeRemindMinutesBefore() {
         const raw = this.remindMinutesBefore;
         if (raw === null || raw === undefined) {
@@ -126,14 +127,19 @@ class DoneTask {
         }
         return new Date(year, month - 1, day, 0, 0, 0, 0);
     }
+    // リマインド猶予時間が明示的に設定されているかどうかを判定する
     hasExplicitReminderLead() {
+        // remindMinutesBefore が null でない場合、明示的に設定されているとみなす
         return this.normalizeRemindMinutesBefore() !== null;
     }
+    // リマインド猶予時間が設定されている場合、リマインド時間帯にタスクを表示するかどうかを判定する
     isReminderWindowActive(now = new Date()) {
         const leadMinutes = this.normalizeRemindMinutesBefore();
+        // リマインド猶予時間が設定されていない場合は、リマインド時間帯は存在しない
         if (leadMinutes === null || leadMinutes <= 0) {
             return false;
         }
+        // タスクが特定の日付にスケジュールされていない場合は、リマインド時間帯は存在しない
         if (!this.startTime || !this.isTaskScheduledOnDate(now)) {
             return false;
         }
@@ -142,6 +148,8 @@ class DoneTask {
             return false;
         }
         const startAt = new Date(candidate.reminderAt.getTime() + leadMinutes * 60000);
+        // 現在時刻がリマインド時間帯に含まれるかどうかを判定する
+        // リマインド時間帯は、リマインド開始時刻からタスク開始時刻までの期間
         return now >= candidate.reminderAt && now < startAt;
     }
     get todayStatus() {
@@ -331,6 +339,7 @@ class DoneTask {
         actionTd.appendChild(actionContainer);
         row.appendChild(actionTd);
     }
+    // 指定された日付に対して、タスクがスケジュールされているかどうかを判定する
     isTaskScheduledOnDate(targetDate) {
         if (this.specificDate) {
             // 特定の日付が指定されている場合、その日付と比較する
@@ -340,10 +349,12 @@ class DoneTask {
             }
             const start = this.specificDate;
             const end = this.endDate;
+            // start または end が無効な場合は対象外とする
             if (!start || !end || end < start || dStr < start || dStr > end) {
                 return false;
             }
             const todayCompleted = this.history && this.history[dStr] === 'completed';
+            // 当日が対象日で、かつ過去に特定の日付以降で完了した履歴がある場合は、対象日外とする
             if (todayCompleted) {
                 return true;
             }
@@ -490,6 +501,7 @@ class DoneTask {
         }
         return null;
     }
+    // 指定された日付に対して、リマインド候補を生成する
     toReminderCandidate(scheduledDate) {
         if (!this.startTime) {
             return null;

@@ -141,7 +141,7 @@ class Index extends HTMLElement {
   }
 
   private deleteTask(taskId: string): void {
-    if (!confirm('この一時的タスクをリストから完全に削除しますか？')) {
+    if (!confirm('この一時タスクをリストから完全に削除しますか？')) {
       return;
     }
 

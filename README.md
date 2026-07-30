@@ -22,7 +22,7 @@ npm run build
 
 ## 主要ディレクトリ
 
-- `src/`: 画面ごとのクラス実装（`index.ts`, `temporary.ts`, `settings.ts`）
+- `src/`: 画面ごとのクラス実装（`index.ts`, `json-organizer.ts`, `settings.ts`）
 - `public/`: 静的配信ファイル（`tasks.json` など）
 - `tools/`: ローカルサーバーや補助スクリプト
 
