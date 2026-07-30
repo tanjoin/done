@@ -271,10 +271,12 @@ export default class DoneTask implements DoneTaskData {
   }
 
   get statusInfo() {
+    const now = new Date();
     return this.getTaskStatusInfo(
       this.todayStatus,
       this.timeCheck(),
-      this.shouldShowTask(),
+      this.isTargetDay(now),
+      now,
     );
   }
 
@@ -325,6 +327,7 @@ export default class DoneTask implements DoneTaskData {
     todayStatus: TodayStatus,
     timeCheck: TimeCheck,
     isTargetDay: boolean,
+    now: Date = new Date(),
   ): StatusInfo {
     if (todayStatus === 'completed') {
       return {label: '追加済み', className: 'chip-status-done', locked: true};
@@ -354,7 +357,6 @@ export default class DoneTask implements DoneTaskData {
       };
     }
 
-    const now = new Date();
     const today = DateHelper.todayDate;
     if (
       this.isTaskScheduledOnDate(today) &&
@@ -363,14 +365,15 @@ export default class DoneTask implements DoneTaskData {
       return {label: '未実施', className: 'chip-status-todo', locked: false};
     }
 
+    if (this.shouldHideOvernightByYesterdayHistory(now)) {
+      return {
+        label: '時間外',
+        className: 'chip-status-nontarget',
+        locked: false,
+      };
+    }
+
     if (!isTargetDay) {
-      if (timeCheck.msg.startsWith('時間外')) {
-        return {
-          label: '時間外',
-          className: 'chip-status-nontarget',
-          locked: false,
-        };
-      }
       return {
         label: '対象日外',
         className: 'chip-status-nontarget',
@@ -379,6 +382,71 @@ export default class DoneTask implements DoneTaskData {
     }
 
     return {label: '時間外', className: 'chip-status-nontarget', locked: false};
+  }
+
+  private getNormalizedWindowTimes(): {startNorm: string; endNorm: string} | null {
+    const startNorm = DateHelper.normalizeTime(this.startTime || '00:00');
+    const endNorm = DateHelper.normalizeTime(this.endTime || '23:59');
+    if (!startNorm || !endNorm) {
+      return null;
+    }
+    return {startNorm, endNorm};
+  }
+
+  private isOvernightTask(): boolean {
+    const times = this.getNormalizedWindowTimes();
+    if (!times) {
+      return false;
+    }
+    return times.startNorm > times.endNorm;
+  }
+
+  private isInOvernightCurrentDaySlot(now: Date): boolean {
+    const times = this.getNormalizedWindowTimes();
+    if (!times || times.startNorm <= times.endNorm) {
+      return false;
+    }
+    const currentStr = DateHelper.normalizeDateString(now);
+    return currentStr >= times.startNorm;
+  }
+
+  private isInOvernightNextDaySlot(now: Date): boolean {
+    const times = this.getNormalizedWindowTimes();
+    if (!times || times.startNorm <= times.endNorm) {
+      return false;
+    }
+    const currentStr = DateHelper.normalizeDateString(now);
+    return currentStr <= times.endNorm;
+  }
+
+  private isTargetDay(now: Date = new Date()): boolean {
+    if (!this.isOvernightTask()) {
+      return this.isTaskScheduledOnDate(now);
+    }
+
+    const today = DateHelper.todayDate;
+    const yesterday = DateHelper.yesterdayDate;
+    if (this.isInOvernightCurrentDaySlot(now)) {
+      return this.isTaskScheduledOnDate(today);
+    }
+    if (this.isInOvernightNextDaySlot(now)) {
+      return this.isTaskScheduledOnDate(yesterday);
+    }
+    return false;
+  }
+
+  private shouldHideOvernightByYesterdayHistory(now: Date = new Date()): boolean {
+    if (!this.isInOvernightNextDaySlot(now)) {
+      return false;
+    }
+
+    const yesterday = DateHelper.yesterdayDate;
+    if (!this.isTaskScheduledOnDate(yesterday)) {
+      return false;
+    }
+
+    const yesterdayKey = this.toKebabCase(yesterday);
+    return Boolean(this.history?.[yesterdayKey]);
   }
 
   isReminderActiveOnDate(targetDate: Date, now: Date): boolean {
@@ -570,24 +638,20 @@ export default class DoneTask implements DoneTaskData {
 
   shouldShowTask(): boolean {
     const now = new Date();
-    const startNorm = this.normalizeStartTime();
-    const endNorm = this.normalizeEndTime();
-    const currentStr = DateHelper.normalizeDateString(now);
-    const yesterday = DateHelper.yesterdayDate;
+    if (this.isOvernightTask()) {
+      const yesterday = DateHelper.yesterdayDate;
+      const today = DateHelper.todayDate;
 
-    // 日跨ぎの翌日側（00:00〜end）は、前日履歴がある場合は次の開始時刻まで表示しない
-    if (
-      startNorm &&
-      endNorm &&
-      startNorm > endNorm &&
-      currentStr <= endNorm &&
-      this.isTaskScheduledOnDate(yesterday)
-    ) {
-      const yesterdayKey = this.toKebabCase(yesterday);
-      if (this.history?.[yesterdayKey]) {
-        return false;
+      if (this.isInOvernightNextDaySlot(now)) {
+        if (!this.isTaskScheduledOnDate(yesterday)) {
+          return false;
+        }
+        return !this.shouldHideOvernightByYesterdayHistory(now);
       }
-      return true;
+
+      if (this.isInOvernightCurrentDaySlot(now)) {
+        return this.isTaskScheduledOnDate(today);
+      }
     }
 
     // タスクが特定の日付にスケジュールされている場合、その日付と現在の日付を比較する

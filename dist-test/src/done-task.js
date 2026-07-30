@@ -240,7 +240,8 @@ class DoneTask {
         return statusSpan;
     }
     get statusInfo() {
-        return this.getTaskStatusInfo(this.todayStatus, this.timeCheck(), this.shouldShowTask());
+        const now = new Date();
+        return this.getTaskStatusInfo(this.todayStatus, this.timeCheck(), this.isTargetDay(now), now);
     }
     isGoogleTodoTask() {
         return this.sourceType === 'google-todo';
@@ -280,7 +281,7 @@ class DoneTask {
         }
         return 'table-btn table-btn-primary';
     }
-    getTaskStatusInfo(todayStatus, timeCheck, isTargetDay) {
+    getTaskStatusInfo(todayStatus, timeCheck, isTargetDay, now = new Date()) {
         if (todayStatus === 'completed') {
             return { label: '追加済み', className: 'chip-status-done', locked: true };
         }
@@ -306,20 +307,19 @@ class DoneTask {
                 locked: false,
             };
         }
-        const now = new Date();
         const today = date_helper_1.default.todayDate;
         if (this.isTaskScheduledOnDate(today) &&
             this.hasExecutionWindowEndedOnDate(today, now)) {
             return { label: '未実施', className: 'chip-status-todo', locked: false };
         }
+        if (this.shouldHideOvernightByYesterdayHistory(now)) {
+            return {
+                label: '時間外',
+                className: 'chip-status-nontarget',
+                locked: false,
+            };
+        }
         if (!isTargetDay) {
-            if (timeCheck.msg.startsWith('時間外')) {
-                return {
-                    label: '時間外',
-                    className: 'chip-status-nontarget',
-                    locked: false,
-                };
-            }
             return {
                 label: '対象日外',
                 className: 'chip-status-nontarget',
@@ -327,6 +327,62 @@ class DoneTask {
             };
         }
         return { label: '時間外', className: 'chip-status-nontarget', locked: false };
+    }
+    getNormalizedWindowTimes() {
+        const startNorm = date_helper_1.default.normalizeTime(this.startTime || '00:00');
+        const endNorm = date_helper_1.default.normalizeTime(this.endTime || '23:59');
+        if (!startNorm || !endNorm) {
+            return null;
+        }
+        return { startNorm, endNorm };
+    }
+    isOvernightTask() {
+        const times = this.getNormalizedWindowTimes();
+        if (!times) {
+            return false;
+        }
+        return times.startNorm > times.endNorm;
+    }
+    isInOvernightCurrentDaySlot(now) {
+        const times = this.getNormalizedWindowTimes();
+        if (!times || times.startNorm <= times.endNorm) {
+            return false;
+        }
+        const currentStr = date_helper_1.default.normalizeDateString(now);
+        return currentStr >= times.startNorm;
+    }
+    isInOvernightNextDaySlot(now) {
+        const times = this.getNormalizedWindowTimes();
+        if (!times || times.startNorm <= times.endNorm) {
+            return false;
+        }
+        const currentStr = date_helper_1.default.normalizeDateString(now);
+        return currentStr <= times.endNorm;
+    }
+    isTargetDay(now = new Date()) {
+        if (!this.isOvernightTask()) {
+            return this.isTaskScheduledOnDate(now);
+        }
+        const today = date_helper_1.default.todayDate;
+        const yesterday = date_helper_1.default.yesterdayDate;
+        if (this.isInOvernightCurrentDaySlot(now)) {
+            return this.isTaskScheduledOnDate(today);
+        }
+        if (this.isInOvernightNextDaySlot(now)) {
+            return this.isTaskScheduledOnDate(yesterday);
+        }
+        return false;
+    }
+    shouldHideOvernightByYesterdayHistory(now = new Date()) {
+        if (!this.isInOvernightNextDaySlot(now)) {
+            return false;
+        }
+        const yesterday = date_helper_1.default.yesterdayDate;
+        if (!this.isTaskScheduledOnDate(yesterday)) {
+            return false;
+        }
+        const yesterdayKey = this.toKebabCase(yesterday);
+        return Boolean(this.history?.[yesterdayKey]);
     }
     isReminderActiveOnDate(targetDate, now) {
         if (!this.hasExplicitReminderLead()) {
@@ -487,21 +543,18 @@ class DoneTask {
     }
     shouldShowTask() {
         const now = new Date();
-        const startNorm = this.normalizeStartTime();
-        const endNorm = this.normalizeEndTime();
-        const currentStr = date_helper_1.default.normalizeDateString(now);
-        const yesterday = date_helper_1.default.yesterdayDate;
-        // 日跨ぎの翌日側（00:00〜end）は、前日履歴がある場合は次の開始時刻まで表示しない
-        if (startNorm &&
-            endNorm &&
-            startNorm > endNorm &&
-            currentStr <= endNorm &&
-            this.isTaskScheduledOnDate(yesterday)) {
-            const yesterdayKey = this.toKebabCase(yesterday);
-            if (this.history?.[yesterdayKey]) {
-                return false;
+        if (this.isOvernightTask()) {
+            const yesterday = date_helper_1.default.yesterdayDate;
+            const today = date_helper_1.default.todayDate;
+            if (this.isInOvernightNextDaySlot(now)) {
+                if (!this.isTaskScheduledOnDate(yesterday)) {
+                    return false;
+                }
+                return !this.shouldHideOvernightByYesterdayHistory(now);
             }
-            return true;
+            if (this.isInOvernightCurrentDaySlot(now)) {
+                return this.isTaskScheduledOnDate(today);
+            }
         }
         // タスクが特定の日付にスケジュールされている場合、その日付と現在の日付を比較する
         if (this.isTaskScheduledOnDate(now)) {
