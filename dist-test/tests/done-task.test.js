@@ -175,6 +175,33 @@ function createDailyTask(startTime, endTime) {
         strict_1.default.equal(task.statusInfo.label, '対象日外');
     });
 });
+(0, node_test_1.default)('毎日の日跨ぎタスクは当日の開始前でも対象日外ではなく時間外になる', () => {
+    withMockedNow('2026-07-31T10:00:00+09:00', () => {
+        const task = new done_task_1.default({
+            id: 'overnight-daily-1',
+            text: '就寝',
+            group: '健康・ルーティン',
+            startTime: '21:00',
+            endTime: '02:00',
+            history: {},
+        });
+        strict_1.default.equal(task.statusInfo.label, '時間外');
+    });
+});
+(0, node_test_1.default)('金曜の日跨ぎタスクは金曜の開始前なら対象日外ではなく時間外になる', () => {
+    withMockedNow('2026-07-31T06:30:00+09:00', () => {
+        const task = new done_task_1.default({
+            id: 'overnight-friday-1',
+            text: 'ゴミ捨て（資源ごみ）',
+            group: '家事',
+            daysOfWeek: [5],
+            startTime: '07:00',
+            endTime: '06:00',
+            history: {},
+        });
+        strict_1.default.equal(task.statusInfo.label, '時間外');
+    });
+});
 (0, node_test_1.default)('リマインド時間帯の判定は開始前の限定時間だけ true になる', () => {
     const task = new done_task_1.default({
         id: 'task-reminder',

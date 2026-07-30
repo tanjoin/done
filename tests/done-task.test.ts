@@ -192,6 +192,37 @@ test('日跨ぎタスクの翌日帯は前日が対象日でないと表示さ�
   });
 });
 
+test('毎日の日跨ぎタスクは当日の開始前でも対象日外ではなく時間外になる', () => {
+  withMockedNow('2026-07-31T10:00:00+09:00', () => {
+    const task = new DoneTask({
+      id: 'overnight-daily-1',
+      text: '就寝',
+      group: '健康・ルーティン',
+      startTime: '21:00',
+      endTime: '02:00',
+      history: {},
+    });
+
+    assert.equal(task.statusInfo.label, '時間外');
+  });
+});
+
+test('金曜の日跨ぎタスクは金曜の開始前なら対象日外ではなく時間外になる', () => {
+  withMockedNow('2026-07-31T06:30:00+09:00', () => {
+    const task = new DoneTask({
+      id: 'overnight-friday-1',
+      text: 'ゴミ捨て（資源ごみ）',
+      group: '家事',
+      daysOfWeek: [5],
+      startTime: '07:00',
+      endTime: '06:00',
+      history: {},
+    });
+
+    assert.equal(task.statusInfo.label, '時間外');
+  });
+});
+
 test('リマインド時間帯の判定は開始前の限定時間だけ true になる', () => {
   const task = new DoneTask({
     id: 'task-reminder',

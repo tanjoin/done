@@ -365,11 +365,21 @@ class DoneTask {
         }
         const today = date_helper_1.default.todayDate;
         const yesterday = date_helper_1.default.yesterdayDate;
+        const isTodayScheduled = this.isTaskScheduledOnDate(today);
+        const isYesterdayScheduled = this.isTaskScheduledOnDate(yesterday);
+        // 日跨ぎは「開始日」を優先して targetDay 扱いにする。
+        if (isTodayScheduled) {
+            return true;
+        }
+        // 翌日側の時間帯のみ、前日が対象日なら targetDay 扱いにする。
+        if (this.isInOvernightNextDaySlot(now) && isYesterdayScheduled) {
+            return true;
+        }
         if (this.isInOvernightCurrentDaySlot(now)) {
-            return this.isTaskScheduledOnDate(today);
+            return isTodayScheduled;
         }
         if (this.isInOvernightNextDaySlot(now)) {
-            return this.isTaskScheduledOnDate(yesterday);
+            return isYesterdayScheduled;
         }
         return false;
     }
