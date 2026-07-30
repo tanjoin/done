@@ -568,6 +568,21 @@ export default class DoneTask implements DoneTaskData {
     const currentStr = DateHelper.normalizeDateString(now);
     const yesterday = DateHelper.yesterdayDate;
 
+    // 日跨ぎの翌日側（00:00〜end）は、前日履歴がある場合は次の開始時刻まで表示しない
+    if (
+      startNorm &&
+      endNorm &&
+      startNorm > endNorm &&
+      currentStr <= endNorm &&
+      this.isTaskScheduledOnDate(yesterday)
+    ) {
+      const yesterdayKey = this.toKebabCase(yesterday);
+      if (this.history?.[yesterdayKey]) {
+        return false;
+      }
+      return true;
+    }
+
     // タスクが特定の日付にスケジュールされている場合、その日付と現在の日付を比較する
     if (this.isTaskScheduledOnDate(now)) {
       if (this.specificDate && this.startTime) {
@@ -577,20 +592,6 @@ export default class DoneTask implements DoneTaskData {
         }
       }
       return true;
-    }
-
-    // 日跨ぎの翌日側（00:00〜end）は、前日が対象日かつ前日未処理の場合は表示する
-    if (
-      startNorm &&
-      endNorm &&
-      startNorm > endNorm &&
-      currentStr <= endNorm &&
-      this.isTaskScheduledOnDate(yesterday)
-    ) {
-      const yesterdayKey = this.toKebabCase(yesterday);
-      if (!this.history?.[yesterdayKey]) {
-        return true;
-      }
     }
 
     // 明示的なリマインド時間が設定されている場合、その時間を考慮してタスクを表示するかどうかを判断する

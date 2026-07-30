@@ -123,6 +123,40 @@ test('当日開始後の日付指定タスクは表示対象になる', () => {
   });
 });
 
+test('日跨ぎタスクは前日履歴があると3時まで非表示になる', () => {
+  withMockedNow('2026-07-31T02:30:00+09:00', () => {
+    const task = new DoneTask({
+      id: 'overnight-1',
+      text: 'ログイン',
+      group: 'ゲーム',
+      startTime: '03:00',
+      endTime: '02:59',
+      history: {
+        '2026-07-30': 'completed',
+      },
+    });
+
+    assert.equal(task.shouldShowTask(), false);
+  });
+});
+
+test('日跨ぎタスクは3時を過ぎると表示対象に戻る', () => {
+  withMockedNow('2026-07-31T03:00:00+09:00', () => {
+    const task = new DoneTask({
+      id: 'overnight-2',
+      text: 'ログイン',
+      group: 'ゲーム',
+      startTime: '03:00',
+      endTime: '02:59',
+      history: {
+        '2026-07-30': 'completed',
+      },
+    });
+
+    assert.equal(task.shouldShowTask(), true);
+  });
+});
+
 test('リマインド時間帯の判定は開始前の限定時間だけ true になる', () => {
   const task = new DoneTask({
     id: 'task-reminder',

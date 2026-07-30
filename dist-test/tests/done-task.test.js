@@ -114,6 +114,36 @@ function createDailyTask(startTime, endTime) {
         strict_1.default.equal(task.shouldShowTask(), true);
     });
 });
+(0, node_test_1.default)('日跨ぎタスクは前日履歴があると3時まで非表示になる', () => {
+    withMockedNow('2026-07-31T02:30:00+09:00', () => {
+        const task = new done_task_1.default({
+            id: 'overnight-1',
+            text: 'ログイン',
+            group: 'ゲーム',
+            startTime: '03:00',
+            endTime: '02:59',
+            history: {
+                '2026-07-30': 'completed',
+            },
+        });
+        strict_1.default.equal(task.shouldShowTask(), false);
+    });
+});
+(0, node_test_1.default)('日跨ぎタスクは3時を過ぎると表示対象に戻る', () => {
+    withMockedNow('2026-07-31T03:00:00+09:00', () => {
+        const task = new done_task_1.default({
+            id: 'overnight-2',
+            text: 'ログイン',
+            group: 'ゲーム',
+            startTime: '03:00',
+            endTime: '02:59',
+            history: {
+                '2026-07-30': 'completed',
+            },
+        });
+        strict_1.default.equal(task.shouldShowTask(), true);
+    });
+});
 (0, node_test_1.default)('リマインド時間帯の判定は開始前の限定時間だけ true になる', () => {
     const task = new done_task_1.default({
         id: 'task-reminder',
