@@ -250,6 +250,12 @@ class Index extends HTMLElement {
     if (!status) {
       return;
     }
+
+    if (!hasValidGoogleToken()) {
+      status.style.display = 'none';
+      return;
+    }
+
     status.textContent = message;
     status.classList.remove('is-error', 'is-loading');
     if (state === 'error') {
@@ -269,6 +275,12 @@ class Index extends HTMLElement {
     if (!status) {
       return;
     }
+
+    if (!hasValidGoogleToken()) {
+      status.style.display = 'none';
+      return;
+    }
+
     status.textContent = message;
     status.classList.remove('is-error', 'is-loading');
     if (state === 'error') {
@@ -806,6 +818,23 @@ class Index extends HTMLElement {
         if (this._isLoading) {
           return;
         }
+        this.setTodoCalendarLoadStatus(
+          'TODOカレンダー: 再読み込み中...',
+          'loading',
+        );
+        void this.refreshCloudTasksWithLoading(true).then(() => {
+          this.renderCards();
+        });
+      });
+    }
+
+    const googleDriveStatus = document.getElementById('googleDriveStatus');
+    if (googleDriveStatus) {
+      googleDriveStatus.addEventListener('click', () => {
+        if (this._isLoading) {
+          return;
+        }
+        this.setGoogleDriveStatus('Google Drive: 再読み込み中...', 'loading');
         void this.refreshCloudTasksWithLoading(true).then(() => {
           this.renderCards();
         });
@@ -877,7 +906,8 @@ class Index extends HTMLElement {
 
     this.setupPageSpecifics();
 
-    void this.refreshCloudTasksWithLoading().then(() => {
+    // リロード時は常にクラウド側を再取得して最新化する。
+    void this.refreshCloudTasksWithLoading(true).then(() => {
       this.renderCards();
     });
 
