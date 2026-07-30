@@ -231,9 +231,29 @@ class Index extends HTMLElement {
           <span class="loading-spinner" aria-hidden="true"></span>
           <span class="loading-text">データを同期中...</span>
         </div>
+        <div id="todoCalendarLoadStatus" class="todo-load-status" style="display: none;"></div>
         <div id="taskContainer"></div>
       </main>
     `;
+  }
+
+  private setTodoCalendarLoadStatus(
+    message: string,
+    state: 'loading' | 'cached' | 'success' | 'error',
+  ): void {
+    const status = document.getElementById('todoCalendarLoadStatus');
+    if (!status) {
+      return;
+    }
+    status.textContent = message;
+    status.classList.remove('is-error', 'is-loading');
+    if (state === 'error') {
+      status.classList.add('is-error');
+    }
+    if (state === 'loading') {
+      status.classList.add('is-loading');
+    }
+    status.style.display = message ? 'block' : 'none';
   }
 
   private setLoading(loading: boolean): void {
@@ -694,6 +714,20 @@ class Index extends HTMLElement {
   setupPageSpecifics(): void {
     const taskContainer = document.getElementById('taskContainer');
     if (taskContainer) {
+      document.addEventListener(
+        TaskRepository.EVENT_TODO_CALENDAR_STATUS,
+        (event: Event) => {
+          const customEvent = event as CustomEvent<{
+            state: 'loading' | 'cached' | 'success' | 'error';
+            message: string;
+          }>;
+          this.setTodoCalendarLoadStatus(
+            customEvent.detail.message,
+            customEvent.detail.state,
+          );
+        },
+      );
+
       taskContainer.addEventListener('click', event => {
         if (!(event.target instanceof HTMLElement)) {
           return;

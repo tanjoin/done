@@ -418,6 +418,22 @@ a:not(.nav-link):hover {
     color: var(--text-muted);
 }
 
+.todo-load-status {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: right;
+    margin: -8px 2px 10px;
+    opacity: 0.85;
+}
+
+.todo-load-status.is-loading {
+    color: var(--text-secondary);
+}
+
+.todo-load-status.is-error {
+    color: #b45309;
+}
+
 .loading-wrap {
     display: flex;
     align-items: center;

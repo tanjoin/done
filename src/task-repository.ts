@@ -12,8 +12,25 @@ export default class TaskRepository {
   private static readonly CLOUD_CACHE_KEY = 'done_cloud_tasks_cache_v1';
   private static readonly CLOUD_CACHE_AT_KEY = 'done_cloud_tasks_cache_at_v1';
   private static readonly CLOUD_CACHE_TTL_MS = 3 * 60 * 1000;
+  static readonly EVENT_TODO_CALENDAR_STATUS =
+    'done-todo-calendar-load-status';
 
   private _tasks: DoneTask[] = [];
+
+  private countGoogleTodoTasks(tasks: DoneTaskData[]): number {
+    return tasks.filter(task => task.sourceType === 'google-todo').length;
+  }
+
+  private emitTodoCalendarStatus(detail: {
+    state: 'loading' | 'cached' | 'success' | 'error';
+    message: string;
+  }): void {
+    document.dispatchEvent(
+      new CustomEvent(TaskRepository.EVENT_TODO_CALENDAR_STATUS, {
+        detail,
+      }),
+    );
+  }
 
   private hydrateTasks(rawTasks: DoneTaskData[]): DoneTask[] {
     return rawTasks.map(task => new DoneTask(task));
@@ -100,7 +117,11 @@ export default class TaskRepository {
 
   private async fetchCloudMergedTasks(
     localTasks: DoneTaskData[],
-  ): Promise<DoneTaskData[]> {
+  ): Promise<{
+    mergedTasks: DoneTaskData[];
+    todoCount: number;
+    todoFetchFailed: boolean;
+  }> {
     let workingTasks = localTasks;
 
     try {
@@ -113,11 +134,13 @@ export default class TaskRepository {
     }
 
     let googleTodoTasks: DoneTaskData[] = [];
+    let todoFetchFailed = false;
     try {
       googleTodoTasks = await fetchTodoTasksFromGoogleCalendar();
     } catch {
       // Google Calendar が未設定/未認証の場合はローカルのみで継続する。
       googleTodoTasks = [];
+      todoFetchFailed = true;
     }
 
     const googleTodoMap = new Map(googleTodoTasks.map(task => [task.id, task]));
@@ -125,7 +148,11 @@ export default class TaskRepository {
       task => task.sourceType !== 'google-todo',
     );
 
-    return [...localOnly, ...Array.from(googleTodoMap.values())];
+    return {
+      mergedTasks: [...localOnly, ...Array.from(googleTodoMap.values())],
+      todoCount: googleTodoTasks.length,
+      todoFetchFailed,
+    };
   }
 
   async refreshFromCloudIfNeeded(forceRefresh = false): Promise<boolean> {
@@ -138,15 +165,37 @@ export default class TaskRepository {
       if (cached) {
         this._tasks = this.hydrateTasks(cached);
         LocalStorageManager.tasks = this.stripGoogleTodoTasks(cached);
+        this.emitTodoCalendarStatus({
+          state: 'cached',
+          message: `TODOカレンダー: キャッシュ利用 (${this.countGoogleTodoTasks(cached)}件)`,
+        });
         return true;
       }
     }
 
-    const merged = await this.fetchCloudMergedTasks(LocalStorageManager.tasks || []);
-    const localOnly = this.stripGoogleTodoTasks(merged);
-    this._tasks = this.hydrateTasks(merged);
+    this.emitTodoCalendarStatus({
+      state: 'loading',
+      message: 'TODOカレンダー: 読み込み中...',
+    });
+
+    const fetched = await this.fetchCloudMergedTasks(LocalStorageManager.tasks || []);
+    const localOnly = this.stripGoogleTodoTasks(fetched.mergedTasks);
+    this._tasks = this.hydrateTasks(fetched.mergedTasks);
     LocalStorageManager.tasks = localOnly;
-    this.setSessionCache(merged);
+    this.setSessionCache(fetched.mergedTasks);
+
+    this.emitTodoCalendarStatus(
+      fetched.todoFetchFailed
+        ? {
+            state: 'error',
+            message: 'TODOカレンダー: 読み込み失敗（ローカル表示中）',
+          }
+        : {
+            state: 'success',
+            message: `TODOカレンダー: ${fetched.todoCount}件読み込み`,
+          },
+    );
+
     return true;
   }
 

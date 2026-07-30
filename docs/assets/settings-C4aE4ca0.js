@@ -1,4 +1,4 @@
-import{a as e,c as t,d as n,f as r,i,n as a,o,p as s,r as c,s as l,t as u}from"./local-storage-manager-CUPUX2LQ.js";import{_ as d,a as f,c as p,d as m,f as h,g,i as _,l as v,m as y,n as b,o as x,p as S,r as C,s as w,t as T,v as E,y as D}from"./task-repository-DSCbpb7d.js";var O,k,A=s((()=>{a(),D(),_(),m(),O=[`https://www.googleapis.com/auth/calendar`,`https://www.googleapis.com/auth/calendar.events`,`https://www.googleapis.com/auth/drive.file`],k=class{static render(){return`
+import{a as e,c as t,d as n,f as r,i,n as a,o,p as s,r as c,s as l,t as u}from"./local-storage-manager-Dc8IXhCF.js";import{_ as d,a as f,c as p,d as m,f as h,g,i as _,l as v,m as y,n as b,o as x,p as S,r as C,s as w,t as T,v as E,y as D}from"./task-repository-J2ORne3P.js";var O,k,A=s((()=>{a(),D(),_(),m(),O=[`https://www.googleapis.com/auth/calendar`,`https://www.googleapis.com/auth/calendar.events`,`https://www.googleapis.com/auth/drive.file`],k=class{static render(){return`
       <div class="data-box" id="calendarSection">
         <h3 class="group-title">設定・データ管理</h3>
         <p class="setting-desc">
