@@ -136,6 +136,21 @@ function shouldUseRedirectAuth(): boolean {
   return isStandaloneMode() && isLikelyIPhone();
 }
 
+function resolveOAuthRedirectUri(): string {
+  const current = new URL(window.location.href);
+  let pathname = current.pathname;
+
+  // settings.html などのファイル名は除去し、許可しやすいベースパスへ揃える。
+  if (/\.[a-z0-9]+$/i.test(pathname)) {
+    pathname = pathname.replace(/[^/]*$/, '');
+  }
+  if (!pathname.endsWith('/')) {
+    pathname += '/';
+  }
+
+  return `${current.origin}${pathname}`;
+}
+
 function buildRedirectAuthUrl(clientId: string, scopes: string[], forcePrompt: boolean): string {
   const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   const state =
@@ -143,7 +158,7 @@ function buildRedirectAuthUrl(clientId: string, scopes: string[], forcePrompt: b
   localStorage.setItem(GOOGLE_AUTH_STATE_KEY, state);
 
   authUrl.searchParams.set('client_id', clientId);
-  authUrl.searchParams.set('redirect_uri', window.location.origin + window.location.pathname);
+  authUrl.searchParams.set('redirect_uri', resolveOAuthRedirectUri());
   authUrl.searchParams.set('response_type', 'token');
   authUrl.searchParams.set('scope', scopes.join(' '));
   authUrl.searchParams.set('include_granted_scopes', 'true');
