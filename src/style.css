@@ -311,6 +311,27 @@ a:not(.nav-link):hover {
 .btn-action:hover:not(:disabled) {
     background-color: #1557b0;
 }
+
+.btn-add {
+    background-color: #16a34a;
+    color: #ffffff;
+    flex: 1;
+}
+
+.btn-add:hover:not(:disabled) {
+    background-color: #15803d;
+}
+
+.btn-append {
+    background-color: #f59e0b;
+    color: #111827;
+    flex: 1;
+}
+
+.btn-append:hover:not(:disabled) {
+    background-color: #d97706;
+}
+
 .btn-cancel {
     background-color: var(--btn-secondary-bg);
     color: var(--btn-secondary-text);
@@ -387,6 +408,37 @@ a:not(.nav-link):hover {
     align-items: center;
     gap: 12px;
     margin-bottom: 14px;
+}
+
+.loading-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 220px;
+    color: var(--text-muted);
+}
+
+.loading-spinner {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid rgba(148, 163, 184, 0.35);
+    border-top-color: var(--btn-primary);
+    animation: spin 0.8s linear infinite;
+}
+
+.loading-text {
+    font-size: 13px;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .view-mode-label {
@@ -590,6 +642,18 @@ a:not(.nav-link):hover {
     border-color: transparent;
 }
 
+.table-btn-success {
+    background-color: #16a34a;
+    color: #ffffff;
+    border-color: transparent;
+}
+
+.table-btn-warning {
+    background-color: #f59e0b;
+    color: #111827;
+    border-color: transparent;
+}
+
 .table-btn-danger {
     background-color: #ef4444;
     color: #ffffff;
@@ -691,6 +755,15 @@ a:not(.nav-link):hover {
     box-sizing: border-box;
     font-size: 14px;
 }
+
+.checkbox-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
 .form-actions-row {
     display: flex;
     align-items: center;

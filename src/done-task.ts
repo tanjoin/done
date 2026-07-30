@@ -1,4 +1,5 @@
 import type {
+  DoneTaskSourceType,
   DoneReminderCandidate,
   DoneTaskData,
   NormalizedTime,
@@ -24,8 +25,12 @@ export default class DoneTask implements DoneTaskData {
   remindMinutesBefore?: number | null;
   skipCalendarOnComplete?: boolean | null;
   strictMode?: boolean | null;
+  createTaskViaUrl?: boolean | null;
   specificDate?: string | null;
   endDate?: string | null;
+  sourceType?: DoneTaskSourceType;
+  externalCalendarId?: string | null;
+  externalEventId?: string | null;
 
   constructor(task: DoneTaskData) {
     this.id = task.id;
@@ -45,8 +50,12 @@ export default class DoneTask implements DoneTaskData {
       false,
     );
     this.strictMode = normalizeBoolean(task.strictMode, false);
+    this.createTaskViaUrl = normalizeBoolean(task.createTaskViaUrl, false);
     this.specificDate = task.specificDate || null;
     this.endDate = task.endDate || null;
+    this.sourceType = task.sourceType || 'local';
+    this.externalCalendarId = task.externalCalendarId || null;
+    this.externalEventId = task.externalEventId || null;
   }
 
   hourOfStartTime(): number | null {
@@ -264,6 +273,49 @@ export default class DoneTask implements DoneTaskData {
     );
   }
 
+  isGoogleTodoTask(): boolean {
+    return this.sourceType === 'google-todo';
+  }
+
+  isDoneCalendarTask(): boolean {
+    return this.sourceType !== 'google-todo';
+  }
+
+  getPrimaryActionType(): 'complete' | 'add' | 'append' {
+    if (this.isGoogleTodoTask() || this.skipCalendarOnComplete === true) {
+      return 'complete';
+    }
+    if (this.isDoneCalendarTask() && this.createTaskViaUrl === true) {
+      return 'append';
+    }
+    if (this.isDoneCalendarTask() && this.skipCalendarOnComplete === false) {
+      return 'add';
+    }
+    return 'complete';
+  }
+
+  getPrimaryActionLabel(): string {
+    const action = this.getPrimaryActionType();
+    if (action === 'add') {
+      return '追加';
+    }
+    if (action === 'append') {
+      return '追記';
+    }
+    return '完了';
+  }
+
+  getPrimaryActionClassName(): string {
+    const action = this.getPrimaryActionType();
+    if (action === 'add') {
+      return 'table-btn table-btn-success';
+    }
+    if (action === 'append') {
+      return 'table-btn table-btn-warning';
+    }
+    return 'table-btn table-btn-primary';
+  }
+
   getTaskStatusInfo(
     todayStatus: TodayStatus,
     timeCheck: TimeCheck,
@@ -369,10 +421,9 @@ export default class DoneTask implements DoneTaskData {
     actionContainer.className = 'table-actions';
 
     const mainButton = document.createElement('button');
-    mainButton.className = 'table-btn table-btn-primary';
-    mainButton.textContent =
-      this.skipCalendarOnComplete === true ? '完了' : '追加';
-    mainButton.setAttribute('data-task-action', 'complete');
+    mainButton.className = this.getPrimaryActionClassName();
+    mainButton.textContent = this.getPrimaryActionLabel();
+    mainButton.setAttribute('data-task-action', this.getPrimaryActionType());
     mainButton.setAttribute('data-task-id', this.id);
 
     const isStrict = this.strictMode === true;

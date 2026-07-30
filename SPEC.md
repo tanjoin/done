@@ -1,200 +1,140 @@
 # 1. 概要 / 目的
 
-done は、日次タスクの実施管理をブラウザ上で完結させるフロントエンドアプリケーションである。
-主目的は、当日タスクの実施漏れ防止、完了とキャンセルの履歴管理、前日以前の未完了タスクの可視化、通知とカレンダー起票補助である。
+done は、日次タスク管理に Google カレンダー連携と Google ドライブ同期を組み合わせ、
+ローカル運用とクラウド連携を両立させるブラウザアプリである。
 
-本仕様書は、これまでの会話で確定した要件と、現在の実装を突き合わせた現行仕様を定義する。
+目的は以下の 3 点。
+- タスクの実施状況を日付付き履歴で管理する
+- TODO カレンダー由来タスクをアプリ内で処理し、カレンダー側に結果を反映する
+- タスク JSON を Drive に同期し、ログイン済み時の再利用性を高める
 
 # 2. 機能要件 (できること、入力、出力)
 
-## 2.1 タスク表示とステータス判定
+## 2.1 タスク表示・判定
+
+できること
+- カード/テーブル表示の切替
+- 表示モード切替時は再取得せず、保持済みタスクを再描画する
+- フィルタ適用（対象日外、時間外、追加済み、キャンセル済み、未完了強制表示）
+- 未完了日ラベル表示（未完了日: YYYY-MM-DD）
 
 入力
-- タスク定義: 曜日指定、日付指定、期間指定、開始時刻、終了時刻、通知猶予、履歴
+- タスク定義（曜日、日付、期間、開始終了時刻、履歴など）
 - 現在日時
-- 表示フィルタ設定
+- 表示設定（未完了表示基準日、各種フィルタ）
 
 出力
-- カード表示またはテーブル表示
-- 各タスクのステータスラベル
-
-ステータス判定優先順
-1. 追加済み: 当日履歴が completed
-2. キャンセル済: 当日履歴が cancelled
-3. 対象日外: 当日表示対象外
-4. リマインダー: 通知猶予のアクティブ時間帯
-5. 実施可能: 現在時刻が実行可能時間帯
-6. 未実施: 実行終了時刻以降かつ未処理
-7. 時間外: 上記以外
-
-重要仕様
-- 当日の開始前は未実施にしない
-- 実行終了時刻以降は未実施に遷移する
-- 日跨ぎ時間帯は翌日終了時刻を境界として判定する
-- 未実施表示時の日付ラベルは「未完了日: YYYY-MM-DD」で統一し、カード表示とテーブル表示で同一ルールを適用する
+- 表示対象タスク
+- ステータス（追加済み、キャンセル済、リマインダー、実施可能、未実施、対象日外、時間外）
 
 ## 2.2 タスク操作
 
-入力
-- ユーザー操作: 完了、キャンセル、取り消し、削除
-
-出力
-- 履歴更新
-- 永続化更新
-- 再描画
-
-操作仕様
-- 完了: 対象日の履歴を completed に設定
-- キャンセル: 対象日の履歴を cancelled に設定
-- 取り消し: 当日履歴のみ削除
-- 削除: 日付指定タスクを確認ダイアログ後に削除
-- strictMode が true の場合、時間外は完了操作を無効化
-
-## 2.3 前日以前の未完了救済表示
+できること
+- 完了
+- 追加
+- 追記
+- キャンセル
+- 取り消し
+- 削除（特定日タスク）
 
 入力
-- 未完了表示基準日
-- 未完了強制表示フラグ
-- タスク履歴と対象日条件
+- ボタン操作
+- タスク属性（skipCalendarOnComplete, createTaskViaUrl, sourceType）
 
 出力
-- 未完了日付きの未実施行またはカード
+- history 更新
+- localStorage 保存
+- （条件に応じて）Google Calendar API 呼び出し、または URL 起票
 
-仕様
-- 未完了強制表示が有効な場合、基準日から前日までを走査
-- 抽出条件
-  - 対象日である
-  - その日付の履歴が未処理
-  - その日付の実行ウィンドウが終了済み
-- カード表示とテーブル表示の両方で表示
+分岐ルール
+- 完了: skipCalendarOnComplete が true、または TODO カレンダー由来タスク
+- 追加: skipCalendarOnComplete が false かつ DONE カレンダー系タスク
+- 追記: createTaskViaUrl が true かつ DONE カレンダー系タスク
 
-## 2.4 フィルタと表示モード
+ボタン色
+- 完了: 青
+- 追加: 緑
+- 追記: 黄
+
+## 2.3 Google カレンダー連携
+
+できること
+- OAuth Client ID を使って認証
+- カレンダー一覧取得
+- TODO/DONE カレンダー選択
+- TODO カレンダー予定をタスク化して取り込み
+- TODO 由来タスクの完了/キャンセル時にイベント色を更新
+- DONE カレンダーへイベント追加
+- URL ベースの追記起票
 
 入力
-- フィルタ切替
-- 表示モード切替
+- OAuth 2.0 Client ID
+- TODO カレンダー ID
+- DONE カレンダー ID
+- タスク操作（完了/追加/追記/キャンセル）
 
 出力
-- 表示対象の再計算
-- 再描画
+- 認証トークン取得
+- カレンダー一覧
+- TODO カレンダー予定のタスク表示（翌日分まで、比較的大きい件数）
+- TODO イベント色更新（完了: グラファイト、キャンセル: フラミンゴ）
+- DONE カレンダーへのイベント追加
 
-フィルタ項目
-- 該当日外 非表示
-- 時間外 非表示
-- 追加済み 非表示
-- キャンセル済 非表示
-- 未完了強制表示 有効または無効
+補足
+- TODO 由来タスクのグループ名は「カレンダー」
 
-フィルタ補足
-- 時間外を表示する設定時は、当日に予定があるタスク（曜日指定、日付指定、期間指定、一時タスクを含む）を開始前でも表示対象に含める
-- 通知猶予が設定されたタスクは開始直前のリマインド時間帯（開始時刻の remindMinutesBefore 分前から開始時刻まで）のみ表示を許可する
+## 2.4 Google ドライブ連携
 
-表示モード
-- card
-- table
-
-## 2.5 通知機能
+できること
+- 同期 ON/OFF
+- タスク JSON の Drive 保存
+- ログイン済み時の自動読み込み（保存済みファイルがある場合）
+- 既存インポート機能との共存（インポート後も同期対象）
 
 入力
-- 通知権限
-- 開始時刻
-- 通知猶予分
+- Drive 同期 ON/OFF
+- タスク更新操作
 
 出力
-- テスト通知
-- タスク通知
-- 通知音再生
+- Drive 上の専用 JSON ファイル（tanjoin_done_task_sync_backup_v1.json）に保存
+- 起動時の自動読み込み
 
-仕様
-- Notification API 非対応環境では通知 UI を非表示
-- 権限が granted の場合のみ通知送信
-- 通知対象は当日と翌日候補
-- 通知済み日と履歴により重複通知を抑止
+## 2.5 設定とデータ管理
 
-## 2.6 カレンダー連携
-
-入力
-- 完了操作
-- カレンダー ID 設定
-
-出力
-- Google カレンダー作成画面を新規タブで起動
-
-仕様
-- URL テンプレート方式で起票
-- カレンダー ID 設定がある場合は src パラメータに付与
-- API 連携による既存イベント更新は未実装
-
-## 2.7 タスク追加
-
-入力
-- タスク JSON
-
-出力
-- タスク追加
-- タスク単位更新
-- 全体保存
-
-仕様
-- 一時タスクは specificDate を設定したタスクとして追加する
-- 終了日を利用する場合は endDate を設定する
-- id、text、history を必須として検証する
-- タスク追加時に通常タスクか一時タスクかをダイアログで選択し、ひな形を分岐する
-- 削除、整形、単体反映、全体保存を提供する
-
-## 2.8 設定とデータ管理
-
-入力
-- カレンダー ID
-- テーマ
-- 未完了表示基準日
-- 通知音
-- JSON 入出力操作
-
-出力
-- localStorage 永続化
-- JSON エクスポートまたはインポート
-- クリップボードコピーまたは読込
+できること
+- 設定・データ管理画面で Google 連携設定
+- JSON エクスポート/インポート
+- クリップボードコピー/読み込み
 - 初期データ復元
 
-## 2.9 JSON Organizer
-
 入力
-- タスク JSON
+- 各入力フォーム
+- JSON ファイル/クリップボード文字列
 
 出力
-- タスク単位反映
-- 全体保存
-
-仕様
-- done_tasks を読込んでタスク単位で JSON 編集する
-- タスク追加ボタンから通常タスクまたは一時タスクのひな形を作成できる
-- id、text、history を必須として検証
-- 新規追加、削除、整形、単体反映、全体保存を提供
+- ローカル保存更新
+- タスクデータ更新
+- 設定画面表示時は平文フォールバック値を先に反映し、暗号化値の復号完了後に最新値で上書きする
 
 # 3. 非機能要件 / 技術スタック (使用言語、ライブラリ、制約事項など)
 
 技術スタック
 - TypeScript
 - Vite
-- ブラウザ標準 API
-
-実行環境
-- モダンブラウザ
-- クリップボード機能は secure context 前提
-
-永続化
-- localStorage を一次ストレージとして使用
-- 初期データは public/tasks.json から読込
-
-テスト
-- node:test を用いた単体テストを導入
-- 時間帯ステータス判定の主要ケースを自動確認
+- Browser APIs（localStorage, Notification, Web Crypto, Fetch）
+- Google Identity Services（OAuth トークン取得）
+- Google Calendar API v3
+- Google Drive API v3
 
 制約事項
-- サーバーサイド DB なし
-- 認証機構なし
-- カレンダー連携は URL 起票まで
+- サーバーサイドなし（完全フロントエンド）
+- 認証情報は localStorage に暗号化保存（復号鍵も同一オリジン管理）
+- Google API 利用には事前に OAuth Client ID 設定が必要
+- ネットワーク障害時はローカル運用を継続
+
+性能要件（設定画面）
+- Google 連携設定の読み込み時、複数の復号処理は並列実行する
+- localStorage の平文フォールバック値（DONE カレンダー ID）は初期描画で即時反映する
 
 # 4. データ構造 / API設計 (該当する場合)
 
@@ -202,29 +142,35 @@ done は、日次タスクの実施管理をブラウザ上で完結させるフ
 
 - id: string
 - text: string
-- description: string | null
-- link: string | null
-- group: string
-- daysOfWeek: number[]
-- daysOfMonth: number[]
-- startTime: string | null
-- endTime: string | null
+- description?: string | null
+- link?: string | null
+- group?: string
+- daysOfWeek?: number[]
+- daysOfMonth?: number[]
+- startTime?: string | null
+- endTime?: string | null
 - history: Record<YYYY-MM-DD, completed | cancelled>
-- notifiedDate: string | null
-- remindMinutesBefore: number | null
-- skipCalendarOnComplete: boolean | null
-- strictMode: boolean | null
-- specificDate: string | null
-- endDate: string | null
+- notifiedDate?: string | null
+- remindMinutesBefore?: number | null
+- skipCalendarOnComplete?: boolean | null
+- strictMode?: boolean | null
+- createTaskViaUrl?: boolean | null
+- specificDate?: string | null
+- endDate?: string | null
+- sourceType?: local | google-todo | google-done
+- externalCalendarId?: string | null
+- externalEventId?: string | null
 
 ## 4.2 localStorage キー
 
-データ本体
 - done_tasks
-- calendar_tasks_v3 (旧キー。起動時に done_tasks へ移行)
-
-表示系
-- task_view_mode
+- done_google_client_id_enc_v1
+- done_google_todo_calendar_id_enc_v1
+- done_google_done_calendar_id_enc_v1
+- done_google_drive_sync_enabled_v1
+- done_google_crypto_key_v1
+- notification_sound
+- done_app_theme
 - overdue_reference_date
 - filter_hide_non_target_day
 - filter_hide_out_of_time
@@ -232,45 +178,47 @@ done は、日次タスクの実施管理をブラウザ上で完結させるフ
 - filter_hide_cancelled
 - filter_force_show_overdue
 
-設定系
-- calendar_target_id
-- notification_sound
-- done_app_theme
+## 4.3 外部 API（利用概要）
 
-## 4.3 画面内イベント
-
-- done-viewmodechange
-- done-filterchange
+- Google Calendar
+  - calendarList 取得
+  - events 取得（TODO）
+  - events 追加（DONE）
+  - events PATCH（TODO 色更新）
+- Google Drive
+  - files 検索
+  - multipart アップロード（作成/更新）
+  - alt=media 取得
 
 # 5. 画面・UIフロー (該当する場合)
 
-## 5.1 メイン画面
+## 5.1 設定・データ管理画面
 
-1. タスク読込
-2. 表示対象判定とフィルタ適用
-3. card または table で描画
-4. 完了、キャンセル、取り消し、削除を反映
-5. 必要時にカレンダー起票 URL を開く
-6. 1 分ごとに通知判定と再描画を実施
+1. OAuth Client ID 入力
+2. カレンダー一覧取得
+3. TODO/DONE カレンダー選択
+4. Drive 同期 ON/OFF 選択
+5. 設定保存
 
-## 5.2 JSON Organizer 画面
+## 5.2 メイン画面
 
-1. タスク読込
-2. 編集対象選択
-3. タスク追加ダイアログで通常タスクまたは一時タスクを選択
-4. 整形と単体反映
-5. 全体保存で確定
+1. タスク読込（ローカル + 条件付きで Drive + TODO カレンダー）
+2. 読込中はローディングインジケーター（くるくる）を表示
+3. フィルタ適用と描画
+4. 各タスクで完了/追加/追記/キャンセルを実行
+5. 操作後に保存（Drive 同期 ON 時は Drive へ反映）
 
-## 5.3 設定画面
+## 5.3 JSON Organizer 画面
 
-1. 保存済み設定を読込
-2. 各セクションで変更
-3. localStorage へ保存
+1. タスク選択と JSON 編集
+2. 通常タスク/一時タスク追加
+3. 単体反映または全体保存
+4. 保存内容をメイン画面に反映
 
 # 6. 未決定事項・今後の課題
 
-- TaskRepository の読み込み時に DoneTaskData 配列を DoneTask 配列へ直接代入しており、型不整合が compile エラーとして残る
-- カレンダー連携は URL 起票方式のため、既存イベント同定や更新は未実装
-- 一時タスク専用 UI は廃止し、追加導線は JSON Organizer に統合した
-- 一部判定ロジックは日時依存が強く、境界条件のテストケースをさらに拡充する余地がある
-- E2E テストは未整備で、画面操作レベルの自動回帰検証は未導入
+- TODO/DONE イベント色の厳密な colorId 定義は運用で再確認が必要
+- OAuth トークン期限切れ時の UX（再認証導線）を改善余地あり
+- カレンダー一覧取得や同期失敗時のリトライ UI は最小実装
+- Drive 同期競合（他端末同時編集）の解決戦略は未実装
+- E2E テスト未整備（Google API モックを含む統合検証は今後追加）

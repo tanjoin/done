@@ -37,6 +37,7 @@ export type DoneNotificationSound =
   | 'pokemon_heal'
   | 'droplet_dotapun';
 export type TodayStatus = 'completed' | 'cancelled' | undefined;
+export type DoneTaskSourceType = 'local' | 'google-todo' | 'google-done';
 export type DoneTaskData = {
   id: string;
   text: string;
@@ -52,8 +53,12 @@ export type DoneTaskData = {
   remindMinutesBefore?: number | null;
   skipCalendarOnComplete?: boolean | null;
   strictMode?: boolean | null;
+  createTaskViaUrl?: boolean | null;
   specificDate?: string | null;
   endDate?: string | null;
+  sourceType?: DoneTaskSourceType;
+  externalCalendarId?: string | null;
+  externalEventId?: string | null;
 };
 export type DoneSelectOption<T extends string> = {
   value: T;

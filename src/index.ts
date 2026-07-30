@@ -19,6 +19,11 @@ import TaskRepository from './task-repository';
 import DateHelper from './date-helper';
 import SortManager from './sort-manager';
 import TableManager from './table-manager';
+import {
+  addEventToDoneCalendarFromTask,
+  updateTodoEventColor,
+} from './google-calendar-service';
+import {hasValidGoogleToken} from './google-auth';
 
 class Index extends HTMLElement {
   private _mode: DoneSwitchViewMode = 'card';
@@ -26,6 +31,7 @@ class Index extends HTMLElement {
   private _taskRepository: TaskRepository = new TaskRepository();
   private _sortManager: SortManager = new SortManager();
   private _tableManager: TableManager = new TableManager();
+  private _isLoading = false;
 
   static get NAME(): string {
     return 'done-index';
@@ -104,6 +110,7 @@ class Index extends HTMLElement {
   private executeTask(
     taskId: string,
     isCancel: boolean,
+    primaryAction: 'complete' | 'add' | 'append' = 'complete',
     targetDateKey = DateHelper.today,
   ): void {
     const taskIndex = this.findTaskIndexById(taskId);
@@ -117,13 +124,43 @@ class Index extends HTMLElement {
     this.renderCards();
 
     const calendarTask = new DoneTask(task);
-    const skipCalendarOnComplete = calendarTask.skipCalendarOnComplete === true;
-    const shouldSkipCalendar =
-      isCancel === true || skipCalendarOnComplete === true;
-    if (shouldSkipCalendar) {
-      return;
-    }
-    IndexCalendarEvent.open(calendarTask, isCancel);
+    void (async () => {
+      const googleEnabled = hasValidGoogleToken();
+
+      if (!googleEnabled) {
+        if (!isCancel && calendarTask.skipCalendarOnComplete !== true) {
+          await IndexCalendarEvent.open(calendarTask, false);
+        }
+        return;
+      }
+
+      if (isCancel) {
+        if (calendarTask.isGoogleTodoTask()) {
+          void updateTodoEventColor(calendarTask, '11').catch(() => {
+            alert('TODOカレンダーのキャンセル色更新に失敗しました。');
+          });
+        }
+        return;
+      }
+
+      if (calendarTask.isGoogleTodoTask()) {
+        void updateTodoEventColor(calendarTask, '8').catch(() => {
+          alert('TODOカレンダーの完了色更新に失敗しました。');
+        });
+        return;
+      }
+
+      if (primaryAction === 'add') {
+        void addEventToDoneCalendarFromTask(calendarTask).catch(() => {
+          alert('DONEカレンダーへの追加に失敗しました。');
+        });
+        return;
+      }
+
+      if (primaryAction === 'append') {
+        await IndexCalendarEvent.open(calendarTask, false);
+      }
+    })();
   }
 
   private undoTask(taskId: string): void {
@@ -157,12 +194,17 @@ class Index extends HTMLElement {
     taskId: string,
     targetDateKey?: string,
   ): void {
-    if (action === 'complete') {
-      this.executeTask(taskId, false, targetDateKey);
+    if (action === 'complete' || action === 'add' || action === 'append') {
+      this.executeTask(
+        taskId,
+        false,
+        action as 'complete' | 'add' | 'append',
+        targetDateKey,
+      );
       return;
     }
     if (action === 'cancel') {
-      this.executeTask(taskId, true, targetDateKey);
+      this.executeTask(taskId, true, 'complete', targetDateKey);
       return;
     }
     if (action === 'undo') {
@@ -190,9 +232,28 @@ class Index extends HTMLElement {
     `;
   }
 
+  private renderLoading(message = 'データを読み込み中...'): void {
+    const container = document.getElementById('taskContainer');
+    if (!container) return;
+    container.innerHTML = `
+      <div class="loading-wrap" role="status" aria-live="polite" aria-busy="true">
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <span class="loading-text">${message}</span>
+      </div>
+    `;
+  }
+
+  private setLoading(loading: boolean): void {
+    this._isLoading = loading;
+    if (loading) {
+      this.renderLoading();
+    }
+  }
+
   renderCards(): void {
     const container = document.getElementById('taskContainer');
     if (!container) return;
+    if (this._isLoading) return;
     container.innerHTML = '';
 
     const TODAY = DateHelper.today;
@@ -440,10 +501,16 @@ class Index extends HTMLElement {
         actionContainer.className = 'card-actions';
 
         const mainButton = document.createElement('button');
-        mainButton.className = 'btn btn-action';
-        mainButton.textContent =
-          task.skipCalendarOnComplete === true ? '完了' : '追加';
-        mainButton.setAttribute('data-task-action', 'complete');
+        const primaryAction = task.getPrimaryActionType();
+        mainButton.className = `btn ${
+          primaryAction === 'add'
+            ? 'btn-add'
+            : primaryAction === 'append'
+              ? 'btn-append'
+              : 'btn-action'
+        }`;
+        mainButton.textContent = task.getPrimaryActionLabel();
+        mainButton.setAttribute('data-task-action', primaryAction);
         mainButton.setAttribute('data-task-id', task.id);
         mainButton.setAttribute('data-task-date', TODAY);
 
@@ -556,10 +623,16 @@ class Index extends HTMLElement {
           actionContainer.className = 'card-actions';
 
           const mainButton = document.createElement('button');
-          mainButton.className = 'btn btn-action';
-          mainButton.textContent =
-            task.skipCalendarOnComplete === true ? '完了' : '追加';
-          mainButton.setAttribute('data-task-action', 'complete');
+          const primaryAction = task.getPrimaryActionType();
+          mainButton.className = `btn ${
+            primaryAction === 'add'
+              ? 'btn-add'
+              : primaryAction === 'append'
+                ? 'btn-append'
+                : 'btn-action'
+          }`;
+          mainButton.textContent = task.getPrimaryActionLabel();
+          mainButton.setAttribute('data-task-action', primaryAction);
           mainButton.setAttribute('data-task-id', task.id);
           mainButton.setAttribute('data-task-date', overdue.dateKey);
           mainButton.setAttribute('data-task-overdue', 'true');
@@ -654,6 +727,15 @@ class Index extends HTMLElement {
     await this._taskRepository.loadTasks();
   }
 
+  private async loadTasksWithLoading(): Promise<void> {
+    this.setLoading(true);
+    try {
+      await this.loadTasks();
+    } finally {
+      this.setLoading(false);
+    }
+  }
+
   registerNotification(): void {
     if (Notification.permission !== 'granted') {
       return;
@@ -688,7 +770,7 @@ class Index extends HTMLElement {
 
   async init(): Promise<void> {
     this.applyTheme();
-    await this.loadTasks();
+    await this.loadTasksWithLoading();
     this.setupPageSpecifics();
 
     this.registerNotification();
@@ -701,7 +783,8 @@ class Index extends HTMLElement {
 
   async reset(): Promise<void> {
     this._taskRepository.tasks = null;
-    await this.loadTasks();
+    await this.loadTasksWithLoading();
+    this.renderCards();
   }
 }
 

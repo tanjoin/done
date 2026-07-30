@@ -20,8 +20,12 @@ class DoneTask {
     remindMinutesBefore;
     skipCalendarOnComplete;
     strictMode;
+    createTaskViaUrl;
     specificDate;
     endDate;
+    sourceType;
+    externalCalendarId;
+    externalEventId;
     constructor(task) {
         this.id = task.id;
         this.text = task.text;
@@ -37,8 +41,12 @@ class DoneTask {
         this.remindMinutesBefore = task.remindMinutesBefore ?? null;
         this.skipCalendarOnComplete = (0, boolean_helper_1.normalizeBoolean)(task.skipCalendarOnComplete, false);
         this.strictMode = (0, boolean_helper_1.normalizeBoolean)(task.strictMode, false);
+        this.createTaskViaUrl = (0, boolean_helper_1.normalizeBoolean)(task.createTaskViaUrl, false);
         this.specificDate = task.specificDate || null;
         this.endDate = task.endDate || null;
+        this.sourceType = task.sourceType || 'local';
+        this.externalCalendarId = task.externalCalendarId || null;
+        this.externalEventId = task.externalEventId || null;
     }
     hourOfStartTime() {
         if (!this.startTime) {
@@ -229,6 +237,44 @@ class DoneTask {
     get statusInfo() {
         return this.getTaskStatusInfo(this.todayStatus, this.timeCheck(), this.shouldShowTask());
     }
+    isGoogleTodoTask() {
+        return this.sourceType === 'google-todo';
+    }
+    isDoneCalendarTask() {
+        return this.sourceType !== 'google-todo';
+    }
+    getPrimaryActionType() {
+        if (this.isGoogleTodoTask() || this.skipCalendarOnComplete === true) {
+            return 'complete';
+        }
+        if (this.isDoneCalendarTask() && this.createTaskViaUrl === true) {
+            return 'append';
+        }
+        if (this.isDoneCalendarTask() && this.skipCalendarOnComplete === false) {
+            return 'add';
+        }
+        return 'complete';
+    }
+    getPrimaryActionLabel() {
+        const action = this.getPrimaryActionType();
+        if (action === 'add') {
+            return '追加';
+        }
+        if (action === 'append') {
+            return '追記';
+        }
+        return '完了';
+    }
+    getPrimaryActionClassName() {
+        const action = this.getPrimaryActionType();
+        if (action === 'add') {
+            return 'table-btn table-btn-success';
+        }
+        if (action === 'append') {
+            return 'table-btn table-btn-warning';
+        }
+        return 'table-btn table-btn-primary';
+    }
     getTaskStatusInfo(todayStatus, timeCheck, isTargetDay) {
         if (todayStatus === 'completed') {
             return { label: '追加済み', className: 'chip-status-done', locked: true };
@@ -312,10 +358,9 @@ class DoneTask {
         const actionContainer = document.createElement('div');
         actionContainer.className = 'table-actions';
         const mainButton = document.createElement('button');
-        mainButton.className = 'table-btn table-btn-primary';
-        mainButton.textContent =
-            this.skipCalendarOnComplete === true ? '完了' : '追加';
-        mainButton.setAttribute('data-task-action', 'complete');
+        mainButton.className = this.getPrimaryActionClassName();
+        mainButton.textContent = this.getPrimaryActionLabel();
+        mainButton.setAttribute('data-task-action', this.getPrimaryActionType());
         mainButton.setAttribute('data-task-id', this.id);
         const isStrict = this.strictMode === true;
         const timeCheck = this.timeCheck();

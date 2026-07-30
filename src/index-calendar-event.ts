@@ -1,9 +1,11 @@
 import DateHelper from './date-helper';
 import DoneTask from './done-task';
 import LocalStorageManager from './local-storage-manager';
+import {loadCalendarSettings} from './google-calendar-service';
+import {hasValidGoogleToken} from './google-auth';
 
 export default class IndexCalendarEvent {
-  static open(task: DoneTask, isCancel: boolean): void {
+  static async open(task: DoneTask, isCancel: boolean): Promise<void> {
     const startTime = DateHelper.todayUTC;
     const endTime = startTime;
 
@@ -24,7 +26,10 @@ export default class IndexCalendarEvent {
     }
 
     let baseUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
-    const calendarId = LocalStorageManager.calendarTargetId;
+    const settings = await loadCalendarSettings();
+    const calendarId = hasValidGoogleToken()
+      ? settings.doneCalendarId.trim() || LocalStorageManager.calendarTargetId
+      : LocalStorageManager.calendarTargetId || settings.doneCalendarId.trim();
     if (calendarId) {
       baseUrl += `&src=${encodeURIComponent(calendarId)}`;
     }

@@ -97,6 +97,22 @@ export default class LocalStorageManager {
     return 'calendar_target_id';
   }
 
+  static get GOOGLE_CLIENT_ID_ENCRYPTED_KEY(): string {
+    return 'done_google_client_id_enc_v1';
+  }
+
+  static get GOOGLE_TODO_CALENDAR_ID_ENCRYPTED_KEY(): string {
+    return 'done_google_todo_calendar_id_enc_v1';
+  }
+
+  static get GOOGLE_DONE_CALENDAR_ID_ENCRYPTED_KEY(): string {
+    return 'done_google_done_calendar_id_enc_v1';
+  }
+
+  static get GOOGLE_DRIVE_SYNC_ENABLED_KEY(): string {
+    return 'done_google_drive_sync_enabled_v1';
+  }
+
   static get calendarTargetId(): string {
     return (
       localStorage.getItem(LocalStorageManager.CALENDAR_TARGET_ID_KEY) || ''
@@ -105,6 +121,58 @@ export default class LocalStorageManager {
 
   static set calendarTargetId(value: string) {
     localStorage.setItem(LocalStorageManager.CALENDAR_TARGET_ID_KEY, value);
+  }
+
+  static get googleClientIdEncrypted(): string {
+    return (
+      localStorage.getItem(LocalStorageManager.GOOGLE_CLIENT_ID_ENCRYPTED_KEY) ||
+      ''
+    );
+  }
+
+  static set googleClientIdEncrypted(value: string) {
+    localStorage.setItem(
+      LocalStorageManager.GOOGLE_CLIENT_ID_ENCRYPTED_KEY,
+      value,
+    );
+  }
+
+  static get googleTodoCalendarIdEncrypted(): string {
+    return (
+      localStorage.getItem(
+        LocalStorageManager.GOOGLE_TODO_CALENDAR_ID_ENCRYPTED_KEY,
+      ) || ''
+    );
+  }
+
+  static set googleTodoCalendarIdEncrypted(value: string) {
+    localStorage.setItem(
+      LocalStorageManager.GOOGLE_TODO_CALENDAR_ID_ENCRYPTED_KEY,
+      value,
+    );
+  }
+
+  static get googleDoneCalendarIdEncrypted(): string {
+    return (
+      localStorage.getItem(
+        LocalStorageManager.GOOGLE_DONE_CALENDAR_ID_ENCRYPTED_KEY,
+      ) || ''
+    );
+  }
+
+  static set googleDoneCalendarIdEncrypted(value: string) {
+    localStorage.setItem(
+      LocalStorageManager.GOOGLE_DONE_CALENDAR_ID_ENCRYPTED_KEY,
+      value,
+    );
+  }
+
+  static get googleDriveSyncEnabled(): boolean {
+    return this.getFilter(LocalStorageManager.GOOGLE_DRIVE_SYNC_ENABLED_KEY, false);
+  }
+
+  static set googleDriveSyncEnabled(value: boolean) {
+    this.setFilter(LocalStorageManager.GOOGLE_DRIVE_SYNC_ENABLED_KEY, value);
   }
 
   static supportsLocalStorage(): boolean {

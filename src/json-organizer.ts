@@ -260,8 +260,10 @@ class JsonOrganizer extends HTMLElement {
       remindMinutesBefore: null,
       skipCalendarOnComplete: false,
       strictMode: false,
+      createTaskViaUrl: false,
       specificDate: isTemporaryTask ? today : '',
       endDate: '',
+      sourceType: 'google-done',
     };
   }
 

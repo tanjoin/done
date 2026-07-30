@@ -29,8 +29,8 @@ export default class Header extends HTMLElement {
     this.innerHTML = `
       <header class="nav-bar">
       <a href="index.html" class="nav-link ${this._activeLink === 'index' ? 'active' : ''}">タスク一覧</a>
-      <a href="settings.html" class="nav-link ${this._activeLink === 'settings' ? 'active' : ''}">設定・データ管理</a>
       <a href="json-organizer.html" class="nav-link ${this._activeLink === 'json-organizer' ? 'active' : ''}">JSON整理</a>
+      <a href="settings.html" class="nav-link ${this._activeLink === 'settings' ? 'active' : ''}">設定・データ管理</a>
       </header>
     `;
   }
