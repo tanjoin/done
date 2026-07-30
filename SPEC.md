@@ -82,6 +82,7 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 
 補足
 - TODO 由来タスクのグループ名は「カレンダー」
+- 起動時は localStorage のタスクを先に表示し、Google/Drive からの取得は非同期で後追いする
 
 ## 2.4 Google ドライブ連携
 
@@ -98,6 +99,7 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 出力
 - Drive 上の専用 JSON ファイル（tanjoin_done_task_sync_backup_v1.json）に保存
 - 起動時の自動読み込み
+- 同一タブ内の画面遷移時はセッションキャッシュを優先し、短時間での再取得を抑止する
 
 ## 2.5 設定とデータ管理
 

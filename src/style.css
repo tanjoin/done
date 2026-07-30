@@ -410,6 +410,14 @@ a:not(.nav-link):hover {
     margin-bottom: 14px;
 }
 
+.loading-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px;
+    color: var(--text-muted);
+}
+
 .loading-wrap {
     display: flex;
     align-items: center;

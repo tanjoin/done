@@ -227,33 +227,32 @@ class Index extends HTMLElement {
           ${document.createElement(IndexSwitchViewMode.NAME).outerHTML}
           ${document.createElement(IndexFilterControls.NAME).outerHTML}
         </div>
+        <div id="taskLoadingIndicator" class="loading-inline" style="display: none;">
+          <span class="loading-spinner" aria-hidden="true"></span>
+          <span class="loading-text">データを同期中...</span>
+        </div>
         <div id="taskContainer"></div>
       </main>
     `;
   }
 
-  private renderLoading(message = 'データを読み込み中...'): void {
-    const container = document.getElementById('taskContainer');
-    if (!container) return;
-    container.innerHTML = `
-      <div class="loading-wrap" role="status" aria-live="polite" aria-busy="true">
-        <span class="loading-spinner" aria-hidden="true"></span>
-        <span class="loading-text">${message}</span>
-      </div>
-    `;
-  }
-
   private setLoading(loading: boolean): void {
     this._isLoading = loading;
-    if (loading) {
-      this.renderLoading();
+    const indicator = document.getElementById('taskLoadingIndicator');
+    if (indicator) {
+      indicator.style.display = loading ? 'flex' : 'none';
     }
   }
 
   renderCards(): void {
     const container = document.getElementById('taskContainer');
     if (!container) return;
-    if (this._isLoading) return;
+
+    if (this._isLoading && this._taskRepository.tasks.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
     container.innerHTML = '';
 
     const TODAY = DateHelper.today;
@@ -727,10 +726,10 @@ class Index extends HTMLElement {
     await this._taskRepository.loadTasks();
   }
 
-  private async loadTasksWithLoading(): Promise<void> {
+  private async refreshCloudTasksWithLoading(forceRefresh = false): Promise<void> {
     this.setLoading(true);
     try {
-      await this.loadTasks();
+      await this._taskRepository.refreshFromCloudIfNeeded(forceRefresh);
     } finally {
       this.setLoading(false);
     }
@@ -770,8 +769,22 @@ class Index extends HTMLElement {
 
   async init(): Promise<void> {
     this.applyTheme();
-    await this.loadTasksWithLoading();
+
+    // 先に localStorage の内容を描画し、クラウド同期は非同期で後追いする。
+    this._taskRepository.hydrateFromLocal();
+
+    if (
+      this._taskRepository.tasks.length === 0 &&
+      !LocalStorageManager.hasStoredTasksData()
+    ) {
+      await this._taskRepository.resetToDefault();
+    }
+
     this.setupPageSpecifics();
+
+    void this.refreshCloudTasksWithLoading().then(() => {
+      this.renderCards();
+    });
 
     this.registerNotification();
     setInterval(() => {
@@ -783,7 +796,9 @@ class Index extends HTMLElement {
 
   async reset(): Promise<void> {
     this._taskRepository.tasks = null;
-    await this.loadTasksWithLoading();
+    this._taskRepository.hydrateFromLocal();
+    this.renderCards();
+    await this.refreshCloudTasksWithLoading(true);
     this.renderCards();
   }
 }

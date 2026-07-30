@@ -33,12 +33,14 @@ class Settings extends HTMLElement {
   }
 
   private async setup(): Promise<void> {
-    await this._taskRepository.loadTasks();
+    this._taskRepository.hydrateFromLocal();
     SettingsThemeSection.setup(this);
     SettingsCalendarSection.setup(this);
     SettingsDisplaySection.setup(this);
     SettingsNotificationSection.setup(this);
     SettingsDataSection.setup(this, this._taskRepository);
+
+    void this._taskRepository.refreshFromCloudIfNeeded();
   }
 }
 
