@@ -14,6 +14,7 @@ type GoogleCalendarEvent = {
   id: string;
   summary?: string;
   description?: string;
+  location?: string;
   htmlLink?: string;
   colorId?: string;
   start?: {
@@ -94,6 +95,7 @@ function toTaskDataFromEvent(
     id: `google-${calendarId}-${event.id}`,
     text: event.summary || '(タイトルなし)',
     description: event.description || '',
+    location: event.location || '',
     link: event.htmlLink || '',
     group: 'カレンダー',
     history,
@@ -352,6 +354,25 @@ export async function updateTodoEventColor(
       method: 'PATCH',
       body: JSON.stringify({
         colorId,
+      }),
+    },
+  );
+}
+
+export async function updateTodoEventDescription(
+  task: DoneTask,
+  description: string,
+): Promise<void> {
+  if (!task.externalCalendarId || !task.externalEventId) {
+    return;
+  }
+
+  await fetchCalendarApi(
+    `/calendars/${encodeURIComponent(task.externalCalendarId)}/events/${encodeURIComponent(task.externalEventId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        description,
       }),
     },
   );

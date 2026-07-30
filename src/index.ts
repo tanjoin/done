@@ -21,6 +21,7 @@ import SortManager from './sort-manager';
 import TableManager from './table-manager';
 import {
   addEventToDoneCalendarFromTask,
+  updateTodoEventDescription,
   updateTodoEventColor,
 } from './google-calendar-service';
 import {hasValidGoogleToken} from './google-auth';
@@ -32,6 +33,9 @@ class Index extends HTMLElement {
   private _sortManager: SortManager = new SortManager();
   private _tableManager: TableManager = new TableManager();
   private _isLoading = false;
+
+  private static readonly TODO_CHECKBOX_LINE_RE =
+    /^\s*-\s*\[( |x|X)\]\s*(.*)$/;
 
   static get NAME(): string {
     return 'done-index';
@@ -217,6 +221,324 @@ class Index extends HTMLElement {
     }
     if (action === 'delete') {
       this.deleteTask(taskId);
+    }
+  }
+
+  private createTextWithLinks(text: string): DocumentFragment {
+    const fragment = document.createDocumentFragment();
+    const anchorTagRe = /<a\b[^>]*href=(['"])(.*?)\1[^>]*>(.*?)<\/a>/gi;
+
+    let lastIndex = 0;
+    let matchedAnchor: RegExpExecArray | null = null;
+    while ((matchedAnchor = anchorTagRe.exec(text)) !== null) {
+      const start = matchedAnchor.index;
+      if (start > lastIndex) {
+        this.appendTextWithAutoLinks(fragment, text.slice(lastIndex, start));
+      }
+
+      const hrefRaw = matchedAnchor[2] || '';
+      const linkTextRaw = matchedAnchor[3] || '';
+      const normalizedHref = this.normalizeInlineUrl(hrefRaw);
+      const linkText = this.decodeHtmlEntities(
+        linkTextRaw.replace(/<[^>]+>/g, ''),
+      ).trim();
+
+      const anchor = document.createElement('a');
+      anchor.href = normalizedHref;
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      anchor.className = 'task-inline-link';
+      anchor.textContent = linkText || normalizedHref;
+      fragment.appendChild(anchor);
+
+      lastIndex = start + matchedAnchor[0].length;
+    }
+
+    if (lastIndex < text.length) {
+      this.appendTextWithAutoLinks(fragment, text.slice(lastIndex));
+    }
+
+    return fragment;
+  }
+
+  private appendTextWithAutoLinks(
+    fragment: DocumentFragment,
+    text: string,
+  ): void {
+    const urlRe = /(https?:\/\/[^\s<>"]+)/g;
+    let lastIndex = 0;
+    let matched: RegExpExecArray | null = null;
+
+    while ((matched = urlRe.exec(text)) !== null) {
+      const rawUrl = matched[1] || '';
+      const start = matched.index;
+      if (start > lastIndex) {
+        fragment.appendChild(
+          document.createTextNode(text.slice(lastIndex, start)),
+        );
+      }
+
+      let cleanedUrl = rawUrl;
+      let trailing = '';
+      while (/[).,!?;:'\]]$/.test(cleanedUrl)) {
+        trailing = cleanedUrl.slice(-1) + trailing;
+        cleanedUrl = cleanedUrl.slice(0, -1);
+      }
+
+      const normalizedHref = this.normalizeInlineUrl(cleanedUrl);
+      const anchor = document.createElement('a');
+      anchor.href = normalizedHref;
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      anchor.className = 'task-inline-link';
+      anchor.textContent = normalizedHref;
+      fragment.appendChild(anchor);
+
+      if (trailing) {
+        fragment.appendChild(document.createTextNode(trailing));
+      }
+
+      lastIndex = start + rawUrl.length;
+    }
+
+    if (lastIndex < text.length) {
+      fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+  }
+
+  private decodeHtmlEntities(value: string): string {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = value;
+    return textarea.value;
+  }
+
+  private normalizeInlineUrl(rawValue: string): string {
+    let value = this.decodeHtmlEntities(rawValue).trim();
+
+    const markdownWrapped = value.match(/\]\((https?:\/\/[^)\s]+)\)/i);
+    if (markdownWrapped && markdownWrapped[1]) {
+      value = markdownWrapped[1];
+    }
+
+    const firstUrl = value.match(/https?:\/\/[^\s'"<>]+/i);
+    if (firstUrl && firstUrl[0]) {
+      value = firstUrl[0];
+    }
+
+    try {
+      const parsed = new URL(value);
+      const host = parsed.hostname.toLowerCase();
+      const isGoogleRedirect =
+        (host === 'google.com' || host === 'www.google.com') &&
+        parsed.pathname === '/url';
+      if (isGoogleRedirect) {
+        const target = parsed.searchParams.get('q');
+        if (target) {
+          const decodedTarget = this.decodeHtmlEntities(target).trim();
+          const targetUrl = decodedTarget.match(/https?:\/\/[^\s'"<>]+/i);
+          if (targetUrl && targetUrl[0]) {
+            return targetUrl[0];
+          }
+          return decodedTarget;
+        }
+      }
+      return parsed.toString();
+    } catch {
+      return value;
+    }
+  }
+
+  private parseTodoChecklistLines(description: string): Array<{
+    kind: 'check' | 'text';
+    checked?: boolean;
+    text: string;
+  }> {
+    return description.split(/\r?\n/).map(line => {
+      const matched = line.match(Index.TODO_CHECKBOX_LINE_RE);
+      if (!matched) {
+        return {kind: 'text', text: line};
+      }
+      const marker = matched[1] || ' ';
+      return {
+        kind: 'check',
+        checked: marker.toLowerCase() === 'x',
+        text: matched[2] || '',
+      };
+    });
+  }
+
+  private updateTodoChecklistLine(
+    description: string,
+    checkIndex: number,
+    checked: boolean,
+  ): string | null {
+    const lines = description.split(/\r?\n/);
+    let currentCheckIndex = 0;
+    const updated = lines.map(line => {
+      const matched = line.match(Index.TODO_CHECKBOX_LINE_RE);
+      if (!matched) {
+        return line;
+      }
+
+      const nextLine =
+        currentCheckIndex === checkIndex
+          ? `- [${checked ? 'x' : ' '}] ${matched[2] || ''}`
+          : line;
+      currentCheckIndex += 1;
+      return nextLine;
+    });
+
+    if (checkIndex < 0 || checkIndex >= currentCheckIndex) {
+      return null;
+    }
+    return updated.join('\n');
+  }
+
+  private createTaskDescriptionElement(task: DoneTask): HTMLElement | null {
+    const description = task.description || '';
+    if (!description.trim()) {
+      return null;
+    }
+
+    const parsedLines = this.parseTodoChecklistLines(description);
+    const hasChecklist = parsedLines.some(line => line.kind === 'check');
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'task-description';
+
+    // カード表示時のみ、TODOチェックリストを操作可能なチェックボックスで表示する。
+    if (task.isGoogleTodoTask() && hasChecklist) {
+      wrapper.classList.add('task-description-checklist');
+      let checkIndex = 0;
+      parsedLines.forEach(line => {
+        if (line.kind === 'text') {
+          const plainLine = document.createElement('div');
+          plainLine.className = 'task-description-line';
+          plainLine.appendChild(this.createTextWithLinks(line.text));
+          wrapper.appendChild(plainLine);
+          return;
+        }
+
+        const label = document.createElement('label');
+        label.className = 'todo-check-item';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = Boolean(line.checked);
+        checkbox.className = 'todo-check-input';
+        checkbox.setAttribute('data-todo-check-item', '1');
+        checkbox.setAttribute('data-task-id', task.id);
+        checkbox.setAttribute('data-check-index', String(checkIndex));
+
+        const text = document.createElement('span');
+        text.className = 'todo-check-text';
+        text.appendChild(this.createTextWithLinks(line.text));
+        if (line.checked) {
+          text.classList.add('is-checked');
+        }
+
+        label.appendChild(checkbox);
+        label.appendChild(text);
+        wrapper.appendChild(label);
+        checkIndex += 1;
+      });
+      return wrapper;
+    }
+
+    description.split(/\r?\n/).forEach(line => {
+      const plainLine = document.createElement('div');
+      plainLine.className = 'task-description-line';
+      plainLine.appendChild(this.createTextWithLinks(line));
+      wrapper.appendChild(plainLine);
+    });
+    return wrapper;
+  }
+
+  private createTodoLocationElement(task: DoneTask): HTMLElement | null {
+    if (!task.isGoogleTodoTask()) {
+      return null;
+    }
+    const location = task.location?.trim();
+    if (!location) {
+      return null;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'todo-location';
+
+    const label = document.createElement('span');
+    label.className = 'todo-location-label';
+    label.textContent = '場所: ';
+    row.appendChild(label);
+
+    if (/^https?:\/\//i.test(location)) {
+      const anchor = document.createElement('a');
+      anchor.href = location;
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      anchor.className = 'todo-location-link';
+      anchor.textContent = location;
+      row.appendChild(anchor);
+    } else {
+      const text = document.createElement('span');
+      text.className = 'todo-location-text';
+      text.appendChild(this.createTextWithLinks(location));
+      row.appendChild(text);
+    }
+
+    return row;
+  }
+
+  private async handleTodoChecklistToggle(
+    taskId: string,
+    checkIndex: number,
+    checked: boolean,
+    inputEl: HTMLInputElement,
+  ): Promise<void> {
+    const taskIndex = this.findTaskIndexById(taskId);
+    if (taskIndex < 0) {
+      inputEl.checked = !checked;
+      return;
+    }
+
+    const task = this._taskRepository.tasks[taskIndex];
+    if (!task || !task.isGoogleTodoTask()) {
+      inputEl.checked = !checked;
+      return;
+    }
+
+    if (LocalStorageManager.taskViewMode !== 'card') {
+      inputEl.checked = !checked;
+      return;
+    }
+
+    if (!hasValidGoogleToken()) {
+      inputEl.checked = !checked;
+      alert('Google にログインしてからチェックを更新してください。');
+      return;
+    }
+
+    const currentDescription = task.description || '';
+    const nextDescription = this.updateTodoChecklistLine(
+      currentDescription,
+      checkIndex,
+      checked,
+    );
+    if (nextDescription === null) {
+      inputEl.checked = !checked;
+      return;
+    }
+
+    inputEl.disabled = true;
+    try {
+      await updateTodoEventDescription(new DoneTask(task), nextDescription);
+      task.description = nextDescription;
+      this.renderCards();
+    } catch {
+      inputEl.checked = !checked;
+      alert('TODOカレンダーのチェック状態更新に失敗しました。');
+    } finally {
+      inputEl.disabled = false;
     }
   }
 
@@ -527,11 +849,14 @@ class Index extends HTMLElement {
           content.appendChild(timeInfo);
         }
 
-        if (task.description) {
-          const description = document.createElement('div');
-          description.className = 'task-description';
-          description.textContent = task.description;
+        const description = this.createTaskDescriptionElement(task);
+        if (description) {
           content.appendChild(description);
+        }
+
+        const location = this.createTodoLocationElement(task);
+        if (location) {
+          content.appendChild(location);
         }
 
         if (task.link) {
@@ -663,11 +988,14 @@ class Index extends HTMLElement {
             content.appendChild(timeInfo);
           }
 
-          if (task.description) {
-            const description = document.createElement('div');
-            description.className = 'task-description';
-            description.textContent = task.description;
+          const description = this.createTaskDescriptionElement(task);
+          if (description) {
             content.appendChild(description);
+          }
+
+          const location = this.createTodoLocationElement(task);
+          if (location) {
+            content.appendChild(location);
           }
 
           if (task.link) {
@@ -806,6 +1134,29 @@ class Index extends HTMLElement {
             this.renderCards();
           }
         }
+      });
+
+      taskContainer.addEventListener('change', event => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) {
+          return;
+        }
+        if (target.getAttribute('data-todo-check-item') !== '1') {
+          return;
+        }
+
+        const taskId = target.getAttribute('data-task-id') || '';
+        const checkIndex = Number(target.getAttribute('data-check-index'));
+        if (!taskId || !Number.isInteger(checkIndex) || checkIndex < 0) {
+          return;
+        }
+
+        void this.handleTodoChecklistToggle(
+          taskId,
+          checkIndex,
+          target.checked,
+          target,
+        );
       });
 
       this.renderCards();

@@ -42,6 +42,7 @@ export type DoneTaskData = {
   id: string;
   text: string;
   description?: string | null;
+  location?: string | null;
   link?: string | null;
   group?: string;
   daysOfWeek?: number[];

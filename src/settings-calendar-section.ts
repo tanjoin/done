@@ -6,6 +6,7 @@ import {
 } from './google-auth';
 import {
   getGoogleDriveBackupFileLink,
+  loadTasksFromGoogleDrive,
   syncTasksToGoogleDrive,
 } from './google-drive-service';
 import {
@@ -216,7 +217,13 @@ export default class SettingsCalendarSection {
         await getGoogleAccessToken(GOOGLE_LOGIN_SCOPES, true);
         updateLoginStatus();
         if (driveToggle.checked) {
-          await syncTasksToGoogleDrive(LocalStorageManager.tasks);
+          const driveTasks = await loadTasksFromGoogleDrive();
+          if (driveTasks !== null) {
+            // Drive 側の保存内容を優先して取り込み、ログイン直後の反映漏れを防ぐ
+            LocalStorageManager.tasks = driveTasks;
+          } else {
+            await syncTasksToGoogleDrive(LocalStorageManager.tasks);
+          }
         }
         await refreshDriveLink();
       } catch (error) {

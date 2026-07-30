@@ -221,6 +221,56 @@ body.table-view-mode .container {
     white-space: pre-wrap;
 }
 
+.task-description-line {
+    margin-bottom: 2px;
+}
+
+.task-description-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.todo-check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.todo-check-input {
+    margin-top: 3px;
+}
+
+.todo-check-text {
+    color: var(--text-secondary);
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.todo-check-text.is-checked {
+    text-decoration: line-through;
+    opacity: 0.75;
+}
+
+.task-inline-link,
+.todo-location-link {
+    color: var(--accent-color);
+    text-decoration: underline;
+    word-break: break-all;
+}
+
+.todo-location {
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.todo-location-label {
+    font-weight: 700;
+}
+
 /* リンク */
 .task-link {
     font-size: 13px;
@@ -528,7 +578,7 @@ a:not(.nav-link):hover {
 .table-wrapper {
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: hidden;
     background-color: var(--card-bg);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -536,6 +586,7 @@ a:not(.nav-link):hover {
 
 .task-table {
     width: 100%;
+    min-width: 760px;
     border-collapse: collapse;
     table-layout: auto;
 }
@@ -731,6 +782,22 @@ a:not(.nav-link):hover {
     .filter-button-item {
         width: 100%;
         justify-content: space-between;
+    }
+
+    .table-wrapper {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .task-table {
+        min-width: 700px;
+    }
+
+    .table-actions {
+        flex-wrap: nowrap;
+    }
+
+    .table-btn {
+        white-space: nowrap;
     }
 }
 

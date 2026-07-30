@@ -9,6 +9,7 @@ class DoneTask {
     id;
     text;
     description;
+    location;
     link;
     group;
     daysOfWeek;
@@ -30,6 +31,7 @@ class DoneTask {
         this.id = task.id;
         this.text = task.text;
         this.description = task.description || null;
+        this.location = task.location || null;
         this.link = task.link || null;
         this.group = task.group || '';
         this.daysOfWeek = task.daysOfWeek || [];

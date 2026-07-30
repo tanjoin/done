@@ -14,6 +14,7 @@ export default class DoneTask implements DoneTaskData {
   id: string;
   text: string;
   description?: string | null;
+  location?: string | null;
   link?: string | null;
   group?: string;
   daysOfWeek?: number[];
@@ -36,6 +37,7 @@ export default class DoneTask implements DoneTaskData {
     this.id = task.id;
     this.text = task.text;
     this.description = task.description || null;
+    this.location = task.location || null;
     this.link = task.link || null;
     this.group = task.group || '';
     this.daysOfWeek = task.daysOfWeek || [];
