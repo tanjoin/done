@@ -163,6 +163,16 @@ function startRedirectGoogleAuth(
   window.location.assign(buildRedirectAuthUrl(clientId, scopes, forcePrompt));
 }
 
+function startNewTabGoogleAuth(
+  clientId: string,
+  scopes: string[],
+  forcePrompt: boolean,
+): boolean {
+  const authUrl = buildRedirectAuthUrl(clientId, scopes, forcePrompt);
+  const opened = window.open(authUrl, '_blank', 'noopener,noreferrer');
+  return opened !== null;
+}
+
 function hydrateTokenFromStorage(): void {
   const savedToken = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY) || '';
   const savedExpiry = Number(
@@ -224,13 +234,6 @@ export async function getGoogleAccessToken(
     throw new Error('Google認証ライブラリの読み込みに失敗しました。');
   }
 
-  if (shouldUseRedirectAuth()) {
-    startRedirectGoogleAuth(clientId, scopes, forcePrompt);
-    return new Promise(() => {
-      // Redirect navigation will replace this page session.
-    });
-  }
-
   return new Promise((resolve, reject) => {
     let tokenClient: TokenClient;
     tokenClient = oauth.initTokenClient({
@@ -238,11 +241,23 @@ export async function getGoogleAccessToken(
       scope: scopes.join(' '),
       error_callback: error => {
         const type = error?.type || '';
-        if (type === 'popup_failed_to_open' || type === 'popup_closed') {
+        if (type === 'popup_failed_to_open') {
+          if (startNewTabGoogleAuth(clientId, scopes, forcePrompt)) {
+            reject(
+              new Error(
+                'ポップアップを開けなかったため、新しいタブでGoogleログインを開きました。ログイン完了後にこの画面へ戻ってください。',
+              ),
+            );
+            return;
+          }
           if (shouldUseRedirectAuth()) {
             startRedirectGoogleAuth(clientId, scopes, forcePrompt);
             return;
           }
+          reject(new Error('Googleログインのポップアップを開けませんでした。'));
+          return;
+        }
+        if (type === 'popup_closed') {
           reject(new Error('Googleログインのポップアップが閉じられました。'));
           return;
         }
