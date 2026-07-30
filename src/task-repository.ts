@@ -5,7 +5,7 @@ import {
   loadTasksFromGoogleDrive,
   syncTasksToGoogleDrive,
 } from './google-drive-service';
-import {hasValidGoogleToken} from './google-auth';
+import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
 import type {DoneTaskData} from './types';
 
 export default class TaskRepository {
@@ -195,10 +195,13 @@ export default class TaskRepository {
     mergedTasks: DoneTaskData[];
     todoCount: number;
     todoFetchFailed: boolean;
+    todoFetchAuthExpired: boolean;
     driveLoadFailed: boolean;
+    driveLoadAuthExpired: boolean;
   }> {
     let workingTasks = localTasks;
     let driveLoadFailed = false;
+    let driveLoadAuthExpired = false;
 
     if (!LocalStorageManager.googleDriveSyncEnabled) {
       this.emitGoogleDriveStatus({
@@ -223,25 +226,30 @@ export default class TaskRepository {
           message: 'Google Drive: 読み込み完了',
         });
       }
-    } catch {
+    } catch (error) {
       // Google Drive が未設定/未認証の場合はローカルのみで継続する。
       driveLoadFailed = true;
+      driveLoadAuthExpired = isGoogleReloginRequiredError(error);
       if (LocalStorageManager.googleDriveSyncEnabled) {
         this.emitGoogleDriveStatus({
           state: 'error',
-          message: 'Google Drive: 読み込み失敗',
+          message: driveLoadAuthExpired
+            ? 'Google Drive: 認証切れ（再ログインしてください）'
+            : 'Google Drive: 読み込み失敗',
         });
       }
     }
 
     let googleTodoTasks: DoneTaskData[] = [];
     let todoFetchFailed = false;
+    let todoFetchAuthExpired = false;
     try {
       googleTodoTasks = await fetchTodoTasksFromGoogleCalendar();
-    } catch {
+    } catch (error) {
       // Google Calendar が未設定/未認証の場合はローカルのみで継続する。
       googleTodoTasks = [];
       todoFetchFailed = true;
+      todoFetchAuthExpired = isGoogleReloginRequiredError(error);
     }
 
     const googleTodoMap = new Map(googleTodoTasks.map(task => [task.id, task]));
@@ -253,7 +261,9 @@ export default class TaskRepository {
       mergedTasks: [...localOnly, ...Array.from(googleTodoMap.values())],
       todoCount: googleTodoTasks.length,
       todoFetchFailed,
+      todoFetchAuthExpired,
       driveLoadFailed,
+      driveLoadAuthExpired,
     };
   }
 
@@ -305,7 +315,9 @@ export default class TaskRepository {
       fetched.todoFetchFailed
         ? {
             state: 'error',
-            message: 'TODOカレンダー: 読み込み失敗（ローカル表示中）',
+            message: fetched.todoFetchAuthExpired
+              ? 'TODOカレンダー: 認証切れ（再ログインしてください）'
+              : 'TODOカレンダー: 読み込み失敗（ローカル表示中）',
           }
         : {
             state: 'success',
@@ -365,10 +377,12 @@ export default class TaskRepository {
             message: 'Google Drive: 同期完了',
           });
         })
-        .catch(() => {
+        .catch(error => {
           this.emitGoogleDriveStatus({
             state: 'error',
-            message: 'Google Drive: 同期失敗',
+            message: isGoogleReloginRequiredError(error)
+              ? 'Google Drive: 認証切れ（再ログインしてください）'
+              : 'Google Drive: 同期失敗',
           });
         });
     }
@@ -403,7 +417,9 @@ export default class TaskRepository {
     } catch (error) {
       this.emitGoogleDriveStatus({
         state: 'error',
-        message: 'Google Drive: 同期失敗',
+        message: isGoogleReloginRequiredError(error)
+          ? 'Google Drive: 認証切れ（再ログインしてください）'
+          : 'Google Drive: 同期失敗',
       });
       throw error;
     }

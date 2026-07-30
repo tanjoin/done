@@ -1,6 +1,11 @@
 import type {DoneTaskData} from './types';
 import LocalStorageManager from './local-storage-manager';
-import {getGoogleAccessToken} from './google-auth';
+import {
+  clearGoogleToken,
+  createGoogleReloginRequiredError,
+  getGoogleAccessToken,
+  isGoogleReloginRequiredError,
+} from './google-auth';
 
 const GOOGLE_DRIVE_SCOPE = ['https://www.googleapis.com/auth/drive.file'];
 const FILE_NAME = 'tanjoin_done_task_sync_backup_v1.json';
@@ -9,7 +14,11 @@ function driveApi(path: string): string {
   return `https://www.googleapis.com/drive/v3${path}`;
 }
 
-async function fetchDriveApi<T>(path: string, init?: RequestInit): Promise<T> {
+async function fetchDriveApi<T>(
+  path: string,
+  init?: RequestInit,
+  retried = false,
+): Promise<T> {
   const token = await getGoogleAccessToken(GOOGLE_DRIVE_SCOPE);
   const response = await fetch(driveApi(path), {
     ...init,
@@ -20,6 +29,21 @@ async function fetchDriveApi<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
+    if ((response.status === 401 || response.status === 403) && !retried) {
+      clearGoogleToken();
+      try {
+        return await fetchDriveApi<T>(path, init, true);
+      } catch (error) {
+        if (!isGoogleReloginRequiredError(error)) {
+          throw error;
+        }
+        throw createGoogleReloginRequiredError();
+      }
+    }
+    if (response.status === 401 || response.status === 403) {
+      clearGoogleToken();
+      throw createGoogleReloginRequiredError();
+    }
     const body = await response.text();
     throw new Error(`Google Drive API error (${response.status}): ${body}`);
   }
@@ -41,6 +65,7 @@ async function uploadMultipart(
   metadata: Record<string, unknown>,
   content: string,
   fileId = '',
+  retried = false,
 ): Promise<void> {
   const boundary = 'done-boundary-' + Math.random().toString(36).slice(2);
   const body =
@@ -68,6 +93,22 @@ async function uploadMultipart(
   });
 
   if (!response.ok) {
+    if ((response.status === 401 || response.status === 403) && !retried) {
+      clearGoogleToken();
+      try {
+        await uploadMultipart(metadata, content, fileId, true);
+        return;
+      } catch (error) {
+        if (!isGoogleReloginRequiredError(error)) {
+          throw error;
+        }
+        throw createGoogleReloginRequiredError();
+      }
+    }
+    if (response.status === 401 || response.status === 403) {
+      clearGoogleToken();
+      throw createGoogleReloginRequiredError();
+    }
     const text = await response.text();
     throw new Error(`Google Drive upload failed (${response.status}): ${text}`);
   }
@@ -102,6 +143,11 @@ export async function loadTasksFromGoogleDrive(): Promise<DoneTaskData[] | null>
       },
     },
   );
+
+  if (response.status === 401 || response.status === 403) {
+    clearGoogleToken();
+    throw createGoogleReloginRequiredError();
+  }
 
   if (!response.ok) {
     return null;

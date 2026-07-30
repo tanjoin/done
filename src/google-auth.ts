@@ -27,6 +27,15 @@ const GSI_SCRIPT_ID = 'done-google-gsi-script';
 const GAPI_SCRIPT_ID = 'done-google-gapi-script';
 const GOOGLE_ACCESS_TOKEN_KEY = 'done_google_access_token_v1';
 const GOOGLE_ACCESS_TOKEN_EXPIRY_KEY = 'done_google_access_token_expiry_v1';
+const GOOGLE_RELOGIN_REQUIRED_CODE = 'GOOGLE_RELOGIN_REQUIRED';
+const GOOGLE_RELOGIN_REQUIRED_MESSAGE =
+  'Google認証の有効期限が切れました。設定画面で再ログインしてください。';
+const GOOGLE_RELOGIN_REQUIRED_ERRORS = new Set([
+  'interaction_required',
+  'login_required',
+  'consent_required',
+  'immediate_failed',
+]);
 
 type TokenClient = {
   requestAccessToken: (options?: {prompt?: string}) => void;
@@ -122,6 +131,26 @@ function setGoogleToken(token: string, expiresInSec = 3000): void {
   localStorage.setItem(GOOGLE_ACCESS_TOKEN_EXPIRY_KEY, String(tokenExpiry));
 }
 
+export function createGoogleReloginRequiredError(): Error {
+  const error = new Error(GOOGLE_RELOGIN_REQUIRED_MESSAGE) as Error & {
+    code?: string;
+  };
+  error.code = GOOGLE_RELOGIN_REQUIRED_CODE;
+  return error;
+}
+
+export function isGoogleReloginRequiredError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const maybeCode = (error as Error & {code?: string}).code;
+  return (
+    maybeCode === GOOGLE_RELOGIN_REQUIRED_CODE ||
+    GOOGLE_RELOGIN_REQUIRED_ERRORS.has(error.message) ||
+    error.message === GOOGLE_RELOGIN_REQUIRED_MESSAGE
+  );
+}
+
 export async function getGoogleAccessToken(
   scopes: string[],
   forcePrompt = false,
@@ -147,8 +176,18 @@ export async function getGoogleAccessToken(
       client_id: clientId,
       scope: scopes.join(' '),
       callback: response => {
-        if (response.error || !response.access_token) {
-          reject(new Error(response.error || 'アクセストークン取得に失敗しました。'));
+        if (response.error) {
+          clearGoogleToken();
+          if (GOOGLE_RELOGIN_REQUIRED_ERRORS.has(response.error)) {
+            reject(createGoogleReloginRequiredError());
+            return;
+          }
+          reject(new Error(response.error));
+          return;
+        }
+        if (!response.access_token) {
+          clearGoogleToken();
+          reject(new Error('アクセストークン取得に失敗しました。'));
           return;
         }
         setGoogleToken(response.access_token, response.expires_in || 3000);

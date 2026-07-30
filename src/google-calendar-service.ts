@@ -2,7 +2,12 @@ import type DoneTask from './done-task';
 import type {DoneTaskData, DoneTaskSourceType} from './types';
 import LocalStorageManager from './local-storage-manager';
 import {decryptText, encryptText} from './google-crypto';
-import {getGoogleAccessToken} from './google-auth';
+import {
+  clearGoogleToken,
+  createGoogleReloginRequiredError,
+  getGoogleAccessToken,
+  isGoogleReloginRequiredError,
+} from './google-auth';
 import DateHelper from './date-helper';
 
 export type GoogleCalendarSummary = {
@@ -39,6 +44,7 @@ function calendarApiUrl(path: string): string {
 async function fetchCalendarApi<T>(
   path: string,
   init?: RequestInit,
+  retried = false,
 ): Promise<T> {
   const token = await getGoogleAccessToken(GOOGLE_CALENDAR_SCOPE);
   const response = await fetch(calendarApiUrl(path), {
@@ -51,6 +57,21 @@ async function fetchCalendarApi<T>(
   });
 
   if (!response.ok) {
+    if ((response.status === 401 || response.status === 403) && !retried) {
+      clearGoogleToken();
+      try {
+        return await fetchCalendarApi<T>(path, init, true);
+      } catch (error) {
+        if (!isGoogleReloginRequiredError(error)) {
+          throw error;
+        }
+        throw createGoogleReloginRequiredError();
+      }
+    }
+    if (response.status === 401 || response.status === 403) {
+      clearGoogleToken();
+      throw createGoogleReloginRequiredError();
+    }
     const body = await response.text();
     throw new Error(`Google Calendar API error (${response.status}): ${body}`);
   }
@@ -300,7 +321,10 @@ export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]
     return (payload.items || [])
       .filter(event => Boolean(event.id))
       .map(event => toTaskDataFromEvent(event, 'google-todo', calendarId));
-  } catch {
+  } catch (error) {
+    if (isGoogleReloginRequiredError(error)) {
+      throw error;
+    }
     return [];
   }
 }

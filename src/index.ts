@@ -24,7 +24,7 @@ import {
   updateTodoEventDescription,
   updateTodoEventColor,
 } from './google-calendar-service';
-import {hasValidGoogleToken} from './google-auth';
+import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
 
 class Index extends HTMLElement {
   private _mode: DoneSwitchViewMode = 'card';
@@ -125,8 +125,12 @@ class Index extends HTMLElement {
 
     task.history[targetDateKey] = isCancel ? 'cancelled' : 'completed';
 
-    void this._taskRepository.saveTasksWithSync().catch(() => {
-      alert('Google Drive への同期に失敗しました。');
+    void this._taskRepository.saveTasksWithSync().catch(error => {
+      alert(
+        isGoogleReloginRequiredError(error)
+          ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
+          : 'Google Drive への同期に失敗しました。',
+      );
     });
 
     this.renderCards();
@@ -144,23 +148,35 @@ class Index extends HTMLElement {
 
       if (isCancel) {
         if (calendarTask.isGoogleTodoTask()) {
-          void updateTodoEventColor(calendarTask, '4').catch(() => {
-            alert('TODOカレンダーのキャンセル色更新に失敗しました。');
+          void updateTodoEventColor(calendarTask, '4').catch(error => {
+            alert(
+              isGoogleReloginRequiredError(error)
+                ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
+                : 'TODOカレンダーのキャンセル色更新に失敗しました。',
+            );
           });
         }
         return;
       }
 
       if (calendarTask.isGoogleTodoTask()) {
-        void updateTodoEventColor(calendarTask, '8').catch(() => {
-          alert('TODOカレンダーの完了色更新に失敗しました。');
+        void updateTodoEventColor(calendarTask, '8').catch(error => {
+          alert(
+            isGoogleReloginRequiredError(error)
+              ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
+              : 'TODOカレンダーの完了色更新に失敗しました。',
+          );
         });
         return;
       }
 
       if (primaryAction === 'add') {
-        void addEventToDoneCalendarFromTask(calendarTask).catch(() => {
-          alert('DONEカレンダーへの追加に失敗しました。');
+        void addEventToDoneCalendarFromTask(calendarTask).catch(error => {
+          alert(
+            isGoogleReloginRequiredError(error)
+              ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
+              : 'DONEカレンダーへの追加に失敗しました。',
+          );
         });
         return;
       }
@@ -534,9 +550,13 @@ class Index extends HTMLElement {
       await updateTodoEventDescription(new DoneTask(task), nextDescription);
       task.description = nextDescription;
       this.renderCards();
-    } catch {
+    } catch (error) {
       inputEl.checked = !checked;
-      alert('TODOカレンダーのチェック状態更新に失敗しました。');
+      alert(
+        isGoogleReloginRequiredError(error)
+          ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
+          : 'TODOカレンダーのチェック状態更新に失敗しました。',
+      );
     } finally {
       inputEl.disabled = false;
     }

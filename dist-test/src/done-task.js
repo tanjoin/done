@@ -313,6 +313,13 @@ class DoneTask {
             return { label: '未実施', className: 'chip-status-todo', locked: false };
         }
         if (!isTargetDay) {
+            if (timeCheck.msg.startsWith('時間外')) {
+                return {
+                    label: '時間外',
+                    className: 'chip-status-nontarget',
+                    locked: false,
+                };
+            }
             return {
                 label: '対象日外',
                 className: 'chip-status-nontarget',

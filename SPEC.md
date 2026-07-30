@@ -104,6 +104,7 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 - Google Drive の状況表示をクリックすると Google/Drive の再読込を実行する
 - 画面リロード時はキャッシュを使わず、Google/Drive から再取得して最新化する
 - Google 未ログイン時は TODO/Drive の各ステータス表示を出さない
+- Google 認証が失効した場合は、TODO/Drive のステータス表示と操作時アラートで再ログインを促す
 
 ## 2.4 Google ドライブ連携
 
