@@ -40,6 +40,21 @@ class Settings extends HTMLElement {
     SettingsNotificationSection.setup(this);
     SettingsDataSection.setup(this, this._taskRepository);
 
+    document.addEventListener('click', event => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const link = target.closest('a[href]') as HTMLAnchorElement | null;
+      if (!link) {
+        return;
+      }
+      if (link.getAttribute('href') !== 'index.html') {
+        return;
+      }
+      TaskRepository.markNextIndexNavigationFromSettings();
+    });
+
     void this._taskRepository.refreshFromCloudIfNeeded();
   }
 }

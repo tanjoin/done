@@ -1257,8 +1257,9 @@ class Index extends HTMLElement {
 
     this.setupPageSpecifics();
 
-    // リロード時は常にクラウド側を再取得して最新化する。
-    void this.refreshCloudTasksWithLoading(true).then(() => {
+    // リロード時のみ強制再取得し、設定画面から戻った直後はセッションキャッシュを優先する。
+    const forceCloudRefresh = TaskRepository.shouldForceCloudRefreshOnIndexInit();
+    void this.refreshCloudTasksWithLoading(forceCloudRefresh).then(() => {
       this.renderCards();
     });
 

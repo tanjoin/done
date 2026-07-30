@@ -12,9 +12,67 @@ export default class TaskRepository {
   private static readonly CLOUD_CACHE_KEY = 'done_cloud_tasks_cache_v1';
   private static readonly CLOUD_CACHE_AT_KEY = 'done_cloud_tasks_cache_at_v1';
   private static readonly CLOUD_CACHE_TTL_MS = 3 * 60 * 1000;
+  private static readonly NAV_FROM_SETTINGS_KEY =
+    'done_nav_from_settings_to_index_v1';
+  private static readonly NAV_HINT_TTL_MS = 30 * 1000;
   static readonly EVENT_TODO_CALENDAR_STATUS =
     'done-todo-calendar-load-status';
   static readonly EVENT_GOOGLE_DRIVE_STATUS = 'done-google-drive-status';
+
+  static markNextIndexNavigationFromSettings(): void {
+    try {
+      sessionStorage.setItem(
+        TaskRepository.NAV_FROM_SETTINGS_KEY,
+        String(Date.now()),
+      );
+    } catch {
+      // セッション書き込み失敗時は処理継続
+    }
+  }
+
+  private static consumeSettingsNavigationHint(): boolean {
+    try {
+      const raw = sessionStorage.getItem(TaskRepository.NAV_FROM_SETTINGS_KEY);
+      sessionStorage.removeItem(TaskRepository.NAV_FROM_SETTINGS_KEY);
+      if (!raw) {
+        return false;
+      }
+      const at = Number(raw);
+      if (!Number.isFinite(at)) {
+        return false;
+      }
+      return Date.now() - at <= TaskRepository.NAV_HINT_TTL_MS;
+    } catch {
+      return false;
+    }
+  }
+
+  private static getNavigationType(): string {
+    const navEntries = performance.getEntriesByType('navigation');
+    if (navEntries.length > 0) {
+      const nav = navEntries[0] as PerformanceNavigationTiming;
+      return nav.type || 'navigate';
+    }
+    return 'navigate';
+  }
+
+  static shouldForceCloudRefreshOnIndexInit(): boolean {
+    const navType = TaskRepository.getNavigationType();
+    if (navType === 'reload') {
+      return true;
+    }
+
+    if (TaskRepository.consumeSettingsNavigationHint()) {
+      return false;
+    }
+
+    const referrer = document.referrer || '';
+    if (navType === 'navigate' && /\/settings\.html([?#].*)?$/i.test(referrer)) {
+      return false;
+    }
+
+    return true;
+  }
 
   private _tasks: DoneTask[] = [];
 
