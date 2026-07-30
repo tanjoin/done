@@ -14,6 +14,7 @@ export default class TaskRepository {
   private static readonly CLOUD_CACHE_TTL_MS = 3 * 60 * 1000;
   static readonly EVENT_TODO_CALENDAR_STATUS =
     'done-todo-calendar-load-status';
+  static readonly EVENT_GOOGLE_DRIVE_STATUS = 'done-google-drive-status';
 
   private _tasks: DoneTask[] = [];
 
@@ -32,12 +33,27 @@ export default class TaskRepository {
     );
   }
 
+  private emitGoogleDriveStatus(detail: {
+    state: 'loading' | 'cached' | 'success' | 'error' | 'off';
+    message: string;
+  }): void {
+    document.dispatchEvent(
+      new CustomEvent(TaskRepository.EVENT_GOOGLE_DRIVE_STATUS, {
+        detail,
+      }),
+    );
+  }
+
   private hydrateTasks(rawTasks: DoneTaskData[]): DoneTask[] {
     return rawTasks.map(task => new DoneTask(task));
   }
 
   private stripGoogleTodoTasks(tasks: DoneTaskData[]): DoneTaskData[] {
     return tasks.filter(task => task.sourceType !== 'google-todo');
+  }
+
+  private getPersistableTasks(): DoneTaskData[] {
+    return this.stripGoogleTodoTasks(this._tasks);
   }
 
   get tasks(): DoneTask[] {
@@ -121,16 +137,43 @@ export default class TaskRepository {
     mergedTasks: DoneTaskData[];
     todoCount: number;
     todoFetchFailed: boolean;
+    driveLoadFailed: boolean;
   }> {
     let workingTasks = localTasks;
+    let driveLoadFailed = false;
+
+    if (!LocalStorageManager.googleDriveSyncEnabled) {
+      this.emitGoogleDriveStatus({
+        state: 'off',
+        message: 'Google Drive: 同期OFF',
+      });
+    } else {
+      this.emitGoogleDriveStatus({
+        state: 'loading',
+        message: 'Google Drive: 読み込み中...',
+      });
+    }
 
     try {
       const fromDrive = await loadTasksFromGoogleDrive();
       if (fromDrive && fromDrive.length > 0) {
         workingTasks = fromDrive;
       }
+      if (LocalStorageManager.googleDriveSyncEnabled) {
+        this.emitGoogleDriveStatus({
+          state: 'success',
+          message: 'Google Drive: 読み込み完了',
+        });
+      }
     } catch {
       // Google Drive が未設定/未認証の場合はローカルのみで継続する。
+      driveLoadFailed = true;
+      if (LocalStorageManager.googleDriveSyncEnabled) {
+        this.emitGoogleDriveStatus({
+          state: 'error',
+          message: 'Google Drive: 読み込み失敗',
+        });
+      }
     }
 
     let googleTodoTasks: DoneTaskData[] = [];
@@ -152,12 +195,24 @@ export default class TaskRepository {
       mergedTasks: [...localOnly, ...Array.from(googleTodoMap.values())],
       todoCount: googleTodoTasks.length,
       todoFetchFailed,
+      driveLoadFailed,
     };
   }
 
   async refreshFromCloudIfNeeded(forceRefresh = false): Promise<boolean> {
     if (!hasValidGoogleToken()) {
+      this.emitGoogleDriveStatus({
+        state: 'off',
+        message: 'Google Drive: 未ログイン',
+      });
       return false;
+    }
+
+    if (!LocalStorageManager.googleDriveSyncEnabled) {
+      this.emitGoogleDriveStatus({
+        state: 'off',
+        message: 'Google Drive: 同期OFF',
+      });
     }
 
     if (!forceRefresh) {
@@ -168,6 +223,10 @@ export default class TaskRepository {
         this.emitTodoCalendarStatus({
           state: 'cached',
           message: `TODOカレンダー: キャッシュ利用 (${this.countGoogleTodoTasks(cached)}件)`,
+        });
+        this.emitGoogleDriveStatus({
+          state: 'cached',
+          message: 'Google Drive: キャッシュ利用',
         });
         return true;
       }
@@ -225,9 +284,70 @@ export default class TaskRepository {
   }
 
   saveTasks(): void {
-    LocalStorageManager.tasks = this._tasks;
+    const persistableTasks = this.getPersistableTasks();
+    LocalStorageManager.tasks = persistableTasks;
     if (hasValidGoogleToken()) {
-      void syncTasksToGoogleDrive(this._tasks);
+      if (!LocalStorageManager.googleDriveSyncEnabled) {
+        this.emitGoogleDriveStatus({
+          state: 'off',
+          message: 'Google Drive: 同期OFF',
+        });
+        return;
+      }
+
+      this.emitGoogleDriveStatus({
+        state: 'loading',
+        message: 'Google Drive: 同期中...',
+      });
+
+      void syncTasksToGoogleDrive(persistableTasks)
+        .then(() => {
+          this.emitGoogleDriveStatus({
+            state: 'success',
+            message: 'Google Drive: 同期完了',
+          });
+        })
+        .catch(() => {
+          this.emitGoogleDriveStatus({
+            state: 'error',
+            message: 'Google Drive: 同期失敗',
+          });
+        });
+    }
+  }
+
+  async saveTasksWithSync(): Promise<void> {
+    const persistableTasks = this.getPersistableTasks();
+    LocalStorageManager.tasks = persistableTasks;
+    if (!hasValidGoogleToken()) {
+      return;
+    }
+
+    if (!LocalStorageManager.googleDriveSyncEnabled) {
+      this.emitGoogleDriveStatus({
+        state: 'off',
+        message: 'Google Drive: 同期OFF',
+      });
+      return;
+    }
+
+    this.emitGoogleDriveStatus({
+      state: 'loading',
+      message: 'Google Drive: 同期中...',
+    });
+
+    try {
+      await syncTasksToGoogleDrive(persistableTasks);
+      this.emitGoogleDriveStatus({
+        state: 'success',
+        message: 'Google Drive: 同期完了',
+      });
+    } catch (error) {
+      this.emitGoogleDriveStatus({
+        state: 'error',
+        message: 'Google Drive: 同期失敗',
+      });
+      throw error;
     }
   }
 }

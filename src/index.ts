@@ -120,7 +120,11 @@ class Index extends HTMLElement {
     const task = this._taskRepository.tasks[taskIndex]!;
 
     task.history[targetDateKey] = isCancel ? 'cancelled' : 'completed';
-    this._taskRepository.saveTasks();
+
+    void this._taskRepository.saveTasksWithSync().catch(() => {
+      alert('Google Drive への同期に失敗しました。');
+    });
+
     this.renderCards();
 
     const calendarTask = new DoneTask(task);
@@ -232,6 +236,7 @@ class Index extends HTMLElement {
           <span class="loading-text">データを同期中...</span>
         </div>
         <div id="todoCalendarLoadStatus" class="todo-load-status" style="display: none;"></div>
+        <div id="googleDriveStatus" class="todo-load-status" style="display: none;"></div>
         <div id="taskContainer"></div>
       </main>
     `;
@@ -242,6 +247,25 @@ class Index extends HTMLElement {
     state: 'loading' | 'cached' | 'success' | 'error',
   ): void {
     const status = document.getElementById('todoCalendarLoadStatus');
+    if (!status) {
+      return;
+    }
+    status.textContent = message;
+    status.classList.remove('is-error', 'is-loading');
+    if (state === 'error') {
+      status.classList.add('is-error');
+    }
+    if (state === 'loading') {
+      status.classList.add('is-loading');
+    }
+    status.style.display = message ? 'block' : 'none';
+  }
+
+  private setGoogleDriveStatus(
+    message: string,
+    state: 'loading' | 'cached' | 'success' | 'error' | 'off',
+  ): void {
+    const status = document.getElementById('googleDriveStatus');
     if (!status) {
       return;
     }
@@ -713,6 +737,7 @@ class Index extends HTMLElement {
 
   setupPageSpecifics(): void {
     const taskContainer = document.getElementById('taskContainer');
+    const todoCalendarLoadStatus = document.getElementById('todoCalendarLoadStatus');
     if (taskContainer) {
       document.addEventListener(
         TaskRepository.EVENT_TODO_CALENDAR_STATUS,
@@ -722,6 +747,20 @@ class Index extends HTMLElement {
             message: string;
           }>;
           this.setTodoCalendarLoadStatus(
+            customEvent.detail.message,
+            customEvent.detail.state,
+          );
+        },
+      );
+
+      document.addEventListener(
+        TaskRepository.EVENT_GOOGLE_DRIVE_STATUS,
+        (event: Event) => {
+          const customEvent = event as CustomEvent<{
+            state: 'loading' | 'cached' | 'success' | 'error' | 'off';
+            message: string;
+          }>;
+          this.setGoogleDriveStatus(
             customEvent.detail.message,
             customEvent.detail.state,
           );
@@ -760,6 +799,17 @@ class Index extends HTMLElement {
       this.renderCards();
       const banner = document.getElementById('notificationBanner');
       NotificationManager.syncBannerVisibility(banner);
+    }
+
+    if (todoCalendarLoadStatus) {
+      todoCalendarLoadStatus.addEventListener('click', () => {
+        if (this._isLoading) {
+          return;
+        }
+        void this.refreshCloudTasksWithLoading(true).then(() => {
+          this.renderCards();
+        });
+      });
     }
   }
 
