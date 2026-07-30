@@ -383,6 +383,18 @@ export default class LocalStorageManager {
     this.setFilter(LocalStorageManager.FILTER_FORCE_SHOW_OVERDUE_KEY, value);
   }
 
+  static get FILTER_HIDE_GOOGLE_TODO_KEY(): string {
+    return 'filter_hide_google_todo';
+  }
+
+  static get filterHideGoogleTodo(): boolean {
+    return this.getFilter(LocalStorageManager.FILTER_HIDE_GOOGLE_TODO_KEY, false);
+  }
+
+  static set filterHideGoogleTodo(value: boolean) {
+    this.setFilter(LocalStorageManager.FILTER_HIDE_GOOGLE_TODO_KEY, value);
+  }
+
   static getFilter(key: string, defaultValue = false): boolean {
     const currentValue = localStorage.getItem(key);
     if (currentValue === null) {

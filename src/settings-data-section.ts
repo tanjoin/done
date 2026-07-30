@@ -3,6 +3,10 @@ import TaskRepository from './task-repository';
 import type {DoneTaskData} from './types';
 
 export default class SettingsDataSection {
+  private static excludeGoogleTodoTasks(tasks: DoneTaskData[]): DoneTaskData[] {
+    return tasks.filter(task => task.sourceType !== 'google-todo');
+  }
+
   static render(): string {
     return `
       <div class="data-box">
@@ -85,7 +89,9 @@ export default class SettingsDataSection {
     if (!Array.isArray(rawTasks)) {
       return false;
     }
-    const tasks = (rawTasks as DoneTaskData[]).map(task => new DoneTask(task));
+    const tasks = SettingsDataSection.excludeGoogleTodoTasks(
+      rawTasks as DoneTaskData[],
+    ).map(task => new DoneTask(task));
     taskRepository.tasks = tasks;
     taskRepository.saveTasks();
     return true;
@@ -153,8 +159,11 @@ export default class SettingsDataSection {
     }
 
     try {
+      const exportTasks = SettingsDataSection.excludeGoogleTodoTasks(
+        taskRepository.tasks,
+      );
       await navigator.clipboard.writeText(
-        JSON.stringify(taskRepository.tasks, null, 2),
+        JSON.stringify(exportTasks, null, 2),
       );
       alert('JSONをクリップボードにコピーしました。');
     } catch {
@@ -163,7 +172,10 @@ export default class SettingsDataSection {
   }
 
   private static exportJSON(taskRepository: TaskRepository): void {
-    const data = JSON.stringify(taskRepository.tasks, null, 2);
+    const exportTasks = SettingsDataSection.excludeGoogleTodoTasks(
+      taskRepository.tasks,
+    );
+    const data = JSON.stringify(exportTasks, null, 2);
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(data);
 
     const downloadAnchor = document.createElement('a');

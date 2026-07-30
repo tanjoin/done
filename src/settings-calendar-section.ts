@@ -1,5 +1,9 @@
 import LocalStorageManager from './local-storage-manager';
-import {getGoogleAccessToken, hasValidGoogleToken} from './google-auth';
+import {
+  clearGoogleToken,
+  getGoogleAccessToken,
+  hasValidGoogleToken,
+} from './google-auth';
 import {
   getGoogleDriveBackupFileLink,
   syncTasksToGoogleDrive,
@@ -150,9 +154,11 @@ export default class SettingsCalendarSection {
       if (!googleLoginStatus) {
         return;
       }
-      googleLoginStatus.textContent = hasValidGoogleToken()
-        ? 'ログイン済み'
-        : '未ログイン';
+      const loggedIn = hasValidGoogleToken();
+      googleLoginStatus.textContent = loggedIn ? 'ログイン済み' : '未ログイン';
+      googleLoginButton.textContent = loggedIn
+        ? 'Googleからログアウト'
+        : 'Googleにログイン';
     };
 
     const refreshDriveLink = async () => {
@@ -187,6 +193,13 @@ export default class SettingsCalendarSection {
     void refreshDriveLink();
 
     googleLoginButton.addEventListener('click', async () => {
+      if (hasValidGoogleToken()) {
+        clearGoogleToken();
+        updateLoginStatus();
+        await refreshDriveLink();
+        return;
+      }
+
       const clientId = clientIdInput.value.trim();
       if (!clientId) {
         alert('先に OAuth 2.0 Client ID を入力してください。');

@@ -19,6 +19,10 @@ export default class TaskRepository {
     return rawTasks.map(task => new DoneTask(task));
   }
 
+  private stripGoogleTodoTasks(tasks: DoneTaskData[]): DoneTaskData[] {
+    return tasks.filter(task => task.sourceType !== 'google-todo');
+  }
+
   get tasks(): DoneTask[] {
     return this._tasks;
   }
@@ -30,14 +34,18 @@ export default class TaskRepository {
       this.clearSessionCache();
     } else {
       this._tasks = value;
-      LocalStorageManager.tasks = value;
+      LocalStorageManager.tasks = this.stripGoogleTodoTasks(value);
       this.setSessionCache(value);
     }
   }
 
   hydrateFromLocal(): void {
-    const localTasks = LocalStorageManager.tasks;
-    this._tasks = this.hydrateTasks(localTasks || []);
+    const localTasks = LocalStorageManager.tasks || [];
+    const localOnly = this.stripGoogleTodoTasks(localTasks);
+    if (localOnly.length !== localTasks.length) {
+      LocalStorageManager.tasks = localOnly;
+    }
+    this._tasks = this.hydrateTasks(localOnly);
   }
 
   private readSessionCache(): DoneTaskData[] | null {
@@ -129,14 +137,15 @@ export default class TaskRepository {
       const cached = this.readSessionCache();
       if (cached) {
         this._tasks = this.hydrateTasks(cached);
-        LocalStorageManager.tasks = cached;
+        LocalStorageManager.tasks = this.stripGoogleTodoTasks(cached);
         return true;
       }
     }
 
     const merged = await this.fetchCloudMergedTasks(LocalStorageManager.tasks || []);
+    const localOnly = this.stripGoogleTodoTasks(merged);
     this._tasks = this.hydrateTasks(merged);
-    LocalStorageManager.tasks = merged;
+    LocalStorageManager.tasks = localOnly;
     this.setSessionCache(merged);
     return true;
   }

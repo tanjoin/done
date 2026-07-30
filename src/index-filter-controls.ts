@@ -46,6 +46,12 @@ export default class IndexFilterControls extends HTMLElement {
           </button>
         </div>
         <div class="filter-button-item">
+          <span class="view-mode-label">TODOカレンダー</span>
+          <button id="hideGoogleTodoBtn" type="button" class="filter-toggle-btn" aria-pressed="false">
+            表示
+          </button>
+        </div>
+        <div class="filter-button-item">
           <span class="view-mode-label">未完了強制表示</span>
           <button id="forceShowOverdueBtn" type="button" class="filter-toggle-btn" aria-pressed="true">
             有効
@@ -60,6 +66,7 @@ export default class IndexFilterControls extends HTMLElement {
     this.setupHideOutOfTimeBtn();
     this.setupHideCompletedBtn();
     this.setupHideCancelledBtn();
+    this.setupHideGoogleTodoBtn();
     this.setupForceShowOverdueBtn();
   }
 
@@ -127,6 +134,23 @@ export default class IndexFilterControls extends HTMLElement {
       this.toggleFilterState(
         hideCancelledBtn,
         LocalStorageManager.FILTER_HIDE_CANCELLED_KEY,
+      ),
+    );
+  }
+
+  private setupHideGoogleTodoBtn(): void {
+    const hideGoogleTodoBtn = this.querySelector(
+      '#hideGoogleTodoBtn',
+    ) as HTMLButtonElement | null;
+    if (!hideGoogleTodoBtn) return;
+    this.setFilterButtonState(
+      hideGoogleTodoBtn,
+      LocalStorageManager.filterHideGoogleTodo,
+    );
+    hideGoogleTodoBtn.addEventListener('click', () =>
+      this.toggleFilterState(
+        hideGoogleTodoBtn,
+        LocalStorageManager.FILTER_HIDE_GOOGLE_TODO_KEY,
       ),
     );
   }

@@ -251,6 +251,9 @@ export default class DoneTask implements DoneTaskData {
   }
 
   resolveDateLabelByStatus(statusInfo: StatusInfo, dateKey = DateHelper.today) {
+    if (this.isGoogleTodoTask() && this.specificDate) {
+      return this.scheduleLabel;
+    }
     if (statusInfo.className === 'chip-status-todo') {
       return this.formatUnfinishedDateLabel(dateKey);
     }
@@ -435,13 +438,16 @@ export default class DoneTask implements DoneTaskData {
 
     if (!this.todayStatus) {
       const secondaryButton = document.createElement('button');
-      secondaryButton.className = this.specificDate
+      const isDeleteAction = Boolean(
+        this.specificDate && !this.isGoogleTodoTask(),
+      );
+      secondaryButton.className = isDeleteAction
         ? 'table-btn table-btn-danger'
         : 'table-btn';
-      secondaryButton.textContent = this.specificDate ? '削除' : 'キャンセル';
+      secondaryButton.textContent = isDeleteAction ? '削除' : 'キャンセル';
       secondaryButton.setAttribute(
         'data-task-action',
-        this.specificDate ? 'delete' : 'cancel',
+        isDeleteAction ? 'delete' : 'cancel',
       );
       secondaryButton.setAttribute('data-task-id', this.id);
       if (statusInfo.locked) {

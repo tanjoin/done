@@ -8,6 +8,10 @@ import {DoneTaskData} from './types';
 class JsonOrganizer extends HTMLElement {
   private _tasks: DoneTaskData[] = [];
 
+  private static excludeGoogleTodoTasks(tasks: DoneTaskData[]): DoneTaskData[] {
+    return tasks.filter(task => task.sourceType !== 'google-todo');
+  }
+
   static get NAME(): string {
     return 'done-json-organizer';
   }
@@ -83,7 +87,9 @@ class JsonOrganizer extends HTMLElement {
     this.getElement<HTMLButtonElement>('jsonSaveAllTasksBtn').addEventListener(
       'click',
       () => {
-        const tasksToSave = this._tasks.map(task => new DoneTask(task));
+        const tasksToSave = JsonOrganizer.excludeGoogleTodoTasks(this._tasks).map(
+          task => new DoneTask(task),
+        );
         LocalStorageManager.tasks = tasksToSave;
         this.setStatus('done_tasks 全体を保存しました。');
       },
@@ -181,7 +187,7 @@ class JsonOrganizer extends HTMLElement {
   }
 
   private loadTasks(): void {
-    this._tasks = LocalStorageManager.tasks;
+    this._tasks = JsonOrganizer.excludeGoogleTodoTasks(LocalStorageManager.tasks);
     this.renderTaskSelectOptions();
     this.renderSelectedTaskJson();
   }

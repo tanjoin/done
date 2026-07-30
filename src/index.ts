@@ -136,7 +136,7 @@ class Index extends HTMLElement {
 
       if (isCancel) {
         if (calendarTask.isGoogleTodoTask()) {
-          void updateTodoEventColor(calendarTask, '11').catch(() => {
+          void updateTodoEventColor(calendarTask, '4').catch(() => {
             alert('TODOカレンダーのキャンセル色更新に失敗しました。');
           });
         }
@@ -272,6 +272,11 @@ class Index extends HTMLElement {
 
     this._taskRepository.tasks.forEach((task: DoneTask) => {
       task = new DoneTask(task);
+
+      if (task.isGoogleTodoTask() && LocalStorageManager.filterHideGoogleTodo) {
+        return;
+      }
+
       if (forceShowOverdue) {
         const overdueTasks = this.collectOverdueTasks(task);
         if (overdueTasks.length > 0) {
@@ -521,17 +526,16 @@ class Index extends HTMLElement {
         actionContainer.appendChild(mainButton);
 
         const secondaryButton = document.createElement('button');
-        secondaryButton.className = task.specificDate
-          ? 'btn'
-          : 'btn btn-cancel';
-        secondaryButton.textContent = task.specificDate ? '削除' : 'キャンセル';
+        const isDeleteAction = Boolean(task.specificDate && !task.isGoogleTodoTask());
+        secondaryButton.className = isDeleteAction ? 'btn' : 'btn btn-cancel';
+        secondaryButton.textContent = isDeleteAction ? '削除' : 'キャンセル';
         secondaryButton.setAttribute(
           'data-task-action',
-          task.specificDate ? 'delete' : 'cancel',
+          isDeleteAction ? 'delete' : 'cancel',
         );
         secondaryButton.setAttribute('data-task-id', task.id);
         secondaryButton.setAttribute('data-task-date', TODAY);
-        if (task.specificDate) {
+        if (isDeleteAction) {
           secondaryButton.style.backgroundColor = '#ef4444';
           secondaryButton.style.color = '#ffffff';
           secondaryButton.style.flex = '1';
@@ -568,9 +572,13 @@ class Index extends HTMLElement {
 
           const overdueDate = document.createElement('div');
           overdueDate.className = 'overdue-date-label';
-          overdueDate.textContent = task.formatUnfinishedDateLabel(
-            overdue.dateKey,
-          );
+          if (task.isGoogleTodoTask() && task.specificDate) {
+            overdueDate.textContent = task.specificDate === overdue.dateKey
+              ? task.formatUnfinishedDateLabel(overdue.dateKey)
+              : `予定日: ${task.scheduleLabel} / ${task.formatUnfinishedDateLabel(overdue.dateKey)}`;
+          } else {
+            overdueDate.textContent = task.formatUnfinishedDateLabel(overdue.dateKey);
+          }
           content.appendChild(overdueDate);
 
           const cardTitle = document.createElement('h4');
@@ -638,20 +646,19 @@ class Index extends HTMLElement {
           actionContainer.appendChild(mainButton);
 
           const secondaryButton = document.createElement('button');
-          secondaryButton.className = task.specificDate
-            ? 'btn'
-            : 'btn btn-cancel';
-          secondaryButton.textContent = task.specificDate
-            ? '削除'
-            : 'キャンセル';
+          const isDeleteAction = Boolean(
+            task.specificDate && !task.isGoogleTodoTask(),
+          );
+          secondaryButton.className = isDeleteAction ? 'btn' : 'btn btn-cancel';
+          secondaryButton.textContent = isDeleteAction ? '削除' : 'キャンセル';
           secondaryButton.setAttribute(
             'data-task-action',
-            task.specificDate ? 'delete' : 'cancel',
+            isDeleteAction ? 'delete' : 'cancel',
           );
           secondaryButton.setAttribute('data-task-id', task.id);
           secondaryButton.setAttribute('data-task-date', overdue.dateKey);
           secondaryButton.setAttribute('data-task-overdue', 'true');
-          if (task.specificDate) {
+          if (isDeleteAction) {
             secondaryButton.style.backgroundColor = '#ef4444';
             secondaryButton.style.color = '#ffffff';
             secondaryButton.style.flex = '1';

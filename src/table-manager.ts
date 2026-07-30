@@ -92,7 +92,13 @@ export default class TableManager {
         row.appendChild(timeTd);
 
         const dateTd = document.createElement('td');
-        dateTd.textContent = `未完了日: ${overdue.dateKey}`;
+        if (task.isGoogleTodoTask() && task.specificDate) {
+          dateTd.textContent = task.specificDate === overdue.dateKey
+            ? `未完了日: ${overdue.dateKey}`
+            : `予定日: ${task.scheduleLabel} / 未完了日: ${overdue.dateKey}`;
+        } else {
+          dateTd.textContent = `未完了日: ${overdue.dateKey}`;
+        }
         row.appendChild(dateTd);
 
         const statusTd = document.createElement('td');
@@ -116,13 +122,16 @@ export default class TableManager {
         actionContainer.appendChild(completeBtn);
 
         const secondaryBtn = document.createElement('button');
-        secondaryBtn.className = task.specificDate
+        const isDeleteAction = Boolean(
+          task.specificDate && !task.isGoogleTodoTask(),
+        );
+        secondaryBtn.className = isDeleteAction
           ? 'table-btn table-btn-danger'
           : 'table-btn';
-        secondaryBtn.textContent = task.specificDate ? '削除' : 'キャンセル';
+        secondaryBtn.textContent = isDeleteAction ? '削除' : 'キャンセル';
         secondaryBtn.setAttribute(
           'data-task-action',
-          task.specificDate ? 'delete' : 'cancel',
+          isDeleteAction ? 'delete' : 'cancel',
         );
         secondaryBtn.setAttribute('data-task-id', task.id);
         secondaryBtn.setAttribute('data-task-date', overdue.dateKey);
