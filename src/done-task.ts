@@ -364,6 +364,13 @@ export default class DoneTask implements DoneTaskData {
     }
 
     if (!isTargetDay) {
+      if (timeCheck.msg.startsWith('時間外')) {
+        return {
+          label: '時間外',
+          className: 'chip-status-nontarget',
+          locked: false,
+        };
+      }
       return {
         label: '対象日外',
         className: 'chip-status-nontarget',
