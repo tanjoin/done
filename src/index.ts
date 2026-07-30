@@ -749,6 +749,10 @@ class Index extends HTMLElement {
     const now = new Date();
     let isUpdated = false;
     this._taskRepository.tasks.forEach((task: DoneTask) => {
+      if (task.isGoogleTodoTask()) {
+        return;
+      }
+
       if (!task.startTime) {
         return;
       }

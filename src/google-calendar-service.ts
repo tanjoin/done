@@ -322,7 +322,7 @@ export async function addEventToDoneCalendarFromTask(task: DoneTask): Promise<vo
 
   const now = new Date();
   const start = now.toISOString();
-  const end = new Date(now.getTime() + 60 * 1000).toISOString();
+  const end = start;
 
   await fetchCalendarApi(
     `/calendars/${encodeURIComponent(calendarId)}/events`,
@@ -333,7 +333,6 @@ export async function addEventToDoneCalendarFromTask(task: DoneTask): Promise<vo
         description: descriptionLines.join('\n'),
         start: {dateTime: start},
         end: {dateTime: end},
-        colorId: '10',
       }),
     },
   );
