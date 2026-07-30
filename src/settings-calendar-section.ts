@@ -294,9 +294,6 @@ export default class SettingsCalendarSection {
         });
         doneManualInput.value = doneCalendarId;
         LocalStorageManager.googleDriveSyncEnabled = driveToggle.checked;
-        if (driveToggle.checked && hasValidGoogleToken()) {
-          await syncTasksToGoogleDrive(LocalStorageManager.tasks);
-        }
         if (saveStatus) {
           saveStatus.style.display = 'inline';
           setTimeout(() => {
