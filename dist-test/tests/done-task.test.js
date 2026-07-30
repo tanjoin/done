@@ -202,6 +202,20 @@ function createDailyTask(startTime, endTime) {
         strict_1.default.equal(task.statusInfo.label, '時間外');
     });
 });
+(0, node_test_1.default)('日跨ぎタスクは翌日帯の操作日付キーに前日を使う', () => {
+    withMockedNow('2026-07-31T01:00:00+09:00', () => {
+        const task = new done_task_1.default({
+            id: 'overnight-history-key-1',
+            text: '深夜対応',
+            group: '運用',
+            daysOfWeek: [4],
+            startTime: '21:00',
+            endTime: '02:00',
+            history: {},
+        });
+        strict_1.default.equal(task.resolveActionDateKey(), '2026-07-30');
+    });
+});
 (0, node_test_1.default)('リマインド時間帯の判定は開始前の限定時間だけ true になる', () => {
     const task = new done_task_1.default({
         id: 'task-reminder',

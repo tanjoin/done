@@ -223,6 +223,22 @@ test('金曜の日跨ぎタスクは金曜の開始前なら対象日外では�
   });
 });
 
+test('日跨ぎタスクは翌日帯の操作日付キーに前日を使う', () => {
+  withMockedNow('2026-07-31T01:00:00+09:00', () => {
+    const task = new DoneTask({
+      id: 'overnight-history-key-1',
+      text: '深夜対応',
+      group: '運用',
+      daysOfWeek: [4],
+      startTime: '21:00',
+      endTime: '02:00',
+      history: {},
+    });
+
+    assert.equal(task.resolveActionDateKey(), '2026-07-30');
+  });
+});
+
 test('リマインド時間帯の判定は開始前の限定時間だけ true になる', () => {
   const task = new DoneTask({
     id: 'task-reminder',

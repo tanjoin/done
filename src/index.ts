@@ -907,6 +907,7 @@ class Index extends HTMLElement {
 
         const mainButton = document.createElement('button');
         const primaryAction = task.getPrimaryActionType();
+        const actionDateKey = task.resolveActionDateKey();
         mainButton.className = `btn ${
           primaryAction === 'add'
             ? 'btn-add'
@@ -917,7 +918,7 @@ class Index extends HTMLElement {
         mainButton.textContent = task.getPrimaryActionLabel();
         mainButton.setAttribute('data-task-action', primaryAction);
         mainButton.setAttribute('data-task-id', task.id);
-        mainButton.setAttribute('data-task-date', TODAY);
+        mainButton.setAttribute('data-task-date', actionDateKey);
 
         const isStrict = task.strictMode === true;
         if (statusInfo.locked || (!timeCheck.valid && isStrict)) {
@@ -935,7 +936,7 @@ class Index extends HTMLElement {
           isDeleteAction ? 'delete' : 'cancel',
         );
         secondaryButton.setAttribute('data-task-id', task.id);
-        secondaryButton.setAttribute('data-task-date', TODAY);
+        secondaryButton.setAttribute('data-task-date', actionDateKey);
         if (isDeleteAction) {
           secondaryButton.style.backgroundColor = '#ef4444';
           secondaryButton.style.color = '#ffffff';

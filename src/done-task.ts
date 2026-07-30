@@ -462,6 +462,19 @@ export default class DoneTask implements DoneTaskData {
     return Boolean(this.history?.[yesterdayKey]);
   }
 
+  resolveActionDateKey(now: Date = new Date()): string {
+    if (!this.isOvernightTask()) {
+      return this.toKebabCase(now);
+    }
+
+    const yesterday = DateHelper.yesterdayDate;
+    if (this.isInOvernightNextDaySlot(now) && this.isTaskScheduledOnDate(yesterday)) {
+      return this.toKebabCase(yesterday);
+    }
+
+    return this.toKebabCase(now);
+  }
+
   isReminderActiveOnDate(targetDate: Date, now: Date): boolean {
     if (!this.hasExplicitReminderLead()) {
       return false;
@@ -477,6 +490,7 @@ export default class DoneTask implements DoneTaskData {
   }
 
   insertRowElements(row: HTMLElement): void {
+    const actionDateKey = this.resolveActionDateKey();
     if (this.todayStatus) {
       row.setAttribute('data-done', 'true');
     }
@@ -518,6 +532,7 @@ export default class DoneTask implements DoneTaskData {
     mainButton.textContent = this.getPrimaryActionLabel();
     mainButton.setAttribute('data-task-action', this.getPrimaryActionType());
     mainButton.setAttribute('data-task-id', this.id);
+    mainButton.setAttribute('data-task-date', actionDateKey);
 
     const isStrict = this.strictMode === true;
     const timeCheck = this.timeCheck();
@@ -540,6 +555,7 @@ export default class DoneTask implements DoneTaskData {
         isDeleteAction ? 'delete' : 'cancel',
       );
       secondaryButton.setAttribute('data-task-id', this.id);
+      secondaryButton.setAttribute('data-task-date', actionDateKey);
       if (statusInfo.locked) {
         secondaryButton.disabled = true;
       }

@@ -394,6 +394,16 @@ class DoneTask {
         const yesterdayKey = this.toKebabCase(yesterday);
         return Boolean(this.history?.[yesterdayKey]);
     }
+    resolveActionDateKey(now = new Date()) {
+        if (!this.isOvernightTask()) {
+            return this.toKebabCase(now);
+        }
+        const yesterday = date_helper_1.default.yesterdayDate;
+        if (this.isInOvernightNextDaySlot(now) && this.isTaskScheduledOnDate(yesterday)) {
+            return this.toKebabCase(yesterday);
+        }
+        return this.toKebabCase(now);
+    }
     isReminderActiveOnDate(targetDate, now) {
         if (!this.hasExplicitReminderLead()) {
             return false;
@@ -406,6 +416,7 @@ class DoneTask {
         return now >= candidate.reminderAt && now < startAt;
     }
     insertRowElements(row) {
+        const actionDateKey = this.resolveActionDateKey();
         if (this.todayStatus) {
             row.setAttribute('data-done', 'true');
         }
@@ -440,6 +451,7 @@ class DoneTask {
         mainButton.textContent = this.getPrimaryActionLabel();
         mainButton.setAttribute('data-task-action', this.getPrimaryActionType());
         mainButton.setAttribute('data-task-id', this.id);
+        mainButton.setAttribute('data-task-date', actionDateKey);
         const isStrict = this.strictMode === true;
         const timeCheck = this.timeCheck();
         if (statusInfo.locked || (!timeCheck.valid && isStrict)) {
@@ -455,6 +467,7 @@ class DoneTask {
             secondaryButton.textContent = isDeleteAction ? '削除' : 'キャンセル';
             secondaryButton.setAttribute('data-task-action', isDeleteAction ? 'delete' : 'cancel');
             secondaryButton.setAttribute('data-task-id', this.id);
+            secondaryButton.setAttribute('data-task-date', actionDateKey);
             if (statusInfo.locked) {
                 secondaryButton.disabled = true;
             }
