@@ -216,13 +216,6 @@ class JsonOrganizer extends HTMLElement {
           );
           return;
         }
-        if (result.skippedReason === 'missing_remote_updated_at') {
-          this.setStatus(
-            'done_tasks は保存しました。Google Drive保存先に最終更新日がないため上書き停止しました。',
-            true,
-          );
-          return;
-        }
         this.setStatus(
           'done_tasks は保存しました。Google Drive側が新しいため上書き停止しました。',
           true,

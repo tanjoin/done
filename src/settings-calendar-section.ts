@@ -229,6 +229,11 @@ export default class SettingsCalendarSection {
               // Drive 側の保存内容を優先して取り込み、ログイン直後の反映漏れを防ぐ
               LocalStorageManager.tasks = driveSnapshot.tasks;
               LocalStorageManager.tasksLastUpdatedAt = driveSnapshot.updatedAt;
+            } else {
+              // ローカルが新しい場合や Drive 側に updatedAt がない場合は Drive を更新する。
+              await syncTasksToGoogleDrive(LocalStorageManager.tasks, {
+                forceOverwrite: true,
+              });
             }
           } else {
             await syncTasksToGoogleDrive(LocalStorageManager.tasks);

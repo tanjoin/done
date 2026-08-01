@@ -29,9 +29,6 @@ export default class TaskRepository {
     if (reason === 'missing_local_updated_at') {
       return 'Google Drive: 最終更新日なし（上書き停止）';
     }
-    if (reason === 'missing_remote_updated_at') {
-      return 'Google Drive: 保存先に最終更新日なし（上書き停止）';
-    }
     return 'Google Drive: 保存先の方が新しいため上書き停止';
   }
 
@@ -325,7 +322,16 @@ export default class TaskRepository {
             LocalStorageManager.tasksLastUpdatedAt = fromDrive.updatedAt;
           }
         } else if (!fromDrive.hasTimestamp) {
-          driveLoadSkippedByTimestamp = true;
+          const syncResult = await syncTasksToGoogleDrive(localTasks, {
+            forceOverwrite: true,
+          });
+          if (syncResult.uploaded) {
+            this.emitGoogleDriveStatus({
+              state: 'success',
+              message:
+                'Google Drive: 保存先に最終更新日がないためローカルで上書き同期しました',
+            });
+          }
         } else if (!localUpdatedAt || localUpdatedAt <= fromDrive.updatedAt) {
           workingTasks = fromDrive.tasks;
           LocalStorageManager.tasksLastUpdatedAt = fromDrive.updatedAt;

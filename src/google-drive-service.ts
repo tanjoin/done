@@ -18,7 +18,6 @@ export type GoogleDriveTaskSnapshot = {
 
 export type GoogleDriveSyncSkippedReason =
   | 'missing_local_updated_at'
-  | 'missing_remote_updated_at'
   | 'local_is_older';
 
 export type GoogleDriveSyncResult = {
@@ -208,14 +207,10 @@ export async function syncTasksToGoogleDrive(
   if (fileId && !options.forceOverwrite) {
     const remoteSnapshot = await loadSnapshotByFileId(fileId);
     if (remoteSnapshot) {
-      if (!remoteSnapshot.hasTimestamp) {
-        return {
-          uploaded: false,
-          skippedReason: 'missing_remote_updated_at',
-        };
-      }
-
-      if (localUpdatedAt < remoteSnapshot.updatedAt) {
+      if (
+        remoteSnapshot.hasTimestamp &&
+        localUpdatedAt < remoteSnapshot.updatedAt
+      ) {
         return {
           uploaded: false,
           skippedReason: 'local_is_older',
