@@ -236,6 +236,24 @@ export default class LocalStorageManager {
     return 'done_tasks';
   }
 
+  static get TASKS_LAST_UPDATED_AT_KEY(): string {
+    return 'done_tasks_last_updated_at_v1';
+  }
+
+  static get tasksLastUpdatedAt(): string {
+    return (
+      localStorage.getItem(LocalStorageManager.TASKS_LAST_UPDATED_AT_KEY) || ''
+    );
+  }
+
+  static set tasksLastUpdatedAt(value: string) {
+    if (!value) {
+      localStorage.removeItem(LocalStorageManager.TASKS_LAST_UPDATED_AT_KEY);
+      return;
+    }
+    localStorage.setItem(LocalStorageManager.TASKS_LAST_UPDATED_AT_KEY, value);
+  }
+
   private static tryMigrateLegacyTasksToDoneTasks(): void {
     const hasDoneTasks =
       localStorage.getItem(LocalStorageManager.TASKS_KEY) !== null;
@@ -270,14 +288,29 @@ export default class LocalStorageManager {
       return [];
     }
     try {
+      type StoredTasksPayload = {
+        tasks?: DoneTaskData[];
+        updatedAt?: string;
+      };
       const parsed = JSON.parse(tasksJson) as
         | DoneTaskData[]
-        | {tasks?: DoneTaskData[]};
+        | StoredTasksPayload;
       if (Array.isArray(parsed)) {
         return parsed;
       }
-      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.tasks)) {
-        return parsed.tasks;
+      if (parsed && typeof parsed === 'object') {
+        const payload = parsed as StoredTasksPayload;
+        if (!Array.isArray(payload.tasks)) {
+          return [];
+        }
+        const updatedAt =
+          typeof payload.updatedAt === 'string'
+            ? payload.updatedAt.trim()
+            : '';
+        if (updatedAt) {
+          LocalStorageManager.tasksLastUpdatedAt = updatedAt;
+        }
+        return payload.tasks;
       }
       return [];
     } catch (e) {
@@ -290,6 +323,7 @@ export default class LocalStorageManager {
     if (tasks === null) {
       localStorage.removeItem(LocalStorageManager.TASKS_KEY);
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
+      localStorage.removeItem(LocalStorageManager.TASKS_LAST_UPDATED_AT_KEY);
     } else {
       const serialized = JSON.stringify(
         LocalStorageManager.normalizeTasksForStorage(tasks),
@@ -297,6 +331,7 @@ export default class LocalStorageManager {
       // 移行後は done_tasks を単一の正とする
       localStorage.setItem(LocalStorageManager.TASKS_KEY, serialized);
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
+      LocalStorageManager.tasksLastUpdatedAt = new Date().toISOString();
     }
   }
 

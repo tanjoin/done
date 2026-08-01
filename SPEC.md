@@ -108,6 +108,8 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 - 画面リロード時はキャッシュを使わず、Google/Drive から再取得して最新化する
 - Google 未ログイン時は TODO/Drive の各ステータス表示を出さない
 - Google 認証が失効した場合は、TODO/Drive のステータス表示と操作時アラートで再ログインを促す
+- Google 認証が失効した場合は、OAuth Client ID が設定済みなら設定・データ管理画面へ遷移して再ログイン導線を表示する
+- OAuth Client ID が未設定の場合は、認証切れによる自動遷移を行わない
 
 ## 2.4 Google ドライブ連携
 
@@ -127,11 +129,17 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 - 同一タブ内の画面遷移時はセッションキャッシュを優先し、短時間での再取得を抑止する
 - ユーザーによる一覧画面リロード時はキャッシュを使わず Google/Drive を再取得する
 - 設定画面から一覧画面へ戻る遷移時はセッションキャッシュを優先利用する
+- Drive 保存データには最終更新日時（updatedAt）を含める
+- Drive 読み込み時は localStorage 側の最終更新日時と比較し、新しい方のみを採用する
+- localStorage 側の最終更新日時が新しい場合は、ローカルデータで Drive を上書き同期する
+- ただし初回ログインでローカル保存が未作成の場合、またはローカルがデフォルト tasks.json 相当の場合は、例外として Drive データを優先して取り込む
 
 保存方針
 - TODO カレンダー由来タスク（sourceType=google-todo）はローカル保存対象に含めない
 - 完了・追加操作では localStorage 保存を即時実行し、Google Drive 同期も都度実行する
 - ログイン直後は、Google Drive に既存タスクデータがある場合はその内容を読み込んでローカルへ反映する
+- 通常同期では、更新元または保存先の最終更新日時が欠落している場合は上書きを停止する
+- 通常同期では、保存先（Google Drive）の最終更新日時が新しい場合は上書きを停止する
 
 ## 2.5 設定とデータ管理
 
@@ -150,6 +158,8 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 - タスクデータ更新
 - 設定画面表示時は平文フォールバック値を先に反映し、暗号化値の復号完了後に最新値で上書きする
 - JSON エクスポート/コピー/JSON整理では TODO カレンダー由来タスクを除外する
+- 設定・データ管理画面の JSON インポートは最終更新日時チェックを無視して上書き同期する
+- JSON Organizer の done_tasks 全体保存は、Google Drive 同期ONかつログイン中ならDriveへ即時反映する
 
 # 3. 非機能要件 / 技術スタック (使用言語、ライブラリ、制約事項など)
 
@@ -199,6 +209,7 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 ## 4.2 localStorage キー
 
 - done_tasks
+- done_tasks_last_updated_at_v1
 - done_google_client_id_enc_v1
 - done_google_todo_calendar_id_enc_v1
 - done_google_done_calendar_id_enc_v1
@@ -224,6 +235,7 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
   - files 検索
   - multipart アップロード（作成/更新）
   - alt=media 取得
+  - 同期時の updatedAt 競合判定（新旧比較・欠落検知）
 
 # 5. 画面・UIフロー (該当する場合)
 
@@ -252,6 +264,7 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 2. 通常タスク/一時タスク追加
 3. 単体反映または全体保存
 4. 保存内容をメイン画面に反映
+5. Google Drive 同期ONかつログイン中なら全体保存時に Drive へ同期
 
 # 6. 未決定事項・今後の課題
 

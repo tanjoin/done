@@ -3,6 +3,7 @@ import LocalStorageManager from './local-storage-manager';
 import {fetchTodoTasksFromGoogleCalendar} from './google-calendar-service';
 import {
   loadTasksFromGoogleDrive,
+  type GoogleDriveSyncSkippedReason,
   syncTasksToGoogleDrive,
 } from './google-drive-service';
 import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
@@ -18,6 +19,34 @@ export default class TaskRepository {
   static readonly EVENT_TODO_CALENDAR_STATUS =
     'done-todo-calendar-load-status';
   static readonly EVENT_GOOGLE_DRIVE_STATUS = 'done-google-drive-status';
+  private _preferDriveOnNextCloudRefresh = false;
+  private _defaultTasksCache: DoneTaskData[] | null = null;
+
+  private static hasOAuthClientIdConfigured(): boolean {
+    return Boolean(LocalStorageManager.googleClientIdEncrypted.trim());
+  }
+
+  private static redirectToSettingsForRelogin(): void {
+    if (!TaskRepository.hasOAuthClientIdConfigured()) {
+      return;
+    }
+    if (/\/settings\.html([?#].*)?$/i.test(window.location.pathname)) {
+      return;
+    }
+    window.location.href = 'settings.html';
+  }
+
+  private static mapSyncSkippedReasonToMessage(
+    reason: GoogleDriveSyncSkippedReason,
+  ): string {
+    if (reason === 'missing_local_updated_at') {
+      return 'Google Drive: 最終更新日なし（上書き停止）';
+    }
+    if (reason === 'missing_remote_updated_at') {
+      return 'Google Drive: 保存先に最終更新日なし（上書き停止）';
+    }
+    return 'Google Drive: 保存先の方が新しいため上書き停止';
+  }
 
   static markNextIndexNavigationFromSettings(): void {
     try {
@@ -114,6 +143,75 @@ export default class TaskRepository {
     return this.stripGoogleTodoTasks(this._tasks);
   }
 
+  private async getDefaultTasksFromJson(): Promise<DoneTaskData[] | null> {
+    if (this._defaultTasksCache) {
+      return this._defaultTasksCache;
+    }
+
+    try {
+      const response = await fetch('tasks.json');
+      if (!response.ok) {
+        return null;
+      }
+      const parsed = (await response.json()) as DoneTaskData[];
+      if (!Array.isArray(parsed)) {
+        return null;
+      }
+      this._defaultTasksCache = this.stripGoogleTodoTasks(parsed);
+      return this._defaultTasksCache;
+    } catch {
+      return null;
+    }
+  }
+
+  private pickComparableTaskShape(task: DoneTaskData): string {
+    const picked = {
+      id: task.id || '',
+      text: task.text || '',
+      group: task.group || '',
+      daysOfWeek: Array.isArray(task.daysOfWeek) ? task.daysOfWeek : [],
+      daysOfMonth: Array.isArray(task.daysOfMonth) ? task.daysOfMonth : [],
+      startTime: task.startTime || '',
+      endTime: task.endTime || '',
+      strictMode: task.strictMode ?? null,
+      skipCalendarOnComplete: task.skipCalendarOnComplete ?? null,
+      createTaskViaUrl: task.createTaskViaUrl ?? null,
+      specificDate: task.specificDate || '',
+      endDate: task.endDate || '',
+      sourceType: task.sourceType || 'local',
+    };
+    return JSON.stringify(picked);
+  }
+
+  private async shouldPreferDriveSnapshot(localTasks: DoneTaskData[]): Promise<boolean> {
+    if (this._preferDriveOnNextCloudRefresh) {
+      this._preferDriveOnNextCloudRefresh = false;
+      return true;
+    }
+
+    if (localTasks.length === 0) {
+      return true;
+    }
+
+    const defaultTasks = await this.getDefaultTasksFromJson();
+    if (!defaultTasks || defaultTasks.length === 0) {
+      return false;
+    }
+
+    if (defaultTasks.length !== localTasks.length) {
+      return false;
+    }
+
+    const localComparable = localTasks
+      .map(task => this.pickComparableTaskShape(task))
+      .sort();
+    const defaultComparable = defaultTasks
+      .map(task => this.pickComparableTaskShape(task))
+      .sort();
+
+    return localComparable.every((value, index) => value === defaultComparable[index]);
+  }
+
   get tasks(): DoneTask[] {
     return this._tasks;
   }
@@ -198,10 +296,12 @@ export default class TaskRepository {
     todoFetchAuthExpired: boolean;
     driveLoadFailed: boolean;
     driveLoadAuthExpired: boolean;
+    driveLoadSkippedByTimestamp: boolean;
   }> {
     let workingTasks = localTasks;
     let driveLoadFailed = false;
     let driveLoadAuthExpired = false;
+    let driveLoadSkippedByTimestamp = false;
 
     if (!LocalStorageManager.googleDriveSyncEnabled) {
       this.emitGoogleDriveStatus({
@@ -217,19 +317,46 @@ export default class TaskRepository {
 
     try {
       const fromDrive = await loadTasksFromGoogleDrive();
-      if (fromDrive && fromDrive.length > 0) {
-        workingTasks = fromDrive;
+      if (fromDrive && fromDrive.tasks.length > 0) {
+        const shouldPreferDrive = await this.shouldPreferDriveSnapshot(localTasks);
+        const localUpdatedAt = LocalStorageManager.tasksLastUpdatedAt;
+        if (shouldPreferDrive) {
+          workingTasks = fromDrive.tasks;
+          if (fromDrive.hasTimestamp) {
+            LocalStorageManager.tasksLastUpdatedAt = fromDrive.updatedAt;
+          }
+        } else if (!fromDrive.hasTimestamp) {
+          driveLoadSkippedByTimestamp = true;
+        } else if (!localUpdatedAt || localUpdatedAt <= fromDrive.updatedAt) {
+          workingTasks = fromDrive.tasks;
+          LocalStorageManager.tasksLastUpdatedAt = fromDrive.updatedAt;
+        } else {
+          driveLoadSkippedByTimestamp = true;
+          const syncResult = await syncTasksToGoogleDrive(localTasks);
+          if (syncResult.uploaded) {
+            this.emitGoogleDriveStatus({
+              state: 'success',
+              message: 'Google Drive: ローカルが新しいため上書き同期しました',
+            });
+            driveLoadSkippedByTimestamp = false;
+          }
+        }
       }
       if (LocalStorageManager.googleDriveSyncEnabled) {
         this.emitGoogleDriveStatus({
-          state: 'success',
-          message: 'Google Drive: 読み込み完了',
+          state: driveLoadSkippedByTimestamp ? 'cached' : 'success',
+          message: driveLoadSkippedByTimestamp
+            ? 'Google Drive: 最終更新日比較でローカルを優先'
+            : 'Google Drive: 読み込み完了',
         });
       }
     } catch (error) {
       // Google Drive が未設定/未認証の場合はローカルのみで継続する。
       driveLoadFailed = true;
       driveLoadAuthExpired = isGoogleReloginRequiredError(error);
+      if (driveLoadAuthExpired) {
+        TaskRepository.redirectToSettingsForRelogin();
+      }
       if (LocalStorageManager.googleDriveSyncEnabled) {
         this.emitGoogleDriveStatus({
           state: 'error',
@@ -250,6 +377,9 @@ export default class TaskRepository {
       googleTodoTasks = [];
       todoFetchFailed = true;
       todoFetchAuthExpired = isGoogleReloginRequiredError(error);
+      if (todoFetchAuthExpired) {
+        TaskRepository.redirectToSettingsForRelogin();
+      }
     }
 
     const googleTodoMap = new Map(googleTodoTasks.map(task => [task.id, task]));
@@ -264,6 +394,7 @@ export default class TaskRepository {
       todoFetchAuthExpired,
       driveLoadFailed,
       driveLoadAuthExpired,
+      driveLoadSkippedByTimestamp,
     };
   }
 
@@ -350,6 +481,7 @@ export default class TaskRepository {
     const tasksFromJson = (await response.json()) as DoneTaskData[];
     this._tasks = this.hydrateTasks(tasksFromJson);
     LocalStorageManager.tasks = this._tasks;
+    this._preferDriveOnNextCloudRefresh = true;
     this.setSessionCache(this._tasks);
   }
 
@@ -371,13 +503,25 @@ export default class TaskRepository {
       });
 
       void syncTasksToGoogleDrive(persistableTasks)
-        .then(() => {
+        .then(result => {
+          if (!result.uploaded && result.skippedReason) {
+            this.emitGoogleDriveStatus({
+              state: 'error',
+              message: TaskRepository.mapSyncSkippedReasonToMessage(
+                result.skippedReason,
+              ),
+            });
+            return;
+          }
           this.emitGoogleDriveStatus({
             state: 'success',
             message: 'Google Drive: 同期完了',
           });
         })
         .catch(error => {
+          if (isGoogleReloginRequiredError(error)) {
+            TaskRepository.redirectToSettingsForRelogin();
+          }
           this.emitGoogleDriveStatus({
             state: 'error',
             message: isGoogleReloginRequiredError(error)
@@ -388,7 +532,7 @@ export default class TaskRepository {
     }
   }
 
-  async saveTasksWithSync(): Promise<void> {
+  async saveTasksWithSync(forceOverwrite = false): Promise<void> {
     const persistableTasks = this.getPersistableTasks();
     LocalStorageManager.tasks = persistableTasks;
     if (!hasValidGoogleToken()) {
@@ -409,12 +553,26 @@ export default class TaskRepository {
     });
 
     try {
-      await syncTasksToGoogleDrive(persistableTasks);
+      const result = await syncTasksToGoogleDrive(persistableTasks, {
+        forceOverwrite,
+      });
+      if (!result.uploaded && result.skippedReason) {
+        this.emitGoogleDriveStatus({
+          state: 'error',
+          message: TaskRepository.mapSyncSkippedReasonToMessage(
+            result.skippedReason,
+          ),
+        });
+        return;
+      }
       this.emitGoogleDriveStatus({
         state: 'success',
         message: 'Google Drive: 同期完了',
       });
     } catch (error) {
+      if (isGoogleReloginRequiredError(error)) {
+        TaskRepository.redirectToSettingsForRelogin();
+      }
       this.emitGoogleDriveStatus({
         state: 'error',
         message: isGoogleReloginRequiredError(error)

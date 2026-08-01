@@ -61,6 +61,10 @@ export type DoneTaskData = {
   externalCalendarId?: string | null;
   externalEventId?: string | null;
 };
+export type DoneTaskSyncPayload = {
+  updatedAt: string;
+  tasks: DoneTaskData[];
+};
 export type DoneSelectOption<T extends string> = {
   value: T;
   label: string;

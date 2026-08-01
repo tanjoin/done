@@ -4,6 +4,8 @@ import Header from './header';
 import LocalStorageManager from './local-storage-manager';
 import DoneTask from './done-task';
 import {DoneTaskData} from './types';
+import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
+import {syncTasksToGoogleDrive} from './google-drive-service';
 
 class JsonOrganizer extends HTMLElement {
   private _tasks: DoneTaskData[] = [];
@@ -87,11 +89,17 @@ class JsonOrganizer extends HTMLElement {
     this.getElement<HTMLButtonElement>('jsonSaveAllTasksBtn').addEventListener(
       'click',
       () => {
-        const tasksToSave = JsonOrganizer.excludeGoogleTodoTasks(this._tasks).map(
-          task => new DoneTask(task),
-        );
-        LocalStorageManager.tasks = tasksToSave;
-        this.setStatus('done_tasks 全体を保存しました。');
+        void this.saveAllTasks();
+      },
+    );
+
+    this.getElement<HTMLButtonElement>('jsonSaveAllTasksBtn').addEventListener(
+      'keydown',
+      event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          void this.saveAllTasks();
+        }
       },
     );
 
@@ -184,6 +192,56 @@ class JsonOrganizer extends HTMLElement {
         this.setStatus('選択タスクに反映しました。保存ボタンで確定してください。');
       },
     );
+  }
+
+  private async saveAllTasks(): Promise<void> {
+    const tasksToSave = JsonOrganizer.excludeGoogleTodoTasks(this._tasks).map(
+      task => new DoneTask(task),
+    );
+    LocalStorageManager.tasks = tasksToSave;
+
+    if (!LocalStorageManager.googleDriveSyncEnabled || !hasValidGoogleToken()) {
+      this.setStatus('done_tasks 全体を保存しました。');
+      return;
+    }
+
+    try {
+      const result = await syncTasksToGoogleDrive(tasksToSave);
+      if (!result.uploaded && result.skippedReason) {
+        if (result.skippedReason === 'missing_local_updated_at') {
+          this.setStatus(
+            'done_tasks は保存しました。Google Driveは最終更新日なしのため上書き停止しました。',
+            true,
+          );
+          return;
+        }
+        if (result.skippedReason === 'missing_remote_updated_at') {
+          this.setStatus(
+            'done_tasks は保存しました。Google Drive保存先に最終更新日がないため上書き停止しました。',
+            true,
+          );
+          return;
+        }
+        this.setStatus(
+          'done_tasks は保存しました。Google Drive側が新しいため上書き停止しました。',
+          true,
+        );
+        return;
+      }
+      this.setStatus('done_tasks 全体を保存し、Google Drive に同期しました。');
+    } catch (error) {
+      if (isGoogleReloginRequiredError(error)) {
+        this.setStatus(
+          'done_tasks は保存しました。Google認証が切れたため設定画面で再ログインしてください。',
+          true,
+        );
+        if (LocalStorageManager.googleClientIdEncrypted.trim()) {
+          window.location.href = 'settings.html';
+        }
+        return;
+      }
+      this.setStatus('done_tasks は保存しましたが、Google Drive同期に失敗しました。', true);
+    }
   }
 
   private loadTasks(): void {

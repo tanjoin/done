@@ -37,6 +37,16 @@ class Index extends HTMLElement {
   private static readonly TODO_CHECKBOX_LINE_RE =
     /^\s*-\s*\[( |x|X)\]\s*(.*)$/;
 
+  private redirectToSettingsForRelogin(): void {
+    if (!LocalStorageManager.googleClientIdEncrypted.trim()) {
+      return;
+    }
+    if (/\/settings\.html([?#].*)?$/i.test(window.location.pathname)) {
+      return;
+    }
+    window.location.href = 'settings.html';
+  }
+
   static get NAME(): string {
     return 'done-index';
   }
@@ -126,6 +136,9 @@ class Index extends HTMLElement {
     task.history[targetDateKey] = isCancel ? 'cancelled' : 'completed';
 
     void this._taskRepository.saveTasksWithSync().catch(error => {
+      if (isGoogleReloginRequiredError(error)) {
+        this.redirectToSettingsForRelogin();
+      }
       alert(
         isGoogleReloginRequiredError(error)
           ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
@@ -149,6 +162,9 @@ class Index extends HTMLElement {
       if (isCancel) {
         if (calendarTask.isGoogleTodoTask()) {
           void updateTodoEventColor(calendarTask, '4').catch(error => {
+            if (isGoogleReloginRequiredError(error)) {
+              this.redirectToSettingsForRelogin();
+            }
             alert(
               isGoogleReloginRequiredError(error)
                 ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
@@ -161,6 +177,9 @@ class Index extends HTMLElement {
 
       if (calendarTask.isGoogleTodoTask()) {
         void updateTodoEventColor(calendarTask, '8').catch(error => {
+          if (isGoogleReloginRequiredError(error)) {
+            this.redirectToSettingsForRelogin();
+          }
           alert(
             isGoogleReloginRequiredError(error)
               ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
@@ -172,6 +191,9 @@ class Index extends HTMLElement {
 
       if (primaryAction === 'add') {
         void addEventToDoneCalendarFromTask(calendarTask).catch(error => {
+          if (isGoogleReloginRequiredError(error)) {
+            this.redirectToSettingsForRelogin();
+          }
           alert(
             isGoogleReloginRequiredError(error)
               ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
@@ -551,6 +573,9 @@ class Index extends HTMLElement {
       task.description = nextDescription;
       this.renderCards();
     } catch (error) {
+      if (isGoogleReloginRequiredError(error)) {
+        this.redirectToSettingsForRelogin();
+      }
       inputEl.checked = !checked;
       alert(
         isGoogleReloginRequiredError(error)

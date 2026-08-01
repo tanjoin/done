@@ -82,10 +82,10 @@ export default class SettingsDataSection {
     });
   }
 
-  private static updateTasksFromRawArray(
+  private static async updateTasksFromRawArray(
     rawTasks: unknown,
     taskRepository: TaskRepository,
-  ): boolean {
+  ): Promise<boolean> {
     if (!Array.isArray(rawTasks)) {
       return false;
     }
@@ -93,7 +93,7 @@ export default class SettingsDataSection {
       rawTasks as DoneTaskData[],
     ).map(task => new DoneTask(task));
     taskRepository.tasks = tasks;
-    taskRepository.saveTasks();
+    await taskRepository.saveTasksWithSync(true);
     return true;
   }
 
@@ -108,12 +108,15 @@ export default class SettingsDataSection {
     }
 
     const reader = new FileReader();
-    reader.onload = loadEvent => {
+    reader.onload = async loadEvent => {
       try {
         const text = String(loadEvent.target?.result || '');
         const parsed = JSON.parse(text);
         if (
-          !SettingsDataSection.updateTasksFromRawArray(parsed, taskRepository)
+          !(await SettingsDataSection.updateTasksFromRawArray(
+            parsed,
+            taskRepository,
+          ))
         ) {
           alert('無効なJSONフォーマットです。');
           return;
@@ -139,7 +142,10 @@ export default class SettingsDataSection {
       const text = await navigator.clipboard.readText();
       const parsed = JSON.parse(text);
       if (
-        !SettingsDataSection.updateTasksFromRawArray(parsed, taskRepository)
+        !(await SettingsDataSection.updateTasksFromRawArray(
+          parsed,
+          taskRepository,
+        ))
       ) {
         alert('無効なJSONフォーマットです。');
         return;

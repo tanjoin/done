@@ -219,10 +219,17 @@ export default class SettingsCalendarSection {
         });
         updateLoginStatus();
         if (driveToggle.checked) {
-          const driveTasks = await loadTasksFromGoogleDrive();
-          if (driveTasks !== null) {
-            // Drive 側の保存内容を優先して取り込み、ログイン直後の反映漏れを防ぐ
-            LocalStorageManager.tasks = driveTasks;
+          const driveSnapshot = await loadTasksFromGoogleDrive();
+          if (driveSnapshot !== null) {
+            const localUpdatedAt = LocalStorageManager.tasksLastUpdatedAt;
+            if (
+              driveSnapshot.hasTimestamp &&
+              (!localUpdatedAt || localUpdatedAt <= driveSnapshot.updatedAt)
+            ) {
+              // Drive 側の保存内容を優先して取り込み、ログイン直後の反映漏れを防ぐ
+              LocalStorageManager.tasks = driveSnapshot.tasks;
+              LocalStorageManager.tasksLastUpdatedAt = driveSnapshot.updatedAt;
+            }
           } else {
             await syncTasksToGoogleDrive(LocalStorageManager.tasks);
           }

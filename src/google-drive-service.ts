@@ -1,4 +1,4 @@
-import type {DoneTaskData} from './types';
+import type {DoneTaskData, DoneTaskSyncPayload} from './types';
 import LocalStorageManager from './local-storage-manager';
 import {
   clearGoogleToken,
@@ -9,6 +9,27 @@ import {
 
 const GOOGLE_DRIVE_SCOPE = ['https://www.googleapis.com/auth/drive.file'];
 const FILE_NAME = 'tanjoin_done_task_sync_backup_v1.json';
+
+export type GoogleDriveTaskSnapshot = {
+  tasks: DoneTaskData[];
+  updatedAt: string;
+  hasTimestamp: boolean;
+};
+
+export type GoogleDriveSyncSkippedReason =
+  | 'missing_local_updated_at'
+  | 'missing_remote_updated_at'
+  | 'local_is_older';
+
+export type GoogleDriveSyncResult = {
+  uploaded: boolean;
+  skippedReason?: GoogleDriveSyncSkippedReason;
+  remoteUpdatedAt?: string;
+};
+
+type SyncOptions = {
+  forceOverwrite?: boolean;
+};
 
 function driveApi(path: string): string {
   return `https://www.googleapis.com/drive/v3${path}`;
@@ -59,6 +80,59 @@ async function findBackupFileId(): Promise<string> {
     `/files?q=${query}&spaces=drive&fields=files(id)&pageSize=1`,
   );
   return payload.files?.[0]?.id || '';
+}
+
+function parseDrivePayload(parsed: unknown): GoogleDriveTaskSnapshot | null {
+  if (Array.isArray(parsed)) {
+    return {
+      tasks: parsed as DoneTaskData[],
+      updatedAt: '',
+      hasTimestamp: false,
+    };
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+
+  const payload = parsed as Partial<DoneTaskSyncPayload>;
+  if (!Array.isArray(payload.tasks)) {
+    return null;
+  }
+
+  const updatedAt =
+    typeof payload.updatedAt === 'string' ? payload.updatedAt.trim() : '';
+  return {
+    tasks: payload.tasks,
+    updatedAt,
+    hasTimestamp: Boolean(updatedAt),
+  };
+}
+
+async function loadSnapshotByFileId(
+  fileId: string,
+): Promise<GoogleDriveTaskSnapshot | null> {
+  const token = await getGoogleAccessToken(GOOGLE_DRIVE_SCOPE);
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (response.status === 401 || response.status === 403) {
+    clearGoogleToken();
+    throw createGoogleReloginRequiredError();
+  }
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const parsed = (await response.json()) as unknown;
+  return parseDrivePayload(parsed);
 }
 
 async function uploadMultipart(
@@ -114,17 +188,57 @@ async function uploadMultipart(
   }
 }
 
-export async function syncTasksToGoogleDrive(tasks: DoneTaskData[]): Promise<void> {
+export async function syncTasksToGoogleDrive(
+  tasks: DoneTaskData[],
+  options: SyncOptions = {},
+): Promise<GoogleDriveSyncResult> {
   if (!LocalStorageManager.googleDriveSyncEnabled) {
-    return;
+    return {uploaded: false};
   }
 
-  const content = JSON.stringify(tasks, null, 2);
+  const localUpdatedAt = LocalStorageManager.tasksLastUpdatedAt;
+  if (!options.forceOverwrite && !localUpdatedAt) {
+    return {
+      uploaded: false,
+      skippedReason: 'missing_local_updated_at',
+    };
+  }
+
   const fileId = await findBackupFileId();
-  await uploadMultipart({name: FILE_NAME, mimeType: 'application/json'}, content, fileId);
+  if (fileId && !options.forceOverwrite) {
+    const remoteSnapshot = await loadSnapshotByFileId(fileId);
+    if (remoteSnapshot) {
+      if (!remoteSnapshot.hasTimestamp) {
+        return {
+          uploaded: false,
+          skippedReason: 'missing_remote_updated_at',
+        };
+      }
+
+      if (localUpdatedAt < remoteSnapshot.updatedAt) {
+        return {
+          uploaded: false,
+          skippedReason: 'local_is_older',
+          remoteUpdatedAt: remoteSnapshot.updatedAt,
+        };
+      }
+    }
+  }
+
+  const payload: DoneTaskSyncPayload = {
+    updatedAt: localUpdatedAt || new Date().toISOString(),
+    tasks,
+  };
+  const content = JSON.stringify(payload, null, 2);
+  await uploadMultipart(
+    {name: FILE_NAME, mimeType: 'application/json'},
+    content,
+    fileId,
+  );
+  return {uploaded: true};
 }
 
-export async function loadTasksFromGoogleDrive(): Promise<DoneTaskData[] | null> {
+export async function loadTasksFromGoogleDrive(): Promise<GoogleDriveTaskSnapshot | null> {
   if (!LocalStorageManager.googleDriveSyncEnabled) {
     return null;
   }
@@ -134,30 +248,7 @@ export async function loadTasksFromGoogleDrive(): Promise<DoneTaskData[] | null>
     return null;
   }
 
-  const token = await getGoogleAccessToken(GOOGLE_DRIVE_SCOPE);
-  const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  );
-
-  if (response.status === 401 || response.status === 403) {
-    clearGoogleToken();
-    throw createGoogleReloginRequiredError();
-  }
-
-  if (!response.ok) {
-    return null;
-  }
-
-  const parsed = (await response.json()) as unknown;
-  if (!Array.isArray(parsed)) {
-    return null;
-  }
-  return parsed as DoneTaskData[];
+  return loadSnapshotByFileId(fileId);
 }
 
 export async function getGoogleDriveBackupFileLink(): Promise<string> {
