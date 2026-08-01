@@ -16,6 +16,7 @@ import LocalStorageManager from './local-storage-manager';
 import NotificationManager from './notification-manager';
 import RequestNotification from './request-notification';
 import TaskRepository from './task-repository';
+import SessionManager from './session-manager';
 import DateHelper from './date-helper';
 import SortManager from './sort-manager';
 import TableManager from './table-manager';
@@ -1289,6 +1290,7 @@ class Index extends HTMLElement {
   }
 
   async init(): Promise<void> {
+    SessionManager.startGoogleSessionKeepAlive();
     this.applyTheme();
 
     // 先に localStorage の内容を描画し、クラウド同期は非同期で後追いする。

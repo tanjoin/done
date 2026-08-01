@@ -7,6 +7,7 @@ import SettingsDataSection from './settings-data-section';
 import SettingsDisplaySection from './settings-display-section';
 import SettingsNotificationSection from './settings-notification-section';
 import SettingsThemeSection from './settings-theme-section';
+import SessionManager from './session-manager';
 
 class Settings extends HTMLElement {
   private readonly _taskRepository: TaskRepository = new TaskRepository();
@@ -33,6 +34,7 @@ class Settings extends HTMLElement {
   }
 
   private async setup(): Promise<void> {
+    SessionManager.startGoogleSessionKeepAlive();
     this._taskRepository.hydrateFromLocal();
     SettingsThemeSection.setup(this);
     SettingsCalendarSection.setup(this);

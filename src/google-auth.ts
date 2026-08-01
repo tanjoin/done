@@ -27,6 +27,7 @@ const GSI_SCRIPT_ID = 'done-google-gsi-script';
 const GAPI_SCRIPT_ID = 'done-google-gapi-script';
 const GOOGLE_ACCESS_TOKEN_KEY = 'done_google_access_token_v1';
 const GOOGLE_ACCESS_TOKEN_EXPIRY_KEY = 'done_google_access_token_expiry_v1';
+const GOOGLE_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 const GOOGLE_RELOGIN_REQUIRED_CODE = 'GOOGLE_RELOGIN_REQUIRED';
 const GOOGLE_RELOGIN_REQUIRED_MESSAGE =
   'Google認証の有効期限が切れました。設定画面で再ログインしてください。';
@@ -117,6 +118,13 @@ export function hasValidGoogleToken(): boolean {
   return Boolean(accessToken) && Date.now() < tokenExpiry;
 }
 
+export function isGoogleTokenExpiringSoon(): boolean {
+  if (!hasValidGoogleToken()) {
+    return false;
+  }
+  return tokenExpiry - Date.now() <= GOOGLE_TOKEN_REFRESH_BUFFER_MS;
+}
+
 export function clearGoogleToken(): void {
   accessToken = '';
   tokenExpiry = 0;
@@ -154,9 +162,14 @@ export function isGoogleReloginRequiredError(error: unknown): boolean {
 export async function getGoogleAccessToken(
   scopes: string[],
   forcePrompt = false,
+  refreshIfExpiringSoon = false,
 ): Promise<string> {
   await ensureGoogleSdkLoaded();
-  if (!forcePrompt && hasValidGoogleToken()) {
+  if (
+    !forcePrompt &&
+    hasValidGoogleToken() &&
+    !(refreshIfExpiringSoon && isGoogleTokenExpiringSoon())
+  ) {
     return accessToken;
   }
 

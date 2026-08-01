@@ -6,6 +6,7 @@ import DoneTask from './done-task';
 import {DoneTaskData} from './types';
 import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
 import {syncTasksToGoogleDrive} from './google-drive-service';
+import SessionManager from './session-manager';
 
 class JsonOrganizer extends HTMLElement {
   private _tasks: DoneTaskData[] = [];
@@ -415,6 +416,7 @@ if (!customElements.get(JsonOrganizer.NAME)) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  SessionManager.startGoogleSessionKeepAlive();
   const container = document.querySelector('.container');
   if (!container) {
     return;
