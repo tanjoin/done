@@ -19,22 +19,9 @@ export default class TaskRepository {
   static readonly EVENT_TODO_CALENDAR_STATUS =
     'done-todo-calendar-load-status';
   static readonly EVENT_GOOGLE_DRIVE_STATUS = 'done-google-drive-status';
+  static readonly EVENT_GOOGLE_RELOGIN_NOTICE = 'done-google-relogin-notice';
   private _preferDriveOnNextCloudRefresh = false;
   private _defaultTasksCache: DoneTaskData[] | null = null;
-
-  private static hasOAuthClientIdConfigured(): boolean {
-    return Boolean(LocalStorageManager.googleClientIdEncrypted.trim());
-  }
-
-  private static redirectToSettingsForRelogin(): void {
-    if (!TaskRepository.hasOAuthClientIdConfigured()) {
-      return;
-    }
-    if (/\/settings\.html([?#].*)?$/i.test(window.location.pathname)) {
-      return;
-    }
-    window.location.href = 'settings.html';
-  }
 
   private static mapSyncSkippedReasonToMessage(
     reason: GoogleDriveSyncSkippedReason,
@@ -127,6 +114,18 @@ export default class TaskRepository {
     document.dispatchEvent(
       new CustomEvent(TaskRepository.EVENT_GOOGLE_DRIVE_STATUS, {
         detail,
+      }),
+    );
+  }
+
+  private emitGoogleReloginNotice(message: string): void {
+    if (!LocalStorageManager.googleClientIdEncrypted.trim()) {
+      return;
+    }
+
+    document.dispatchEvent(
+      new CustomEvent(TaskRepository.EVENT_GOOGLE_RELOGIN_NOTICE, {
+        detail: {message},
       }),
     );
   }
@@ -355,7 +354,9 @@ export default class TaskRepository {
       driveLoadFailed = true;
       driveLoadAuthExpired = isGoogleReloginRequiredError(error);
       if (driveLoadAuthExpired) {
-        TaskRepository.redirectToSettingsForRelogin();
+        this.emitGoogleReloginNotice(
+          'Google認証の有効期限が切れました。再ログインするにはこのメッセージをクリックしてください。',
+        );
       }
       if (LocalStorageManager.googleDriveSyncEnabled) {
         this.emitGoogleDriveStatus({
@@ -378,7 +379,9 @@ export default class TaskRepository {
       todoFetchFailed = true;
       todoFetchAuthExpired = isGoogleReloginRequiredError(error);
       if (todoFetchAuthExpired) {
-        TaskRepository.redirectToSettingsForRelogin();
+        this.emitGoogleReloginNotice(
+          'Google認証の有効期限が切れました。再ログインするにはこのメッセージをクリックしてください。',
+        );
       }
     }
 
@@ -520,7 +523,9 @@ export default class TaskRepository {
         })
         .catch(error => {
           if (isGoogleReloginRequiredError(error)) {
-            TaskRepository.redirectToSettingsForRelogin();
+            this.emitGoogleReloginNotice(
+              'Google認証の有効期限が切れました。再ログインするにはこのメッセージをクリックしてください。',
+            );
           }
           this.emitGoogleDriveStatus({
             state: 'error',
@@ -571,7 +576,9 @@ export default class TaskRepository {
       });
     } catch (error) {
       if (isGoogleReloginRequiredError(error)) {
-        TaskRepository.redirectToSettingsForRelogin();
+        this.emitGoogleReloginNotice(
+          'Google認証の有効期限が切れました。再ログインするにはこのメッセージをクリックしてください。',
+        );
       }
       this.emitGoogleDriveStatus({
         state: 'error',

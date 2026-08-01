@@ -38,7 +38,17 @@ class Index extends HTMLElement {
   private static readonly TODO_CHECKBOX_LINE_RE =
     /^\s*-\s*\[( |x|X)\]\s*(.*)$/;
 
-  private redirectToSettingsForRelogin(): void {
+  private notifyGoogleReloginRequired(
+    message =
+      'Google認証の有効期限が切れました。再ログインするにはここを押してください。',
+  ): void {
+    if (!LocalStorageManager.googleClientIdEncrypted.trim()) {
+      return;
+    }
+    this.setGoogleReloginStatus(message, 'error');
+  }
+
+  private openSettingsForRelogin(): void {
     if (!LocalStorageManager.googleClientIdEncrypted.trim()) {
       return;
     }
@@ -138,13 +148,10 @@ class Index extends HTMLElement {
 
     void this._taskRepository.saveTasksWithSync().catch(error => {
       if (isGoogleReloginRequiredError(error)) {
-        this.redirectToSettingsForRelogin();
+        this.notifyGoogleReloginRequired();
+        return;
       }
-      alert(
-        isGoogleReloginRequiredError(error)
-          ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
-          : 'Google Drive への同期に失敗しました。',
-      );
+      alert('Google Drive への同期に失敗しました。');
     });
 
     this.renderCards();
@@ -164,13 +171,10 @@ class Index extends HTMLElement {
         if (calendarTask.isGoogleTodoTask()) {
           void updateTodoEventColor(calendarTask, '4').catch(error => {
             if (isGoogleReloginRequiredError(error)) {
-              this.redirectToSettingsForRelogin();
+              this.notifyGoogleReloginRequired();
+              return;
             }
-            alert(
-              isGoogleReloginRequiredError(error)
-                ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
-                : 'TODOカレンダーのキャンセル色更新に失敗しました。',
-            );
+            alert('TODOカレンダーのキャンセル色更新に失敗しました。');
           });
         }
         return;
@@ -179,13 +183,10 @@ class Index extends HTMLElement {
       if (calendarTask.isGoogleTodoTask()) {
         void updateTodoEventColor(calendarTask, '8').catch(error => {
           if (isGoogleReloginRequiredError(error)) {
-            this.redirectToSettingsForRelogin();
+            this.notifyGoogleReloginRequired();
+            return;
           }
-          alert(
-            isGoogleReloginRequiredError(error)
-              ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
-              : 'TODOカレンダーの完了色更新に失敗しました。',
-          );
+          alert('TODOカレンダーの完了色更新に失敗しました。');
         });
         return;
       }
@@ -193,13 +194,10 @@ class Index extends HTMLElement {
       if (primaryAction === 'add') {
         void addEventToDoneCalendarFromTask(calendarTask).catch(error => {
           if (isGoogleReloginRequiredError(error)) {
-            this.redirectToSettingsForRelogin();
+            this.notifyGoogleReloginRequired();
+            return;
           }
-          alert(
-            isGoogleReloginRequiredError(error)
-              ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
-              : 'DONEカレンダーへの追加に失敗しました。',
-          );
+          alert('DONEカレンダーへの追加に失敗しました。');
         });
         return;
       }
@@ -575,14 +573,12 @@ class Index extends HTMLElement {
       this.renderCards();
     } catch (error) {
       if (isGoogleReloginRequiredError(error)) {
-        this.redirectToSettingsForRelogin();
+        this.notifyGoogleReloginRequired();
       }
       inputEl.checked = !checked;
-      alert(
-        isGoogleReloginRequiredError(error)
-          ? 'Google認証の有効期限が切れました。設定画面で再ログインしてください。'
-          : 'TODOカレンダーのチェック状態更新に失敗しました。',
-      );
+      if (!isGoogleReloginRequiredError(error)) {
+        alert('TODOカレンダーのチェック状態更新に失敗しました。');
+      }
     } finally {
       inputEl.disabled = false;
     }
@@ -609,9 +605,37 @@ class Index extends HTMLElement {
         <div id="googleDriveStatus" class="todo-load-status" style="display: none;">
           <button id="googleDriveStatusBtn" class="status-text-button" type="button"></button>
         </div>
+        <div id="googleReloginStatus" class="todo-load-status" style="display: none;">
+          <button id="googleReloginStatusBtn" class="status-text-button" type="button"></button>
+        </div>
         <div id="taskContainer"></div>
       </main>
     `;
+  }
+
+  private setGoogleReloginStatus(
+    message: string,
+    state: 'hidden' | 'error' = 'error',
+  ): void {
+    const status = document.getElementById('googleReloginStatus');
+    const statusBtn = document.getElementById(
+      'googleReloginStatusBtn',
+    ) as HTMLButtonElement | null;
+    if (!status || !statusBtn) {
+      return;
+    }
+
+    if (state === 'hidden' || !message) {
+      status.style.display = 'none';
+      statusBtn.textContent = '';
+      return;
+    }
+
+    statusBtn.textContent = message;
+    statusBtn.disabled = false;
+    status.classList.remove('is-loading');
+    status.classList.add('is-error');
+    status.style.display = 'block';
   }
 
   private setTodoCalendarLoadStatus(
@@ -1176,6 +1200,14 @@ class Index extends HTMLElement {
         },
       );
 
+      document.addEventListener(
+        TaskRepository.EVENT_GOOGLE_RELOGIN_NOTICE,
+        (event: Event) => {
+          const customEvent = event as CustomEvent<{message: string}>;
+          this.notifyGoogleReloginRequired(customEvent.detail.message);
+        },
+      );
+
       taskContainer.addEventListener('click', event => {
         if (!(event.target instanceof HTMLElement)) {
           return;
@@ -1263,6 +1295,15 @@ class Index extends HTMLElement {
         void this.refreshCloudTasksWithLoading(true).then(() => {
           this.renderCards();
         });
+      });
+    }
+
+    const googleReloginStatusBtn = document.getElementById(
+      'googleReloginStatusBtn',
+    ) as HTMLButtonElement | null;
+    if (googleReloginStatusBtn) {
+      googleReloginStatusBtn.addEventListener('click', () => {
+        this.openSettingsForRelogin();
       });
     }
   }

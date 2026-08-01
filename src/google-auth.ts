@@ -9,13 +9,16 @@ declare global {
           initTokenClient: (config: {
             client_id: string;
             scope: string;
+            prompt?: string;
             callback: (response: {
               access_token?: string;
               error?: string;
               expires_in?: number;
             }) => void;
           }) => {
-            requestAccessToken: (options?: {prompt?: string}) => void;
+            requestAccessToken: (options?: {
+              prompt?: string;
+            }) => void;
           };
         };
       };
@@ -27,6 +30,7 @@ const GSI_SCRIPT_ID = 'done-google-gsi-script';
 const GAPI_SCRIPT_ID = 'done-google-gapi-script';
 const GOOGLE_ACCESS_TOKEN_KEY = 'done_google_access_token_v1';
 const GOOGLE_ACCESS_TOKEN_EXPIRY_KEY = 'done_google_access_token_expiry_v1';
+const LEGACY_GOOGLE_REFRESH_TOKEN_KEY = 'done_google_refresh_token_v1';
 const GOOGLE_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 const GOOGLE_RELOGIN_REQUIRED_CODE = 'GOOGLE_RELOGIN_REQUIRED';
 const GOOGLE_RELOGIN_REQUIRED_MESSAGE =
@@ -39,7 +43,9 @@ const GOOGLE_RELOGIN_REQUIRED_ERRORS = new Set([
 ]);
 
 type TokenClient = {
-  requestAccessToken: (options?: {prompt?: string}) => void;
+  requestAccessToken: (options?: {
+    prompt?: string;
+  }) => void;
 };
 
 function ensureScript(id: string, src: string): Promise<void> {
@@ -91,17 +97,28 @@ async function resolveClientId(): Promise<string> {
 let accessToken = '';
 let tokenExpiry = 0;
 
+type GoogleTokenResponse = {
+  access_token?: string;
+  error?: string;
+  expires_in?: number;
+};
+
 function hydrateTokenFromStorage(): void {
   const savedToken = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY) || '';
   const savedExpiry = Number(
     localStorage.getItem(GOOGLE_ACCESS_TOKEN_EXPIRY_KEY) || 0,
   );
+  localStorage.removeItem(LEGACY_GOOGLE_REFRESH_TOKEN_KEY);
 
-  if (!savedToken || !Number.isFinite(savedExpiry) || savedExpiry <= Date.now()) {
-    localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
-    localStorage.removeItem(GOOGLE_ACCESS_TOKEN_EXPIRY_KEY);
+  if (
+    !savedToken ||
+    !Number.isFinite(savedExpiry) ||
+    savedExpiry <= Date.now()
+  ) {
     accessToken = '';
     tokenExpiry = 0;
+    localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
+    localStorage.removeItem(GOOGLE_ACCESS_TOKEN_EXPIRY_KEY);
     return;
   }
 
@@ -184,11 +201,11 @@ export async function getGoogleAccessToken(
   }
 
   return new Promise((resolve, reject) => {
-    let tokenClient: TokenClient;
-    tokenClient = oauth.initTokenClient({
+    const tokenClient: TokenClient = oauth.initTokenClient({
       client_id: clientId,
       scope: scopes.join(' '),
-      callback: response => {
+      prompt: forcePrompt ? 'consent' : '',
+      callback: (response: GoogleTokenResponse) => {
         if (response.error) {
           clearGoogleToken();
           if (GOOGLE_RELOGIN_REQUIRED_ERRORS.has(response.error)) {
@@ -203,7 +220,10 @@ export async function getGoogleAccessToken(
           reject(new Error('アクセストークン取得に失敗しました。'));
           return;
         }
-        setGoogleToken(response.access_token, response.expires_in || 3000);
+        setGoogleToken(
+          response.access_token,
+          response.expires_in || 3000,
+        );
         resolve(response.access_token);
       },
     });

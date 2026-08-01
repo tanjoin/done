@@ -236,9 +236,6 @@ class JsonOrganizer extends HTMLElement {
           'done_tasks は保存しました。Google認証が切れたため設定画面で再ログインしてください。',
           true,
         );
-        if (LocalStorageManager.googleClientIdEncrypted.trim()) {
-          window.location.href = 'settings.html';
-        }
         return;
       }
       this.setStatus('done_tasks は保存しましたが、Google Drive同期に失敗しました。', true);

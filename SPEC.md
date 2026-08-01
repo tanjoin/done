@@ -83,6 +83,7 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 
 出力
 - 認証トークン取得
+- アクセストークンを保持し、期限前または期限切れ時に Google Identity Services の非対話トークン取得（prompt: ''）で更新を試行する
 - カレンダー一覧
 - TODO カレンダー予定のタスク表示（表示設定の基準日 00:00 を start、翌日 23:59:59 を end）
 - TODO 由来タスクの説明文は、改行とURLを保持したリッチテキストとして表示する
@@ -111,9 +112,11 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 - 画面リロード時はキャッシュを使わず、Google/Drive から再取得して最新化する
 - Google 未ログイン時は TODO/Drive の各ステータス表示を出さない
 - Google 認証が失効した場合は、TODO/Drive のステータス表示と操作時アラートで再ログインを促す
-- Google 認証が失効した場合は、OAuth Client ID が設定済みなら設定・データ管理画面へ遷移して再ログイン導線を表示する
+- Google 認証が失効した場合は、再ログイン画面を自動表示しない
+- Google 認証が失効した場合は、OAuth Client ID が設定済みなら一覧画面上に再ログイン通知を表示し、ユーザー操作時のみ設定・データ管理画面へ遷移する
 - OAuth Client ID が未設定の場合は、認証切れによる自動遷移を行わない
-- アプリ起動中は SessionManager が Google セッションを監視し、アクセストークン期限が近い場合は無操作でも自動更新を試行する
+- アプリ起動中は SessionManager が Google セッションを監視し、アクセストークン期限が近い場合は無操作でも非対話更新を試行する
+- バックグラウンド更新に失敗しても再ログイン画面は自動表示せず、画面通知のみ表示する
 
 ## 2.4 Google ドライブ連携
 
@@ -179,6 +182,7 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 - サーバーサイドなし（完全フロントエンド）
 - 認証情報は localStorage に暗号化保存（復号鍵も同一オリジン管理）
 - Google API 利用には事前に OAuth Client ID 設定が必要
+- Google Identity Services のトークンモデルではリフレッシュトークンを扱わず、Google のログインセッションが有効な間にアクセストークンを非対話で再取得する
 - ネットワーク障害時はローカル運用を継続
 
 性能要件（設定画面）
@@ -214,6 +218,8 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 
 - done_tasks
 - done_tasks_last_updated_at_v1
+- done_google_access_token_v1
+- done_google_access_token_expiry_v1
 - done_google_client_id_enc_v1
 - done_google_todo_calendar_id_enc_v1
 - done_google_done_calendar_id_enc_v1
@@ -274,6 +280,7 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 
 - TODO/DONE イベント色の厳密な colorId 定義は運用で再確認が必要
 - OAuth トークン期限切れ時の UX（再認証導線）を改善余地あり
+- Google ログインセッションが失効した場合は非対話更新できないため、再ログインが必要
 - カレンダー一覧取得や同期失敗時のリトライ UI は最小実装
 - Drive 同期競合（他端末同時編集）の解決戦略は未実装
 - E2E テスト未整備（Google API モックを含む統合検証は今後追加）
