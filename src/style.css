@@ -476,6 +476,21 @@ a:not(.nav-link):hover {
     opacity: 0.85;
 }
 
+.status-text-button {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+.status-text-button:disabled {
+    cursor: default;
+}
+
 .todo-load-status.is-loading {
     color: var(--text-secondary);
 }

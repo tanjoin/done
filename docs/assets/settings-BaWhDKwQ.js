@@ -1,4 +1,4 @@
-import{C as e,D as t,E as n,O as r,S as i,_ as a,a as o,b as s,d as c,g as l,i as u,l as d,n as f,o as p,r as m,s as h,t as g,u as _,v,x as y,y as b}from"./session-manager-MYQG_Moy.js";import{a as x,c as S,d as C,i as w,l as T,n as E,o as D,r as O,t as k,u as A}from"./task-repository-DVobgb9E.js";var j,M,N=r((()=>{a(),c(),u(),S(),j=[`https://www.googleapis.com/auth/calendar`,`https://www.googleapis.com/auth/calendar.events`,`https://www.googleapis.com/auth/drive.file`],M=class{static render(){return`
+import{C as e,D as t,E as n,O as r,S as i,_ as a,a as o,b as s,d as c,g as l,i as u,l as d,n as f,o as p,r as m,s as h,t as g,u as _,v,x as y,y as b}from"./session-manager-D7l49KbF.js";import{a as x,c as S,d as C,i as w,l as T,n as E,o as D,r as O,t as k,u as A}from"./task-repository-Bpe6EJye.js";var j,M,N=r((()=>{a(),c(),u(),S(),j=[`https://www.googleapis.com/auth/calendar`,`https://www.googleapis.com/auth/calendar.events`,`https://www.googleapis.com/auth/drive.file`],M=class{static render(){return`
       <div class="data-box" id="calendarSection">
         <h3 class="group-title">設定・データ管理</h3>
         <p class="setting-desc">

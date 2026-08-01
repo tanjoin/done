@@ -284,6 +284,31 @@ export default class DoneTask implements DoneTaskData {
     return this.sourceType === 'google-todo';
   }
 
+  shouldHidePastDoneGoogleTodo(): boolean {
+    if (!this.isGoogleTodoTask() || !this.specificDate) {
+      return false;
+    }
+
+    const scheduledStatus = this.history[this.specificDate];
+    const isDoneOrCancelled =
+      scheduledStatus === 'completed' || scheduledStatus === 'cancelled';
+    if (!isDoneOrCancelled) {
+      return false;
+    }
+
+    const todayKey = DateHelper.today;
+    if (this.specificDate >= todayKey) {
+      return false;
+    }
+
+    // 開始日が過去でも、終了日が当日以降の跨ぎ予定は表示対象とする。
+    if (this.endDate && this.endDate >= todayKey) {
+      return false;
+    }
+
+    return true;
+  }
+
   isDoneCalendarTask(): boolean {
     return this.sourceType !== 'google-todo';
   }

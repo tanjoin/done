@@ -603,8 +603,12 @@ class Index extends HTMLElement {
           <span class="loading-spinner" aria-hidden="true"></span>
           <span class="loading-text">データを同期中...</span>
         </div>
-        <div id="todoCalendarLoadStatus" class="todo-load-status" style="display: none;"></div>
-        <div id="googleDriveStatus" class="todo-load-status" style="display: none;"></div>
+        <div id="todoCalendarLoadStatus" class="todo-load-status" style="display: none;">
+          <button id="todoCalendarLoadStatusBtn" class="status-text-button" type="button"></button>
+        </div>
+        <div id="googleDriveStatus" class="todo-load-status" style="display: none;">
+          <button id="googleDriveStatusBtn" class="status-text-button" type="button"></button>
+        </div>
         <div id="taskContainer"></div>
       </main>
     `;
@@ -615,7 +619,13 @@ class Index extends HTMLElement {
     state: 'loading' | 'cached' | 'success' | 'error',
   ): void {
     const status = document.getElementById('todoCalendarLoadStatus');
+    const statusBtn = document.getElementById(
+      'todoCalendarLoadStatusBtn',
+    ) as HTMLButtonElement | null;
     if (!status) {
+      return;
+    }
+    if (!statusBtn) {
       return;
     }
 
@@ -624,7 +634,8 @@ class Index extends HTMLElement {
       return;
     }
 
-    status.textContent = message;
+    statusBtn.textContent = message;
+    statusBtn.disabled = state === 'loading';
     status.classList.remove('is-error', 'is-loading');
     if (state === 'error') {
       status.classList.add('is-error');
@@ -640,7 +651,13 @@ class Index extends HTMLElement {
     state: 'loading' | 'cached' | 'success' | 'error' | 'off',
   ): void {
     const status = document.getElementById('googleDriveStatus');
+    const statusBtn = document.getElementById(
+      'googleDriveStatusBtn',
+    ) as HTMLButtonElement | null;
     if (!status) {
+      return;
+    }
+    if (!statusBtn) {
       return;
     }
 
@@ -649,7 +666,8 @@ class Index extends HTMLElement {
       return;
     }
 
-    status.textContent = message;
+    statusBtn.textContent = message;
+    statusBtn.disabled = state === 'loading';
     status.classList.remove('is-error', 'is-loading');
     if (state === 'error') {
       status.classList.add('is-error');
@@ -696,6 +714,10 @@ class Index extends HTMLElement {
 
     this._taskRepository.tasks.forEach((task: DoneTask) => {
       task = new DoneTask(task);
+
+      if (task.shouldHidePastDoneGoogleTodo()) {
+        return;
+      }
 
       if (task.isGoogleTodoTask() && LocalStorageManager.filterHideGoogleTodo) {
         return;
@@ -1211,8 +1233,11 @@ class Index extends HTMLElement {
       NotificationManager.syncBannerVisibility(banner);
     }
 
-    if (todoCalendarLoadStatus) {
-      todoCalendarLoadStatus.addEventListener('click', () => {
+    const todoCalendarLoadStatusBtn = document.getElementById(
+      'todoCalendarLoadStatusBtn',
+    ) as HTMLButtonElement | null;
+    if (todoCalendarLoadStatusBtn) {
+      todoCalendarLoadStatusBtn.addEventListener('click', () => {
         if (this._isLoading) {
           return;
         }
@@ -1226,9 +1251,11 @@ class Index extends HTMLElement {
       });
     }
 
-    const googleDriveStatus = document.getElementById('googleDriveStatus');
-    if (googleDriveStatus) {
-      googleDriveStatus.addEventListener('click', () => {
+    const googleDriveStatusBtn = document.getElementById(
+      'googleDriveStatusBtn',
+    ) as HTMLButtonElement | null;
+    if (googleDriveStatusBtn) {
+      googleDriveStatusBtn.addEventListener('click', () => {
         if (this._isLoading) {
           return;
         }
