@@ -1208,6 +1208,13 @@ class Index extends HTMLElement {
         },
       );
 
+      document.addEventListener(
+        SessionManager.EVENT_GOOGLE_RELOGIN_REQUIRED,
+        () => {
+          this.notifyGoogleReloginRequired();
+        },
+      );
+
       taskContainer.addEventListener('click', event => {
         if (!(event.target instanceof HTMLElement)) {
           return;

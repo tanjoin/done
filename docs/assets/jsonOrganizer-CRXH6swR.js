@@ -1,4 +1,4 @@
-import{C as e,D as t,E as n,S as r,_ as i,b as a,d as o,f as s,g as c,i as l,n as u,o as d,t as f,u as p,v as m,x as h,y as g}from"./session-manager-BSk86XP-.js";t((()=>{n(),h(),g(),i(),e(),o(),l(),u();var t=class e extends HTMLElement{_tasks=[];static excludeGoogleTodoTasks(e){return e.filter(e=>e.sourceType!==`google-todo`)}static get NAME(){return`done-json-organizer`}connectedCallback(){this.render(),this.loadTasks(),this.setupEvents()}render(){this.innerHTML=`
+import{C as e,D as t,E as n,S as r,_ as i,b as a,d as o,f as s,g as c,i as l,n as u,o as d,t as f,u as p,v as m,x as h,y as g}from"./session-manager-DOukvFyT.js";t((()=>{n(),h(),g(),i(),e(),o(),l(),u();var t=class e extends HTMLElement{_tasks=[];static excludeGoogleTodoTasks(e){return e.filter(e=>e.sourceType!==`google-todo`)}static get NAME(){return`done-json-organizer`}connectedCallback(){this.render(),this.loadTasks(),this.setupEvents()}render(){this.innerHTML=`
       <main>
         <h3 class="group-title">タスク JSON 編集</h3>
         <div class="data-box">

@@ -2,6 +2,8 @@ import LocalStorageManager from './local-storage-manager';
 import {
   getGoogleAccessToken,
   hasValidGoogleToken,
+  isGoogleReloginRequired,
+  isGoogleReloginRequiredError,
   isGoogleTokenExpiringSoon,
 } from './google-auth';
 
@@ -12,9 +14,12 @@ const GOOGLE_SESSION_KEEPALIVE_SCOPES = [
 ];
 
 export default class SessionManager {
+  static readonly EVENT_GOOGLE_RELOGIN_REQUIRED =
+    'done-google-session-relogin-required';
   private static readonly KEEPALIVE_INTERVAL_MS = 60 * 1000;
   private static _keepaliveTimerId: number | null = null;
   private static _refreshInFlight = false;
+  private static _reloginNoticeSent = false;
 
   static startGoogleSessionKeepAlive(): void {
     if (SessionManager._keepaliveTimerId !== null) {
@@ -25,7 +30,6 @@ export default class SessionManager {
       void SessionManager.refreshGoogleSessionIfNeeded();
     }, SessionManager.KEEPALIVE_INTERVAL_MS);
 
-    // 起動直後に一度だけ評価し、期限間近なら即時更新する。
     void SessionManager.refreshGoogleSessionIfNeeded();
 
     document.addEventListener('visibilitychange', () => {
@@ -40,7 +44,7 @@ export default class SessionManager {
   }
 
   private static async refreshGoogleSessionIfNeeded(): Promise<void> {
-    if (SessionManager._refreshInFlight) {
+    if (SessionManager._refreshInFlight || SessionManager._reloginNoticeSent) {
       return;
     }
 
@@ -48,11 +52,12 @@ export default class SessionManager {
       return;
     }
 
-    if (!hasValidGoogleToken()) {
+    const hasToken = hasValidGoogleToken();
+    if (!hasToken && !isGoogleReloginRequired()) {
       return;
     }
 
-    if (!isGoogleTokenExpiringSoon()) {
+    if (hasToken && !isGoogleTokenExpiringSoon()) {
       return;
     }
 
@@ -63,8 +68,13 @@ export default class SessionManager {
         false,
         true,
       );
-    } catch {
-      // 再認証が必要な場合は既存フロー側でハンドリングする。
+    } catch (error) {
+      if (isGoogleReloginRequiredError(error)) {
+        SessionManager._reloginNoticeSent = true;
+        document.dispatchEvent(
+          new CustomEvent(SessionManager.EVENT_GOOGLE_RELOGIN_REQUIRED),
+        );
+      }
     } finally {
       SessionManager._refreshInFlight = false;
     }

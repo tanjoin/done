@@ -96,6 +96,7 @@ async function resolveClientId(): Promise<string> {
 
 let accessToken = '';
 let tokenExpiry = 0;
+let googleReloginRequired = false;
 
 type GoogleTokenResponse = {
   access_token?: string;
@@ -115,6 +116,7 @@ function hydrateTokenFromStorage(): void {
     !Number.isFinite(savedExpiry) ||
     savedExpiry <= Date.now()
   ) {
+    googleReloginRequired = Boolean(savedToken);
     accessToken = '';
     tokenExpiry = 0;
     localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
@@ -135,6 +137,13 @@ export function hasValidGoogleToken(): boolean {
   return Boolean(accessToken) && Date.now() < tokenExpiry;
 }
 
+export function isGoogleReloginRequired(): boolean {
+  if (!accessToken || tokenExpiry <= Date.now()) {
+    hydrateTokenFromStorage();
+  }
+  return googleReloginRequired;
+}
+
 export function isGoogleTokenExpiringSoon(): boolean {
   if (!hasValidGoogleToken()) {
     return false;
@@ -145,6 +154,7 @@ export function isGoogleTokenExpiringSoon(): boolean {
 export function clearGoogleToken(): void {
   accessToken = '';
   tokenExpiry = 0;
+  googleReloginRequired = false;
   localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
   localStorage.removeItem(GOOGLE_ACCESS_TOKEN_EXPIRY_KEY);
 }
@@ -152,6 +162,7 @@ export function clearGoogleToken(): void {
 function setGoogleToken(token: string, expiresInSec = 3000): void {
   accessToken = token;
   tokenExpiry = Date.now() + expiresInSec * 1000;
+  googleReloginRequired = false;
   localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, accessToken);
   localStorage.setItem(GOOGLE_ACCESS_TOKEN_EXPIRY_KEY, String(tokenExpiry));
 }
@@ -181,7 +192,6 @@ export async function getGoogleAccessToken(
   forcePrompt = false,
   refreshIfExpiringSoon = false,
 ): Promise<string> {
-  await ensureGoogleSdkLoaded();
   if (
     !forcePrompt &&
     hasValidGoogleToken() &&
@@ -189,6 +199,8 @@ export async function getGoogleAccessToken(
   ) {
     return accessToken;
   }
+
+  await ensureGoogleSdkLoaded();
 
   const clientId = (await resolveClientId()).trim();
   if (!clientId) {
@@ -204,7 +216,7 @@ export async function getGoogleAccessToken(
     const tokenClient: TokenClient = oauth.initTokenClient({
       client_id: clientId,
       scope: scopes.join(' '),
-      prompt: forcePrompt ? 'consent' : '',
+      prompt: forcePrompt ? 'consent' : 'none',
       callback: (response: GoogleTokenResponse) => {
         if (response.error) {
           clearGoogleToken();
@@ -229,7 +241,7 @@ export async function getGoogleAccessToken(
     });
 
     tokenClient.requestAccessToken({
-      prompt: forcePrompt ? 'consent' : '',
+      prompt: forcePrompt ? 'consent' : 'none',
     });
   });
 }
