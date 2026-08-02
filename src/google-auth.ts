@@ -97,6 +97,7 @@ async function resolveClientId(): Promise<string> {
 let accessToken = '';
 let tokenExpiry = 0;
 let googleReloginRequired = false;
+let tokenRequestInFlight: Promise<string> | null = null;
 
 type GoogleTokenResponse = {
   access_token?: string;
@@ -200,48 +201,74 @@ export async function getGoogleAccessToken(
     return accessToken;
   }
 
-  await ensureGoogleSdkLoaded();
-
-  const clientId = (await resolveClientId()).trim();
-  if (!clientId) {
-    throw new Error('Google OAuth Client ID が未設定です。');
+  if (!forcePrompt && googleReloginRequired) {
+    throw createGoogleReloginRequiredError();
   }
 
-  const oauth = window.google?.accounts?.oauth2;
-  if (!oauth?.initTokenClient) {
-    throw new Error('Google認証ライブラリの読み込みに失敗しました。');
+  if (tokenRequestInFlight) {
+    return tokenRequestInFlight;
   }
 
-  return new Promise((resolve, reject) => {
-    const tokenClient: TokenClient = oauth.initTokenClient({
-      client_id: clientId,
-      scope: scopes.join(' '),
-      prompt: forcePrompt ? 'consent' : 'none',
-      callback: (response: GoogleTokenResponse) => {
-        if (response.error) {
-          clearGoogleToken();
-          if (GOOGLE_RELOGIN_REQUIRED_ERRORS.has(response.error)) {
-            reject(createGoogleReloginRequiredError());
+  const tokenRequest = (async () => {
+    await ensureGoogleSdkLoaded();
+
+    const clientId = (await resolveClientId()).trim();
+    if (!clientId) {
+      throw new Error('Google OAuth Client ID が未設定です。');
+    }
+
+    const oauth = window.google?.accounts?.oauth2;
+    if (!oauth?.initTokenClient) {
+      throw new Error('Google認証ライブラリの読み込みに失敗しました。');
+    }
+
+    return new Promise<string>((resolve, reject) => {
+      const tokenClient: TokenClient = oauth.initTokenClient({
+        client_id: clientId,
+        scope: scopes.join(' '),
+        prompt: forcePrompt ? 'consent' : 'none',
+        callback: (response: GoogleTokenResponse) => {
+          if (response.error) {
+            clearGoogleToken();
+            if (GOOGLE_RELOGIN_REQUIRED_ERRORS.has(response.error)) {
+              googleReloginRequired = true;
+              reject(createGoogleReloginRequiredError());
+              return;
+            }
+            reject(new Error(response.error));
             return;
           }
-          reject(new Error(response.error));
-          return;
-        }
-        if (!response.access_token) {
-          clearGoogleToken();
-          reject(new Error('アクセストークン取得に失敗しました。'));
-          return;
-        }
-        setGoogleToken(
-          response.access_token,
-          response.expires_in || 3000,
-        );
-        resolve(response.access_token);
-      },
+          if (!response.access_token) {
+            clearGoogleToken();
+            reject(new Error('アクセストークン取得に失敗しました。'));
+            return;
+          }
+          setGoogleToken(
+            response.access_token,
+            response.expires_in || 3000,
+          );
+          resolve(response.access_token);
+        },
+      });
+
+      tokenClient.requestAccessToken({
+        prompt: forcePrompt ? 'consent' : 'none',
+      });
+    });
+  })();
+
+  tokenRequestInFlight = tokenRequest
+    .catch(error => {
+      if (forcePrompt) {
+        throw error;
+      }
+      clearGoogleToken();
+      googleReloginRequired = true;
+      throw createGoogleReloginRequiredError();
+    })
+    .finally(() => {
+      tokenRequestInFlight = null;
     });
 
-    tokenClient.requestAccessToken({
-      prompt: forcePrompt ? 'consent' : 'none',
-    });
-  });
+  return tokenRequestInFlight;
 }

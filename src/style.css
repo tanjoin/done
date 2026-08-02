@@ -499,6 +499,61 @@ a:not(.nav-link):hover {
     color: #b45309;
 }
 
+.google-relogin-alert {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    color: #7c2d12;
+    background: #fff7ed;
+    border: 1px solid #fdba74;
+    border-radius: var(--border-radius);
+    font-size: 13px;
+}
+
+.google-relogin-alert[hidden] {
+    display: none;
+}
+
+.google-relogin-alert-actions {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 8px;
+}
+
+.google-relogin-dismiss-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: inherit;
+    background: transparent;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.google-relogin-dismiss-btn:hover,
+.google-relogin-dismiss-btn:focus-visible {
+    border-color: #fdba74;
+    background: #ffedd5;
+}
+
+@media (max-width: 560px) {
+    .google-relogin-alert {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .google-relogin-alert-actions {
+        align-self: flex-end;
+    }
+}
+
 .loading-wrap {
     display: flex;
     align-items: center;

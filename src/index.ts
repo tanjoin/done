@@ -34,6 +34,7 @@ class Index extends HTMLElement {
   private _sortManager: SortManager = new SortManager();
   private _tableManager: TableManager = new TableManager();
   private _isLoading = false;
+  private _googleReloginAlertDismissed = false;
 
   private static readonly TODO_CHECKBOX_LINE_RE =
     /^\s*-\s*\[( |x|X)\]\s*(.*)$/;
@@ -45,7 +46,7 @@ class Index extends HTMLElement {
     if (!LocalStorageManager.googleClientIdEncrypted.trim()) {
       return;
     }
-    this.setGoogleReloginStatus(message, 'error');
+    this.setGoogleReloginStatus(message);
   }
 
   private openSettingsForRelogin(): void {
@@ -605,8 +606,12 @@ class Index extends HTMLElement {
         <div id="googleDriveStatus" class="todo-load-status" style="display: none;">
           <button id="googleDriveStatusBtn" class="status-text-button" type="button"></button>
         </div>
-        <div id="googleReloginStatus" class="todo-load-status" style="display: none;">
-          <button id="googleReloginStatusBtn" class="status-text-button" type="button"></button>
+        <div id="googleReloginStatus" class="google-relogin-alert" role="alert" hidden>
+          <span id="googleReloginStatusMessage"></span>
+          <div class="google-relogin-alert-actions">
+            <button id="googleReloginStatusBtn" class="btn btn-action" type="button">Google にログイン</button>
+            <button id="googleReloginDismissBtn" class="google-relogin-dismiss-btn" type="button" aria-label="再ログイン通知を閉じる">×</button>
+          </div>
         </div>
         <div id="taskContainer"></div>
       </main>
@@ -615,27 +620,17 @@ class Index extends HTMLElement {
 
   private setGoogleReloginStatus(
     message: string,
-    state: 'hidden' | 'error' = 'error',
   ): void {
     const status = document.getElementById('googleReloginStatus');
-    const statusBtn = document.getElementById(
-      'googleReloginStatusBtn',
-    ) as HTMLButtonElement | null;
-    if (!status || !statusBtn) {
+    const statusMessage = document.getElementById(
+      'googleReloginStatusMessage',
+    );
+    if (!status || !statusMessage || this._googleReloginAlertDismissed) {
       return;
     }
 
-    if (state === 'hidden' || !message) {
-      status.style.display = 'none';
-      statusBtn.textContent = '';
-      return;
-    }
-
-    statusBtn.textContent = message;
-    statusBtn.disabled = false;
-    status.classList.remove('is-loading');
-    status.classList.add('is-error');
-    status.style.display = 'block';
+    statusMessage.textContent = message;
+    status.hidden = false;
   }
 
   private setTodoCalendarLoadStatus(
@@ -1311,6 +1306,19 @@ class Index extends HTMLElement {
     if (googleReloginStatusBtn) {
       googleReloginStatusBtn.addEventListener('click', () => {
         this.openSettingsForRelogin();
+      });
+    }
+
+    const googleReloginDismissBtn = document.getElementById(
+      'googleReloginDismissBtn',
+    ) as HTMLButtonElement | null;
+    if (googleReloginDismissBtn) {
+      googleReloginDismissBtn.addEventListener('click', () => {
+        this._googleReloginAlertDismissed = true;
+        const status = document.getElementById('googleReloginStatus');
+        if (status) {
+          status.hidden = true;
+        }
       });
     }
   }
