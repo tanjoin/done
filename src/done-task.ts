@@ -553,21 +553,21 @@ export default class DoneTask implements DoneTaskData {
     const actionContainer = document.createElement('div');
     actionContainer.className = 'table-actions';
 
-    const mainButton = document.createElement('button');
-    mainButton.className = this.getPrimaryActionClassName();
-    mainButton.textContent = this.getPrimaryActionLabel();
-    mainButton.setAttribute('data-task-action', this.getPrimaryActionType());
-    mainButton.setAttribute('data-task-id', this.id);
-    mainButton.setAttribute('data-task-date', actionDateKey);
-
-    const isStrict = this.strictMode === true;
-    const timeCheck = this.timeCheck();
-    if (statusInfo.locked || (!timeCheck.valid && isStrict)) {
-      mainButton.disabled = true;
-    }
-    actionContainer.appendChild(mainButton);
-
     if (!actionDateStatus) {
+      const mainButton = document.createElement('button');
+      mainButton.className = this.getPrimaryActionClassName();
+      mainButton.textContent = this.getPrimaryActionLabel();
+      mainButton.setAttribute('data-task-action', this.getPrimaryActionType());
+      mainButton.setAttribute('data-task-id', this.id);
+      mainButton.setAttribute('data-task-date', actionDateKey);
+
+      const isStrict = this.strictMode === true;
+      const timeCheck = this.timeCheck();
+      if (statusInfo.locked || (!timeCheck.valid && isStrict)) {
+        mainButton.disabled = true;
+      }
+      actionContainer.appendChild(mainButton);
+
       const secondaryButton = document.createElement('button');
       const isDeleteAction = Boolean(
         this.specificDate && !this.isGoogleTodoTask(),
@@ -588,7 +588,7 @@ export default class DoneTask implements DoneTaskData {
       actionContainer.appendChild(secondaryButton);
     } else {
       const undoButton = document.createElement('button');
-      undoButton.className = 'table-btn';
+      undoButton.className = 'table-btn table-btn-danger';
       undoButton.textContent = '戻す';
       undoButton.setAttribute('data-task-action', 'undo');
       undoButton.setAttribute('data-task-id', this.id);
