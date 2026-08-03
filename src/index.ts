@@ -209,16 +209,22 @@ class Index extends HTMLElement {
     })();
   }
 
-  private undoTask(taskId: string): void {
+  private undoTask(taskId: string, targetDateKey = DateHelper.today): void {
     const taskIndex = this.findTaskIndexById(taskId);
     if (taskIndex < 0) {
       return;
     }
 
-    const TODAY = DateHelper.today;
-    if (this._taskRepository.tasks[taskIndex]!.history[TODAY]) {
-      delete this._taskRepository.tasks[taskIndex]!.history[TODAY];
-      this._taskRepository.saveTasks();
+    const history = this._taskRepository.tasks[taskIndex]!.history;
+    if (history[targetDateKey]) {
+      delete history[targetDateKey];
+      void this._taskRepository.saveTasksWithSync().catch(error => {
+        if (isGoogleReloginRequiredError(error)) {
+          this.notifyGoogleReloginRequired();
+          return;
+        }
+        alert('Google Drive への同期に失敗しました。');
+      });
       this.renderCards();
     }
   }
@@ -254,7 +260,7 @@ class Index extends HTMLElement {
       return;
     }
     if (action === 'undo') {
-      this.undoTask(taskId);
+      this.undoTask(taskId, targetDateKey);
       return;
     }
     if (action === 'delete') {
@@ -862,6 +868,8 @@ class Index extends HTMLElement {
 
       groupedTasks.forEach(task => {
         const isTargetDay = targetDayMap[task.id] === true;
+        const actionDateKey = task.resolveActionDateKey();
+        const actionDateStatus = task.history[actionDateKey];
         const todayStatus = task.history[TODAY];
         const yesterdayStatus = task.history[YESTERDAY];
         const timeCheck = task.timeCheck();
@@ -877,7 +885,7 @@ class Index extends HTMLElement {
 
         const card = document.createElement('div');
         card.className = 'card';
-        if (todayStatus) {
+        if (actionDateStatus) {
           card.setAttribute('data-done', 'true');
         } else if (statusInfo.className === 'chip-status-todo') {
           card.setAttribute('data-overdue', 'true');
@@ -885,12 +893,14 @@ class Index extends HTMLElement {
           card.setAttribute('data-out-of-time', 'true');
         }
 
-        if (todayStatus) {
+        if (actionDateStatus) {
           const undoButton = document.createElement('button');
           undoButton.className = 'btn-undo';
           undoButton.textContent = '✕';
+          undoButton.title = '戻す';
           undoButton.setAttribute('data-task-action', 'undo');
           undoButton.setAttribute('data-task-id', task.id);
+          undoButton.setAttribute('data-task-date', actionDateKey);
           card.appendChild(undoButton);
         }
 
@@ -972,48 +982,57 @@ class Index extends HTMLElement {
         const actionContainer = document.createElement('div');
         actionContainer.className = 'card-actions';
 
-        const mainButton = document.createElement('button');
-        const primaryAction = task.getPrimaryActionType();
-        const actionDateKey = task.resolveActionDateKey();
-        mainButton.className = `btn ${
-          primaryAction === 'add'
-            ? 'btn-add'
-            : primaryAction === 'append'
-              ? 'btn-append'
-              : 'btn-action'
-        }`;
-        mainButton.textContent = task.getPrimaryActionLabel();
-        mainButton.setAttribute('data-task-action', primaryAction);
-        mainButton.setAttribute('data-task-id', task.id);
-        mainButton.setAttribute('data-task-date', actionDateKey);
+        if (actionDateStatus) {
+          const undoActionButton = document.createElement('button');
+          undoActionButton.className = 'btn btn-cancel';
+          undoActionButton.textContent = '戻す';
+          undoActionButton.setAttribute('data-task-action', 'undo');
+          undoActionButton.setAttribute('data-task-id', task.id);
+          undoActionButton.setAttribute('data-task-date', actionDateKey);
+          actionContainer.appendChild(undoActionButton);
+        } else {
+          const mainButton = document.createElement('button');
+          const primaryAction = task.getPrimaryActionType();
+          mainButton.className = `btn ${
+            primaryAction === 'add'
+              ? 'btn-add'
+              : primaryAction === 'append'
+                ? 'btn-append'
+                : 'btn-action'
+          }`;
+          mainButton.textContent = task.getPrimaryActionLabel();
+          mainButton.setAttribute('data-task-action', primaryAction);
+          mainButton.setAttribute('data-task-id', task.id);
+          mainButton.setAttribute('data-task-date', actionDateKey);
 
-        const isStrict = task.strictMode === true;
-        if (statusInfo.locked || (!timeCheck.valid && isStrict)) {
-          mainButton.disabled = true;
+          const isStrict = task.strictMode === true;
+          if (statusInfo.locked || (!timeCheck.valid && isStrict)) {
+            mainButton.disabled = true;
+          }
+
+          actionContainer.appendChild(mainButton);
+
+          const secondaryButton = document.createElement('button');
+          const isDeleteAction = Boolean(task.specificDate && !task.isGoogleTodoTask());
+          secondaryButton.className = isDeleteAction ? 'btn' : 'btn btn-cancel';
+          secondaryButton.textContent = isDeleteAction ? '削除' : 'キャンセル';
+          secondaryButton.setAttribute(
+            'data-task-action',
+            isDeleteAction ? 'delete' : 'cancel',
+          );
+          secondaryButton.setAttribute('data-task-id', task.id);
+          secondaryButton.setAttribute('data-task-date', actionDateKey);
+          if (isDeleteAction) {
+            secondaryButton.style.backgroundColor = '#ef4444';
+            secondaryButton.style.color = '#ffffff';
+            secondaryButton.style.flex = '1';
+          }
+          if (statusInfo.locked) {
+            secondaryButton.disabled = true;
+          }
+
+          actionContainer.appendChild(secondaryButton);
         }
-
-        actionContainer.appendChild(mainButton);
-
-        const secondaryButton = document.createElement('button');
-        const isDeleteAction = Boolean(task.specificDate && !task.isGoogleTodoTask());
-        secondaryButton.className = isDeleteAction ? 'btn' : 'btn btn-cancel';
-        secondaryButton.textContent = isDeleteAction ? '削除' : 'キャンセル';
-        secondaryButton.setAttribute(
-          'data-task-action',
-          isDeleteAction ? 'delete' : 'cancel',
-        );
-        secondaryButton.setAttribute('data-task-id', task.id);
-        secondaryButton.setAttribute('data-task-date', actionDateKey);
-        if (isDeleteAction) {
-          secondaryButton.style.backgroundColor = '#ef4444';
-          secondaryButton.style.color = '#ffffff';
-          secondaryButton.style.flex = '1';
-        }
-        if (statusInfo.locked) {
-          secondaryButton.disabled = true;
-        }
-
-        actionContainer.appendChild(secondaryButton);
         card.appendChild(actionContainer);
 
         const footer = document.createElement('div');

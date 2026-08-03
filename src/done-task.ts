@@ -516,7 +516,8 @@ export default class DoneTask implements DoneTaskData {
 
   insertRowElements(row: HTMLElement): void {
     const actionDateKey = this.resolveActionDateKey();
-    if (this.todayStatus) {
+    const actionDateStatus = this.history[actionDateKey];
+    if (actionDateStatus) {
       row.setAttribute('data-done', 'true');
     }
     const statusInfo = this.statusInfo;
@@ -566,7 +567,7 @@ export default class DoneTask implements DoneTaskData {
     }
     actionContainer.appendChild(mainButton);
 
-    if (!this.todayStatus) {
+    if (!actionDateStatus) {
       const secondaryButton = document.createElement('button');
       const isDeleteAction = Boolean(
         this.specificDate && !this.isGoogleTodoTask(),
@@ -585,6 +586,14 @@ export default class DoneTask implements DoneTaskData {
         secondaryButton.disabled = true;
       }
       actionContainer.appendChild(secondaryButton);
+    } else {
+      const undoButton = document.createElement('button');
+      undoButton.className = 'table-btn';
+      undoButton.textContent = '戻す';
+      undoButton.setAttribute('data-task-action', 'undo');
+      undoButton.setAttribute('data-task-id', this.id);
+      undoButton.setAttribute('data-task-date', actionDateKey);
+      actionContainer.appendChild(undoButton);
     }
     actionTd.appendChild(actionContainer);
     row.appendChild(actionTd);

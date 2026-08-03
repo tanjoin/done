@@ -51,6 +51,7 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 - history 更新
 - localStorage 保存
 - （条件に応じて）Google Calendar API 呼び出し、または URL 起票
+- 完了済み/キャンセル済みのタスクは「未実施に戻す」操作で、対象日の history キーを削除して未実施状態へ戻せる
 
 分岐ルール
 - 完了: skipCalendarOnComplete が true、または TODO カレンダー由来タスク
