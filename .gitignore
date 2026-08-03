@@ -146,3 +146,6 @@ vite.config.ts.timestamp-*
 task_settings_and_history.json
 
 LOCAL_MEMO.md
+
+dist-test
+dist-test/*

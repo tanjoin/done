@@ -9,6 +9,7 @@ import {
   loadTasksFromGoogleDrive,
   syncTasksToGoogleDrive,
 } from './google-drive-service';
+import {mergeTasksFromGoogleDrive} from './task-merge';
 import {
   listGoogleCalendars,
   loadCalendarSettings,
@@ -215,26 +216,21 @@ export default class SettingsCalendarSection {
         await saveCalendarSettings({
           clientId,
           todoCalendarId: current.todoCalendarId,
-          doneCalendarId: doneManualInput.value.trim() || current.doneCalendarId,
+          doneCalendarId:
+            doneManualInput.value.trim() || current.doneCalendarId,
         });
         updateLoginStatus();
         if (driveToggle.checked) {
           const driveSnapshot = await loadTasksFromGoogleDrive();
           if (driveSnapshot !== null) {
-            const localUpdatedAt = LocalStorageManager.tasksLastUpdatedAt;
-            if (
-              driveSnapshot.hasTimestamp &&
-              (!localUpdatedAt || localUpdatedAt <= driveSnapshot.updatedAt)
-            ) {
-              // Drive 側の保存内容を優先して取り込み、ログイン直後の反映漏れを防ぐ
-              LocalStorageManager.tasks = driveSnapshot.tasks;
-              LocalStorageManager.tasksLastUpdatedAt = driveSnapshot.updatedAt;
-            } else {
-              // ローカルが新しい場合や Drive 側に updatedAt がない場合は Drive を更新する。
-              await syncTasksToGoogleDrive(LocalStorageManager.tasks, {
-                forceOverwrite: true,
-              });
-            }
+            const mergedTasks = mergeTasksFromGoogleDrive(
+              LocalStorageManager.tasks,
+              driveSnapshot.tasks,
+            );
+            LocalStorageManager.tasks = mergedTasks;
+            await syncTasksToGoogleDrive(mergedTasks, {
+              forceOverwrite: true,
+            });
           } else {
             await syncTasksToGoogleDrive(LocalStorageManager.tasks);
           }
@@ -279,7 +275,8 @@ export default class SettingsCalendarSection {
         todoSelect.value = current.todoCalendarId;
         doneSelect.value = current.doneCalendarId;
       } catch (error) {
-        const message = error instanceof Error ? error.message : '一覧取得に失敗しました。';
+        const message =
+          error instanceof Error ? error.message : '一覧取得に失敗しました。';
         alert(message);
       }
     });
