@@ -3,6 +3,7 @@ import {
   clearGoogleToken,
   getGoogleAccessToken,
   hasValidGoogleToken,
+  isGoogleReloginRequiredError,
 } from './google-auth';
 import {
   getGoogleDriveBackupFileLink,
@@ -15,6 +16,7 @@ import {
   loadCalendarSettings,
   saveCalendarSettings,
 } from './google-calendar-service';
+import GoogleAuthAlertController from './google-auth-alert';
 
 const GOOGLE_LOGIN_SCOPES = [
   'https://www.googleapis.com/auth/calendar',
@@ -79,7 +81,10 @@ export default class SettingsCalendarSection {
     `;
   }
 
-  static setup(root: ParentNode): void {
+  static setup(
+    root: ParentNode,
+    googleAuthAlertController: GoogleAuthAlertController,
+  ): void {
     const section = root.querySelector(
       '#calendarSection',
     ) as HTMLElement | null;
@@ -199,12 +204,15 @@ export default class SettingsCalendarSection {
         clearGoogleToken();
         updateLoginStatus();
         await refreshDriveLink();
+        googleAuthAlertController.hide();
         return;
       }
 
       const clientId = clientIdInput.value.trim();
       if (!clientId) {
-        alert('先に OAuth 2.0 Client ID を入力してください。');
+        googleAuthAlertController.show(
+          '先に OAuth 2.0 Client ID を入力してからログインしてください。',
+        );
         return;
       }
 
@@ -236,6 +244,7 @@ export default class SettingsCalendarSection {
           }
         }
         await refreshDriveLink();
+        googleAuthAlertController.hide();
       } catch (error) {
         updateLoginStatus();
         await refreshDriveLink();
@@ -243,13 +252,15 @@ export default class SettingsCalendarSection {
           error instanceof Error
             ? error.message
             : 'Googleログインに失敗しました。';
-        alert(message);
+        googleAuthAlertController.show(message);
       }
     });
 
     loadListButton?.addEventListener('click', async () => {
       if (!clientIdInput.value.trim()) {
-        alert('OAuth 2.0 Client ID を入力してください。');
+        googleAuthAlertController.show(
+          'OAuth 2.0 Client ID を入力してからカレンダー一覧を取得してください。',
+        );
         return;
       }
 
@@ -274,9 +285,15 @@ export default class SettingsCalendarSection {
         doneSelect.innerHTML = options;
         todoSelect.value = current.todoCalendarId;
         doneSelect.value = current.doneCalendarId;
+        googleAuthAlertController.hide();
       } catch (error) {
+        const isAuthError = isGoogleReloginRequiredError(error);
         const message =
           error instanceof Error ? error.message : '一覧取得に失敗しました。';
+        if (isAuthError) {
+          googleAuthAlertController.show(message);
+          return;
+        }
         alert(message);
       }
     });

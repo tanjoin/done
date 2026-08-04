@@ -26,6 +26,9 @@ import {
   updateTodoEventColor,
 } from './google-calendar-service';
 import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
+import GoogleAuthAlertController, {
+  renderGoogleAuthAlert,
+} from './google-auth-alert';
 
 class Index extends HTMLElement {
   private _mode: DoneSwitchViewMode = 'card';
@@ -34,7 +37,7 @@ class Index extends HTMLElement {
   private _sortManager: SortManager = new SortManager();
   private _tableManager: TableManager = new TableManager();
   private _isLoading = false;
-  private _googleReloginAlertDismissed = false;
+  private _googleAuthAlertController: GoogleAuthAlertController | null = null;
 
   private static readonly TODO_CHECKBOX_LINE_RE =
     /^\s*-\s*\[( |x|X)\]\s*(.*)$/;
@@ -46,7 +49,7 @@ class Index extends HTMLElement {
     if (!LocalStorageManager.googleClientIdEncrypted.trim()) {
       return;
     }
-    this.setGoogleReloginStatus(message);
+    this._googleAuthAlertController?.show(message, true);
   }
 
   private openSettingsForRelogin(): void {
@@ -558,7 +561,9 @@ class Index extends HTMLElement {
 
     if (!hasValidGoogleToken()) {
       inputEl.checked = !checked;
-      alert('Google にログインしてからチェックを更新してください。');
+      this.notifyGoogleReloginRequired(
+        'Google にログインしてからチェックを更新してください。',
+      );
       return;
     }
 
@@ -612,31 +617,17 @@ class Index extends HTMLElement {
         <div id="googleDriveStatus" class="todo-load-status" style="display: none;">
           <button id="googleDriveStatusBtn" class="status-text-button" type="button"></button>
         </div>
-        <div id="googleReloginStatus" class="google-relogin-alert" role="alert" hidden>
-          <span id="googleReloginStatusMessage"></span>
-          <div class="google-relogin-alert-actions">
-            <button id="googleReloginStatusBtn" class="btn btn-action" type="button">Google にログイン</button>
-            <button id="googleReloginDismissBtn" class="google-relogin-dismiss-btn" type="button" aria-label="再ログイン通知を閉じる">×</button>
-          </div>
-        </div>
+        ${renderGoogleAuthAlert({
+          statusId: 'googleReloginStatus',
+          messageId: 'googleReloginStatusMessage',
+          actionButtonId: 'googleReloginStatusBtn',
+          dismissButtonId: 'googleReloginDismissBtn',
+          actionLabel: 'Google にログイン',
+          dismissAriaLabel: '再ログイン通知を閉じる',
+        })}
         <div id="taskContainer"></div>
       </main>
     `;
-  }
-
-  private setGoogleReloginStatus(
-    message: string,
-  ): void {
-    const status = document.getElementById('googleReloginStatus');
-    const statusMessage = document.getElementById(
-      'googleReloginStatusMessage',
-    );
-    if (!status || !statusMessage || this._googleReloginAlertDismissed) {
-      return;
-    }
-
-    statusMessage.textContent = message;
-    status.hidden = false;
   }
 
   private setTodoCalendarLoadStatus(
@@ -1319,26 +1310,20 @@ class Index extends HTMLElement {
       });
     }
 
-    const googleReloginStatusBtn = document.getElementById(
-      'googleReloginStatusBtn',
-    ) as HTMLButtonElement | null;
-    if (googleReloginStatusBtn) {
-      googleReloginStatusBtn.addEventListener('click', () => {
-        this.openSettingsForRelogin();
+    if (!this._googleAuthAlertController) {
+      this._googleAuthAlertController = new GoogleAuthAlertController({
+        root: document,
+        ids: {
+          statusId: 'googleReloginStatus',
+          messageId: 'googleReloginStatusMessage',
+          actionButtonId: 'googleReloginStatusBtn',
+          dismissButtonId: 'googleReloginDismissBtn',
+        },
+        onAction: () => {
+          this.openSettingsForRelogin();
+        },
       });
-    }
-
-    const googleReloginDismissBtn = document.getElementById(
-      'googleReloginDismissBtn',
-    ) as HTMLButtonElement | null;
-    if (googleReloginDismissBtn) {
-      googleReloginDismissBtn.addEventListener('click', () => {
-        this._googleReloginAlertDismissed = true;
-        const status = document.getElementById('googleReloginStatus');
-        if (status) {
-          status.hidden = true;
-        }
-      });
+      this._googleAuthAlertController.setup();
     }
   }
 

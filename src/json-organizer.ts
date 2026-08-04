@@ -7,9 +7,13 @@ import {DoneTaskData} from './types';
 import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
 import {syncTasksToGoogleDrive} from './google-drive-service';
 import SessionManager from './session-manager';
+import GoogleAuthAlertController, {
+  renderGoogleAuthAlert,
+} from './google-auth-alert';
 
 class JsonOrganizer extends HTMLElement {
   private _tasks: DoneTaskData[] = [];
+  private _googleAuthAlertController: GoogleAuthAlertController | null = null;
 
   private static excludeGoogleTodoTasks(tasks: DoneTaskData[]): DoneTaskData[] {
     return tasks.filter(task => task.sourceType !== 'google-todo');
@@ -21,13 +25,44 @@ class JsonOrganizer extends HTMLElement {
 
   connectedCallback(): void {
     this.render();
+    this._googleAuthAlertController = new GoogleAuthAlertController({
+      root: this,
+      ids: {
+        statusId: 'googleAuthStatus',
+        messageId: 'googleAuthStatusMessage',
+        actionButtonId: 'googleAuthStatusBtn',
+        dismissButtonId: 'googleAuthDismissBtn',
+      },
+      onAction: () => {
+        window.location.href = 'settings.html';
+      },
+    });
+    this._googleAuthAlertController.setup();
+
     this.loadTasks();
     this.setupEvents();
+
+    document.addEventListener(
+      SessionManager.EVENT_GOOGLE_RELOGIN_REQUIRED,
+      () => {
+        this._googleAuthAlertController?.show(
+          'Google認証の有効期限が切れました。設定画面で再ログインしてください。',
+        );
+      },
+    );
   }
 
   private render(): void {
     this.innerHTML = `
       <main>
+        ${renderGoogleAuthAlert({
+          statusId: 'googleAuthStatus',
+          messageId: 'googleAuthStatusMessage',
+          actionButtonId: 'googleAuthStatusBtn',
+          dismissButtonId: 'googleAuthDismissBtn',
+          actionLabel: 'Google にログイン',
+          dismissAriaLabel: 'Google認証通知を閉じる',
+        })}
         <h3 class="group-title">タスク JSON 編集</h3>
         <div class="data-box">
           <p class="setting-desc">
@@ -225,9 +260,8 @@ class JsonOrganizer extends HTMLElement {
       this.setStatus('done_tasks 全体を保存し、Google Drive に同期しました。');
     } catch (error) {
       if (isGoogleReloginRequiredError(error)) {
-        this.setStatus(
-          'done_tasks は保存しました。Google認証が切れたため設定画面で再ログインしてください。',
-          true,
+        this._googleAuthAlertController?.show(
+          'Google認証が切れました。設定画面で再ログインしてください。',
         );
         return;
       }

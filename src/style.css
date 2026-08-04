@@ -505,12 +505,12 @@ a:not(.nav-link):hover {
     justify-content: space-between;
     gap: 12px;
     margin: 0 0 16px;
-    padding: 12px 14px;
-    color: #7c2d12;
-    background: #fff7ed;
-    border: 1px solid #fdba74;
-    border-radius: var(--border-radius);
-    font-size: 13px;
+    padding: 12px 16px;
+    color: #664d03;
+    background: #fff3cd;
+    border: 1px solid #ffe69c;
+    border-radius: 6px;
+    font-size: 14px;
 }
 
 .google-relogin-alert[hidden] {
@@ -539,8 +539,8 @@ a:not(.nav-link):hover {
 
 .google-relogin-dismiss-btn:hover,
 .google-relogin-dismiss-btn:focus-visible {
-    border-color: #fdba74;
-    background: #ffedd5;
+    border-color: #d6b965;
+    background: #fce8a6;
 }
 
 @media (max-width: 560px) {
