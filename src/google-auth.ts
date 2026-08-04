@@ -193,9 +193,11 @@ export async function getGoogleAccessToken(
   forcePrompt = false,
   refreshIfExpiringSoon = false,
 ): Promise<string> {
+  const hadValidTokenAtStart = hasValidGoogleToken();
+
   if (
     !forcePrompt &&
-    hasValidGoogleToken() &&
+    hadValidTokenAtStart &&
     !(refreshIfExpiringSoon && isGoogleTokenExpiringSoon())
   ) {
     return accessToken;
@@ -229,6 +231,15 @@ export async function getGoogleAccessToken(
         prompt: forcePrompt ? 'consent' : 'none',
         callback: (response: GoogleTokenResponse) => {
           if (response.error) {
+            if (
+              !forcePrompt &&
+              refreshIfExpiringSoon &&
+              hadValidTokenAtStart &&
+              hasValidGoogleToken()
+            ) {
+              resolve(accessToken);
+              return;
+            }
             clearGoogleToken();
             if (GOOGLE_RELOGIN_REQUIRED_ERRORS.has(response.error)) {
               googleReloginRequired = true;
@@ -239,6 +250,15 @@ export async function getGoogleAccessToken(
             return;
           }
           if (!response.access_token) {
+            if (
+              !forcePrompt &&
+              refreshIfExpiringSoon &&
+              hadValidTokenAtStart &&
+              hasValidGoogleToken()
+            ) {
+              resolve(accessToken);
+              return;
+            }
             clearGoogleToken();
             reject(new Error('アクセストークン取得に失敗しました。'));
             return;
@@ -262,6 +282,15 @@ export async function getGoogleAccessToken(
       if (forcePrompt) {
         throw error;
       }
+
+      if (
+        refreshIfExpiringSoon &&
+        hadValidTokenAtStart &&
+        hasValidGoogleToken()
+      ) {
+        return accessToken;
+      }
+
       clearGoogleToken();
       googleReloginRequired = true;
       throw createGoogleReloginRequiredError();

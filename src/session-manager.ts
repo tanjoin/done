@@ -16,19 +16,15 @@ const GOOGLE_SESSION_KEEPALIVE_SCOPES = [
 export default class SessionManager {
   static readonly EVENT_GOOGLE_RELOGIN_REQUIRED =
     'done-google-session-relogin-required';
-  private static readonly KEEPALIVE_INTERVAL_MS = 60 * 1000;
-  private static _keepaliveTimerId: number | null = null;
+  private static _started = false;
   private static _refreshInFlight = false;
   private static _reloginNoticeSent = false;
 
   static startGoogleSessionKeepAlive(): void {
-    if (SessionManager._keepaliveTimerId !== null) {
+    if (SessionManager._started) {
       return;
     }
-
-    SessionManager._keepaliveTimerId = window.setInterval(() => {
-      void SessionManager.refreshGoogleSessionIfNeeded();
-    }, SessionManager.KEEPALIVE_INTERVAL_MS);
+    SessionManager._started = true;
 
     void SessionManager.refreshGoogleSessionIfNeeded();
 
