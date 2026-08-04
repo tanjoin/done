@@ -789,14 +789,14 @@ class Index extends HTMLElement {
       ) {
         return;
       }
-      // 時間外のタスクを非表示にする設定が有効で、かつ時間外であり、かつリマインドが設定されていない場合は非表示
+      // 時間外のタスクを非表示にする設定が有効で、かつ時間外であり、かつリマインド時間帯でない場合は非表示
       if (
         isDisplayTargetDay &&
         !todayStatus &&
         !timeCheck.valid &&
         !isUnprocessedAfterWindow &&
         LocalStorageManager.filterHideOutOfTime &&
-        !task.hasExplicitReminderLead()
+        !task.isReminderWindowActive()
       ) {
         return;
       }
