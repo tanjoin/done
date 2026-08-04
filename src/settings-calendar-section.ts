@@ -1,6 +1,5 @@
 import LocalStorageManager from './local-storage-manager';
 import {
-  GOOGLE_AUTH_STATE_CHANGED_EVENT,
   clearGoogleToken,
   getGoogleAccessToken,
   hasValidGoogleToken,
@@ -194,11 +193,6 @@ export default class SettingsCalendarSection {
 
     updateLoginStatus();
     void refreshDriveLink();
-
-    document.addEventListener(GOOGLE_AUTH_STATE_CHANGED_EVENT, () => {
-      updateLoginStatus();
-      void refreshDriveLink();
-    });
 
     googleLoginButton.addEventListener('click', async () => {
       if (hasValidGoogleToken()) {

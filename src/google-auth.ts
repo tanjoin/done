@@ -30,6 +30,7 @@ const GSI_SCRIPT_ID = 'done-google-gsi-script';
 const GAPI_SCRIPT_ID = 'done-google-gapi-script';
 const GOOGLE_ACCESS_TOKEN_KEY = 'done_google_access_token_v1';
 const GOOGLE_ACCESS_TOKEN_EXPIRY_KEY = 'done_google_access_token_expiry_v1';
+const LEGACY_GOOGLE_REFRESH_TOKEN_KEY = 'done_google_refresh_token_v1';
 const GOOGLE_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 const GOOGLE_RELOGIN_REQUIRED_CODE = 'GOOGLE_RELOGIN_REQUIRED';
 const GOOGLE_RELOGIN_REQUIRED_MESSAGE =
@@ -95,6 +96,7 @@ async function resolveClientId(): Promise<string> {
 
 let accessToken = '';
 let tokenExpiry = 0;
+let googleReloginRequired = false;
 let tokenRequestInFlight: Promise<string> | null = null;
 
 type GoogleTokenResponse = {
@@ -103,23 +105,19 @@ type GoogleTokenResponse = {
   expires_in?: number;
 };
 
-export const GOOGLE_AUTH_STATE_CHANGED_EVENT = 'done-google-auth-state-changed';
-
-function notifyGoogleAuthStateChanged(): void {
-  document.dispatchEvent(new CustomEvent(GOOGLE_AUTH_STATE_CHANGED_EVENT));
-}
-
 function hydrateTokenFromStorage(): void {
   const savedToken = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY) || '';
   const savedExpiry = Number(
     localStorage.getItem(GOOGLE_ACCESS_TOKEN_EXPIRY_KEY) || 0,
   );
+  localStorage.removeItem(LEGACY_GOOGLE_REFRESH_TOKEN_KEY);
 
   if (
     !savedToken ||
     !Number.isFinite(savedExpiry) ||
     savedExpiry <= Date.now()
   ) {
+    googleReloginRequired = Boolean(savedToken);
     accessToken = '';
     tokenExpiry = 0;
     localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
@@ -137,30 +135,37 @@ export function hasValidGoogleToken(): boolean {
   if (!accessToken || tokenExpiry <= Date.now()) {
     hydrateTokenFromStorage();
   }
-  return Boolean(accessToken) && tokenExpiry > Date.now();
+  return Boolean(accessToken) && Date.now() < tokenExpiry;
+}
+
+export function isGoogleReloginRequired(): boolean {
+  if (!accessToken || tokenExpiry <= Date.now()) {
+    hydrateTokenFromStorage();
+  }
+  return googleReloginRequired;
 }
 
 export function isGoogleTokenExpiringSoon(): boolean {
-  return (
-    hasValidGoogleToken() &&
-    tokenExpiry - Date.now() <= GOOGLE_TOKEN_REFRESH_BUFFER_MS
-  );
+  if (!hasValidGoogleToken()) {
+    return false;
+  }
+  return tokenExpiry - Date.now() <= GOOGLE_TOKEN_REFRESH_BUFFER_MS;
 }
 
 export function clearGoogleToken(): void {
   accessToken = '';
   tokenExpiry = 0;
+  googleReloginRequired = false;
   localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
   localStorage.removeItem(GOOGLE_ACCESS_TOKEN_EXPIRY_KEY);
-  notifyGoogleAuthStateChanged();
 }
 
 function setGoogleToken(token: string, expiresInSec = 3000): void {
   accessToken = token;
   tokenExpiry = Date.now() + expiresInSec * 1000;
+  googleReloginRequired = false;
   localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, accessToken);
   localStorage.setItem(GOOGLE_ACCESS_TOKEN_EXPIRY_KEY, String(tokenExpiry));
-  notifyGoogleAuthStateChanged();
 }
 
 export function createGoogleReloginRequiredError(): Error {
@@ -196,6 +201,10 @@ export async function getGoogleAccessToken(
     return accessToken;
   }
 
+  if (!forcePrompt && googleReloginRequired) {
+    throw createGoogleReloginRequiredError();
+  }
+
   if (tokenRequestInFlight) {
     return tokenRequestInFlight;
   }
@@ -221,7 +230,8 @@ export async function getGoogleAccessToken(
         callback: (response: GoogleTokenResponse) => {
           if (response.error) {
             clearGoogleToken();
-            if (!forcePrompt) {
+            if (GOOGLE_RELOGIN_REQUIRED_ERRORS.has(response.error)) {
+              googleReloginRequired = true;
               reject(createGoogleReloginRequiredError());
               return;
             }
@@ -233,7 +243,10 @@ export async function getGoogleAccessToken(
             reject(new Error('アクセストークン取得に失敗しました。'));
             return;
           }
-          setGoogleToken(response.access_token, response.expires_in || 3000);
+          setGoogleToken(
+            response.access_token,
+            response.expires_in || 3000,
+          );
           resolve(response.access_token);
         },
       });
@@ -250,6 +263,7 @@ export async function getGoogleAccessToken(
         throw error;
       }
       clearGoogleToken();
+      googleReloginRequired = true;
       throw createGoogleReloginRequiredError();
     })
     .finally(() => {

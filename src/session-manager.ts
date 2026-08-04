@@ -2,60 +2,81 @@ import LocalStorageManager from './local-storage-manager';
 import {
   getGoogleAccessToken,
   hasValidGoogleToken,
+  isGoogleReloginRequired,
+  isGoogleReloginRequiredError,
   isGoogleTokenExpiringSoon,
 } from './google-auth';
 
-const GOOGLE_SESSION_SCOPES = [
+const GOOGLE_SESSION_KEEPALIVE_SCOPES = [
   'https://www.googleapis.com/auth/calendar',
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/drive.file',
 ];
 
 export default class SessionManager {
-  private static readonly REFRESH_INTERVAL_MS = 60 * 1000;
-  private static keepaliveTimerId: number | null = null;
-  private static refreshInFlight = false;
+  static readonly EVENT_GOOGLE_RELOGIN_REQUIRED =
+    'done-google-session-relogin-required';
+  private static readonly KEEPALIVE_INTERVAL_MS = 60 * 1000;
+  private static _keepaliveTimerId: number | null = null;
+  private static _refreshInFlight = false;
+  private static _reloginNoticeSent = false;
 
   static startGoogleSessionKeepAlive(): void {
-    if (SessionManager.keepaliveTimerId !== null) {
+    if (SessionManager._keepaliveTimerId !== null) {
       return;
     }
 
-    SessionManager.keepaliveTimerId = window.setInterval(() => {
-      void SessionManager.refreshGoogleTokenIfNeeded();
-    }, SessionManager.REFRESH_INTERVAL_MS);
+    SessionManager._keepaliveTimerId = window.setInterval(() => {
+      void SessionManager.refreshGoogleSessionIfNeeded();
+    }, SessionManager.KEEPALIVE_INTERVAL_MS);
+
+    void SessionManager.refreshGoogleSessionIfNeeded();
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        void SessionManager.refreshGoogleTokenIfNeeded();
+        void SessionManager.refreshGoogleSessionIfNeeded();
       }
     });
 
     window.addEventListener('focus', () => {
-      void SessionManager.refreshGoogleTokenIfNeeded();
+      void SessionManager.refreshGoogleSessionIfNeeded();
     });
-
-    void SessionManager.refreshGoogleTokenIfNeeded();
   }
 
-  private static async refreshGoogleTokenIfNeeded(): Promise<void> {
-    if (SessionManager.refreshInFlight) {
+  private static async refreshGoogleSessionIfNeeded(): Promise<void> {
+    if (SessionManager._refreshInFlight || SessionManager._reloginNoticeSent) {
       return;
     }
+
     if (!LocalStorageManager.googleClientIdEncrypted.trim()) {
       return;
     }
-    if (hasValidGoogleToken() && !isGoogleTokenExpiringSoon()) {
+
+    const hasToken = hasValidGoogleToken();
+    if (!hasToken && !isGoogleReloginRequired()) {
       return;
     }
 
-    SessionManager.refreshInFlight = true;
+    if (hasToken && !isGoogleTokenExpiringSoon()) {
+      return;
+    }
+
+    SessionManager._refreshInFlight = true;
     try {
-      await getGoogleAccessToken(GOOGLE_SESSION_SCOPES, false, true);
-    } catch {
-      // getGoogleAccessToken が期限切れトークンを破棄し、状態変更を通知する。
+      await getGoogleAccessToken(
+        GOOGLE_SESSION_KEEPALIVE_SCOPES,
+        false,
+        true,
+      );
+    } catch (error) {
+      if (isGoogleReloginRequiredError(error)) {
+        SessionManager._reloginNoticeSent = true;
+        document.dispatchEvent(
+          new CustomEvent(SessionManager.EVENT_GOOGLE_RELOGIN_REQUIRED),
+        );
+      }
     } finally {
-      SessionManager.refreshInFlight = false;
+      SessionManager._refreshInFlight = false;
     }
   }
 }

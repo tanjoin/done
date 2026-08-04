@@ -25,11 +25,7 @@ import {
   updateTodoEventDescription,
   updateTodoEventColor,
 } from './google-calendar-service';
-import {
-  GOOGLE_AUTH_STATE_CHANGED_EVENT,
-  hasValidGoogleToken,
-  isGoogleReloginRequiredError,
-} from './google-auth';
+import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
 
 class Index extends HTMLElement {
   private _mode: DoneSwitchViewMode = 'card';
@@ -1227,11 +1223,9 @@ class Index extends HTMLElement {
       );
 
       document.addEventListener(
-        GOOGLE_AUTH_STATE_CHANGED_EVENT,
+        SessionManager.EVENT_GOOGLE_RELOGIN_REQUIRED,
         () => {
-          if (!hasValidGoogleToken()) {
-            this.notifyGoogleReloginRequired();
-          }
+          this.notifyGoogleReloginRequired();
         },
       );
 

@@ -120,8 +120,6 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 - アプリ起動中は SessionManager がアクセストークン期限を監視し、期限前または期限切れ時にサイレント更新を試行する
 - サイレント更新では Google Identity Services の prompt: 'none' を使用し、アカウント選択画面やログイン画面を自動表示しない
 - サイレント更新がログイン状態・同意状態の失効で失敗した場合は、一覧画面上部に再ログイン通知を表示する
-- アクセストークンとその有効期限は localStorage に保存し、画面リロード後も有効期限内はログイン状態を復元する
-- 画面が再びアクティブになったときは、認証状態を再確認してログイン表示と Google 連携状態を更新する
 - 認証失効を検知した後は、自動のトークン取得を停止し、ユーザーが設定画面のログイン操作を行うまで認証ダイアログを表示しない
 - 同時に発生したトークン取得要求は 1 件に集約し、Google Identity Services の認証ダイアログが重複して起動しないようにする
 
@@ -191,7 +189,6 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 制約事項
 - サーバーサイドなし（完全フロントエンド）
 - 認証情報は localStorage に暗号化保存（復号鍵も同一オリジン管理）
-- アクセストークンと有効期限は localStorage に保存する
 - Google API 利用には事前に OAuth Client ID 設定が必要
 - Google Identity Services のトークンモデルではリフレッシュトークンを扱わず、Google のログインセッションが有効な間はサイレントにアクセストークンを再取得する
 - ネットワーク障害時はローカル運用を継続
@@ -229,8 +226,6 @@ done は、日次タスク管理に Google カレンダー連携と Google ド�
 
 - done_tasks
 - done_tasks_last_updated_at_v1
-- done_google_access_token_v1
-- done_google_access_token_expiry_v1
 - done_google_access_token_v1
 - done_google_access_token_expiry_v1
 - done_google_client_id_enc_v1
