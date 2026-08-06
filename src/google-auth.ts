@@ -34,13 +34,19 @@ const LEGACY_GOOGLE_REFRESH_TOKEN_KEY = 'done_google_refresh_token_v1';
 const GOOGLE_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 const GOOGLE_RELOGIN_REQUIRED_CODE = 'GOOGLE_RELOGIN_REQUIRED';
 const GOOGLE_RELOGIN_REQUIRED_MESSAGE =
-  'Google認証の有効期限が切れました。設定画面で再ログインしてください。';
+  'Google認証の有効期限が切れました。Google に再ログインしてください。';
 const GOOGLE_RELOGIN_REQUIRED_ERRORS = new Set([
   'interaction_required',
   'login_required',
   'consent_required',
   'immediate_failed',
 ]);
+
+export const GOOGLE_APP_SCOPES = [
+  'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/drive.file',
+];
 
 type TokenClient = {
   requestAccessToken: (options?: {

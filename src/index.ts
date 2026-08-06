@@ -52,14 +52,11 @@ class Index extends HTMLElement {
     this._googleAuthAlertController?.show(message, true);
   }
 
-  private openSettingsForRelogin(): void {
-    if (!LocalStorageManager.googleClientIdEncrypted.trim()) {
-      return;
-    }
-    if (/\/settings\.html([?#].*)?$/i.test(window.location.pathname)) {
-      return;
-    }
-    window.location.href = 'settings.html';
+  private openGoogleLogin(): void {
+    const loginButton = document.querySelector(
+      '#googleHeaderLoginBtn',
+    ) as HTMLButtonElement | null;
+    loginButton?.click();
   }
 
   static get NAME(): string {
@@ -1339,7 +1336,7 @@ class Index extends HTMLElement {
           dismissButtonId: 'googleReloginDismissBtn',
         },
         onAction: () => {
-          this.openSettingsForRelogin();
+          this.openGoogleLogin();
         },
       });
       this._googleAuthAlertController.setup();

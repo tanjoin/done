@@ -89,10 +89,16 @@ body.table-view-mode .container {
 /* ナビゲーション */
 .nav-bar {
     display: flex;
-    gap: 16px;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 40px;
     border-bottom: 2px solid var(--border-color);
     padding-bottom: 12px;
+}
+
+.nav-links {
+    display: flex;
+    gap: 16px;
 }
 
 .nav-link {
@@ -119,6 +125,53 @@ body.table-view-mode .container {
     right: 0;
     height: 3px;
     background-color: var(--accent-color);
+}
+
+.google-header-login {
+    appearance: none;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 4px 6px;
+}
+
+.google-header-login.is-connected {
+    color: #16803c;
+}
+
+.google-header-login.is-error {
+    color: var(--text-secondary);
+}
+
+.google-header-login:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.google-header-login:not(:disabled):hover,
+.google-header-login:not(:disabled):focus-visible {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+@media (max-width: 560px) {
+    .nav-bar {
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .nav-links {
+        flex-wrap: wrap;
+        gap: 8px 12px;
+    }
+
+    .google-header-login {
+        flex: 0 0 auto;
+        font-size: 10px;
+    }
 }
 
 /* 通知バナー */

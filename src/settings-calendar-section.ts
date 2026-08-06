@@ -2,6 +2,7 @@ import LocalStorageManager from './local-storage-manager';
 import {
   clearGoogleToken,
   getGoogleAccessToken,
+  GOOGLE_APP_SCOPES,
   hasValidGoogleToken,
   isGoogleReloginRequiredError,
 } from './google-auth';
@@ -17,12 +18,7 @@ import {
   saveCalendarSettings,
 } from './google-calendar-service';
 import GoogleAuthAlertController from './google-auth-alert';
-
-const GOOGLE_LOGIN_SCOPES = [
-  'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/calendar.events',
-  'https://www.googleapis.com/auth/drive.file',
-];
+import SessionManager from './session-manager';
 
 export default class SettingsCalendarSection {
   static render(): string {
@@ -203,6 +199,7 @@ export default class SettingsCalendarSection {
       if (hasValidGoogleToken()) {
         clearGoogleToken();
         updateLoginStatus();
+        SessionManager.notifyGoogleSessionStateChanged();
         await refreshDriveLink();
         googleAuthAlertController.hide();
         return;
@@ -218,7 +215,7 @@ export default class SettingsCalendarSection {
 
       try {
         // 先にトークン取得を呼び、ユーザー操作コンテキスト内でポップアップを開く。
-        await getGoogleAccessToken(GOOGLE_LOGIN_SCOPES, true);
+        await getGoogleAccessToken(GOOGLE_APP_SCOPES, true);
 
         const current = await loadCalendarSettings();
         await saveCalendarSettings({
@@ -228,6 +225,7 @@ export default class SettingsCalendarSection {
             doneManualInput.value.trim() || current.doneCalendarId,
         });
         updateLoginStatus();
+        SessionManager.notifyGoogleSessionStateChanged();
         if (driveToggle.checked) {
           const driveSnapshot = await loadTasksFromGoogleDrive();
           if (driveSnapshot !== null) {
@@ -247,6 +245,7 @@ export default class SettingsCalendarSection {
         googleAuthAlertController.hide();
       } catch (error) {
         updateLoginStatus();
+        SessionManager.notifyGoogleSessionStateChanged();
         await refreshDriveLink();
         const message =
           error instanceof Error

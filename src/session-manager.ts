@@ -1,5 +1,6 @@
 import LocalStorageManager from './local-storage-manager';
 import {
+  GOOGLE_APP_SCOPES,
   getGoogleAccessToken,
   hasValidGoogleToken,
   isGoogleReloginRequired,
@@ -7,15 +8,11 @@ import {
   isGoogleTokenExpiringSoon,
 } from './google-auth';
 
-const GOOGLE_SESSION_KEEPALIVE_SCOPES = [
-  'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/calendar.events',
-  'https://www.googleapis.com/auth/drive.file',
-];
-
 export default class SessionManager {
   static readonly EVENT_GOOGLE_RELOGIN_REQUIRED =
     'done-google-session-relogin-required';
+  static readonly EVENT_GOOGLE_SESSION_STATE_CHANGED =
+    'done-google-session-state-changed';
   private static _started = false;
   private static _refreshInFlight = false;
   private static _reloginNoticeSent = false;
@@ -41,26 +38,30 @@ export default class SessionManager {
 
   private static async refreshGoogleSessionIfNeeded(): Promise<void> {
     if (SessionManager._refreshInFlight || SessionManager._reloginNoticeSent) {
+      SessionManager.notifyGoogleSessionStateChanged();
       return;
     }
 
     if (!LocalStorageManager.googleClientIdEncrypted.trim()) {
+      SessionManager.notifyGoogleSessionStateChanged();
       return;
     }
 
     const hasToken = hasValidGoogleToken();
     if (!hasToken && !isGoogleReloginRequired()) {
+      SessionManager.notifyGoogleSessionStateChanged();
       return;
     }
 
     if (hasToken && !isGoogleTokenExpiringSoon()) {
+      SessionManager.notifyGoogleSessionStateChanged();
       return;
     }
 
     SessionManager._refreshInFlight = true;
     try {
       await getGoogleAccessToken(
-        GOOGLE_SESSION_KEEPALIVE_SCOPES,
+        GOOGLE_APP_SCOPES,
         false,
         true,
       );
@@ -73,6 +74,13 @@ export default class SessionManager {
       }
     } finally {
       SessionManager._refreshInFlight = false;
+      SessionManager.notifyGoogleSessionStateChanged();
     }
+  }
+
+  static notifyGoogleSessionStateChanged(): void {
+    document.dispatchEvent(
+      new CustomEvent(SessionManager.EVENT_GOOGLE_SESSION_STATE_CHANGED),
+    );
   }
 }

@@ -34,7 +34,10 @@ class JsonOrganizer extends HTMLElement {
         dismissButtonId: 'googleAuthDismissBtn',
       },
       onAction: () => {
-        window.location.href = 'settings.html';
+        const loginButton = document.querySelector(
+          '#googleHeaderLoginBtn',
+        ) as HTMLButtonElement | null;
+        loginButton?.click();
       },
     });
     this._googleAuthAlertController.setup();
@@ -46,7 +49,7 @@ class JsonOrganizer extends HTMLElement {
       SessionManager.EVENT_GOOGLE_RELOGIN_REQUIRED,
       () => {
         this._googleAuthAlertController?.show(
-          'Google認証の有効期限が切れました。設定画面で再ログインしてください。',
+          'Google認証の有効期限が切れました。Google に再ログインしてください。',
         );
       },
     );

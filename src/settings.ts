@@ -86,7 +86,7 @@ class Settings extends HTMLElement {
       SessionManager.EVENT_GOOGLE_RELOGIN_REQUIRED,
       () => {
         this._googleAuthAlertController?.show(
-          'Google認証の有効期限が切れました。設定画面で再ログインしてください。',
+          'Google認証の有効期限が切れました。Google に再ログインしてください。',
         );
       },
     );
