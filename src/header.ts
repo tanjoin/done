@@ -92,6 +92,7 @@ export default class Header extends HTMLElement {
       button.textContent = 'Google 接続中...';
       try {
         await getGoogleAccessToken(GOOGLE_APP_SCOPES, true);
+        SessionManager.notifyGoogleLoginSucceeded();
       } catch {
         button.classList.add('is-error');
       } finally {

@@ -7,6 +7,7 @@ import {
   syncTasksToGoogleDrive,
 } from './google-drive-service';
 import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
+import {mergeTasksFromGoogleDrive} from './task-merge';
 import type {DoneTaskData} from './types';
 
 export default class TaskRepository {
@@ -285,6 +286,7 @@ export default class TaskRepository {
 
   private async fetchCloudMergedTasks(
     localTasks: DoneTaskData[],
+    mergeDriveData = false,
   ): Promise<{
     mergedTasks: DoneTaskData[];
     todoCount: number;
@@ -293,11 +295,13 @@ export default class TaskRepository {
     driveLoadFailed: boolean;
     driveLoadAuthExpired: boolean;
     driveLoadSkippedByTimestamp: boolean;
+    driveDataMerged: boolean;
   }> {
     let workingTasks = localTasks;
     let driveLoadFailed = false;
     let driveLoadAuthExpired = false;
     let driveLoadSkippedByTimestamp = false;
+    let driveDataMerged = false;
 
     if (!LocalStorageManager.googleDriveSyncEnabled) {
       this.emitGoogleDriveStatus({
@@ -314,9 +318,11 @@ export default class TaskRepository {
     try {
       const fromDrive = await loadTasksFromGoogleDrive();
       if (fromDrive && fromDrive.tasks.length > 0) {
-        const shouldPreferDrive = await this.shouldPreferDriveSnapshot(localTasks);
         const localUpdatedAt = LocalStorageManager.tasksLastUpdatedAt;
-        if (shouldPreferDrive) {
+        if (mergeDriveData) {
+          workingTasks = mergeTasksFromGoogleDrive(localTasks, fromDrive.tasks);
+          driveDataMerged = true;
+        } else if (await this.shouldPreferDriveSnapshot(localTasks)) {
           workingTasks = fromDrive.tasks;
           if (fromDrive.hasTimestamp) {
             LocalStorageManager.tasksLastUpdatedAt = fromDrive.updatedAt;
@@ -404,10 +410,14 @@ export default class TaskRepository {
       driveLoadFailed,
       driveLoadAuthExpired,
       driveLoadSkippedByTimestamp,
+      driveDataMerged,
     };
   }
 
-  async refreshFromCloudIfNeeded(forceRefresh = false): Promise<boolean> {
+  async refreshFromCloudIfNeeded(
+    forceRefresh = false,
+    mergeDriveData = false,
+  ): Promise<boolean> {
     if (!hasValidGoogleToken()) {
       this.emitGoogleDriveStatus({
         state: 'off',
@@ -445,11 +455,31 @@ export default class TaskRepository {
       message: 'TODOカレンダー: 読み込み中...',
     });
 
-    const fetched = await this.fetchCloudMergedTasks(LocalStorageManager.tasks || []);
+    const fetched = await this.fetchCloudMergedTasks(
+      LocalStorageManager.tasks || [],
+      mergeDriveData,
+    );
     const localOnly = this.stripGoogleTodoTasks(fetched.mergedTasks);
     this._tasks = this.hydrateTasks(fetched.mergedTasks);
     LocalStorageManager.tasks = localOnly;
     this.setSessionCache(fetched.mergedTasks);
+
+    if (fetched.driveDataMerged) {
+      try {
+        await syncTasksToGoogleDrive(localOnly, {forceOverwrite: true});
+        this.emitGoogleDriveStatus({
+          state: 'success',
+          message: 'Google Drive: ログイン後の統合データを同期しました',
+        });
+      } catch (error) {
+        this.emitGoogleDriveStatus({
+          state: 'error',
+          message: isGoogleReloginRequiredError(error)
+            ? 'Google Drive: 認証切れ（再ログインしてください）'
+            : 'Google Drive: 統合データの同期失敗',
+        });
+      }
+    }
 
     this.emitTodoCalendarStatus(
       fetched.todoFetchFailed
@@ -466,6 +496,11 @@ export default class TaskRepository {
     );
 
     return true;
+  }
+
+  async refreshAfterGoogleLogin(): Promise<boolean> {
+    this.hydrateFromLocal();
+    return this.refreshFromCloudIfNeeded(true, true);
   }
 
   async loadTasks(): Promise<void> {

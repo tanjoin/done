@@ -1236,6 +1236,20 @@ class Index extends HTMLElement {
         },
       );
 
+      document.addEventListener(
+        SessionManager.EVENT_GOOGLE_LOGIN_SUCCEEDED,
+        () => {
+          if (this._isLoading) {
+            return;
+          }
+          this.setLoading(true);
+          void this._taskRepository
+            .refreshAfterGoogleLogin()
+            .then(() => this.renderCards())
+            .finally(() => this.setLoading(false));
+        },
+      );
+
       taskContainer.addEventListener('click', event => {
         if (!(event.target instanceof HTMLElement)) {
           return;

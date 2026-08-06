@@ -241,6 +241,7 @@ export default class SettingsCalendarSection {
             await syncTasksToGoogleDrive(LocalStorageManager.tasks);
           }
         }
+        SessionManager.notifyGoogleLoginSucceeded();
         await refreshDriveLink();
         googleAuthAlertController.hide();
       } catch (error) {

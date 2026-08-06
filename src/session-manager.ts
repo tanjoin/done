@@ -13,6 +13,8 @@ export default class SessionManager {
     'done-google-session-relogin-required';
   static readonly EVENT_GOOGLE_SESSION_STATE_CHANGED =
     'done-google-session-state-changed';
+  static readonly EVENT_GOOGLE_LOGIN_SUCCEEDED =
+    'done-google-session-login-succeeded';
   private static _started = false;
   private static _refreshInFlight = false;
   private static _reloginNoticeSent = false;
@@ -81,6 +83,12 @@ export default class SessionManager {
   static notifyGoogleSessionStateChanged(): void {
     document.dispatchEvent(
       new CustomEvent(SessionManager.EVENT_GOOGLE_SESSION_STATE_CHANGED),
+    );
+  }
+
+  static notifyGoogleLoginSucceeded(): void {
+    document.dispatchEvent(
+      new CustomEvent(SessionManager.EVENT_GOOGLE_LOGIN_SUCCEEDED),
     );
   }
 }
