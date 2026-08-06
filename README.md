@@ -39,4 +39,3 @@ npm run build
 - OAuth Client ID と選択したカレンダー ID は暗号化して localStorage に保存されます
 - TODO カレンダーの取得は翌日分までを対象にします
 - Google Drive 同期が ON の場合、タスク操作後に JSON が Drive の専用ファイル `tanjoin_done_task_sync_backup_v1.json` に保存されます
-
