@@ -105,6 +105,25 @@ class Index extends HTMLElement {
       return [];
     }
 
+    if (task.specificDate && task.endDate && !task.isGoogleTodoTask()) {
+      const yesterdayKey = task.toKebabCase(yesterday);
+      const referenceDateKey = task.toKebabCase(referenceDate);
+      const hasProcessedTask = Object.entries(task.history).some(
+        ([dateKey, status]) =>
+          dateKey >= task.specificDate! &&
+          dateKey <= task.endDate! &&
+          Boolean(status),
+      );
+      if (
+        yesterdayKey < task.endDate ||
+        referenceDateKey > task.endDate ||
+        hasProcessedTask
+      ) {
+        return [];
+      }
+      return [{task, dateKey: task.endDate}];
+    }
+
     const overdueTasks: DoneOverdueTask[] = [];
     const startNorm = task.normalizeStartTime();
     const endNorm = task.normalizeEndTime();

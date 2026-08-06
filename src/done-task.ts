@@ -385,6 +385,7 @@ export default class DoneTask implements DoneTaskData {
     const today = DateHelper.todayDate;
     if (
       this.isTaskScheduledOnDate(today) &&
+      !this.isLocalTemporaryTaskInProgress(today) &&
       this.hasExecutionWindowEndedOnDate(today, now)
     ) {
       return {label: '未実施', className: 'chip-status-todo', locked: false};
@@ -407,6 +408,15 @@ export default class DoneTask implements DoneTaskData {
     }
 
     return {label: '時間外', className: 'chip-status-nontarget', locked: false};
+  }
+
+  isLocalTemporaryTaskInProgress(targetDate: Date): boolean {
+    if (!this.specificDate || !this.endDate || this.isGoogleTodoTask()) {
+      return false;
+    }
+
+    const dateKey = this.toKebabCase(targetDate);
+    return dateKey >= this.specificDate && dateKey <= this.endDate;
   }
 
   private getNormalizedWindowTimes(): {startNorm: string; endNorm: string} | null {

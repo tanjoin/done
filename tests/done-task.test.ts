@@ -93,6 +93,40 @@ test('過去日付の一時タスクは未実施ではなく対象日外にな�
   });
 });
 
+test('期間中の一時タスクは終了時刻後も未実施にならない', () => {
+  withMockedNow('2026-07-28T12:00:00+09:00', () => {
+    const task = new DoneTask({
+      id: 'temp-range-1',
+      text: '開催期間中の一時タスク',
+      group: '公式戦',
+      startTime: '08:00',
+      endTime: '08:59',
+      specificDate: '2026-07-27',
+      endDate: '2026-07-30',
+      history: {},
+    });
+
+    assert.equal(task.statusInfo.label, '時間外');
+  });
+});
+
+test('期間終了後の一時タスクは当日表示の対象外になる', () => {
+  withMockedNow('2026-07-31T12:00:00+09:00', () => {
+    const task = new DoneTask({
+      id: 'temp-range-2',
+      text: '終了済みの一時タスク',
+      group: '公式戦',
+      startTime: '08:00',
+      endTime: '08:59',
+      specificDate: '2026-07-27',
+      endDate: '2026-07-30',
+      history: {},
+    });
+
+    assert.equal(task.statusInfo.label, '対象日外');
+  });
+});
+
 test('当日開始前の日付指定タスクは表示対象にならない', () => {
   withMockedNow('2026-07-28T12:00:00+09:00', () => {
     const task = new DoneTask({
