@@ -4,7 +4,7 @@ import Header from './header';
 import LocalStorageManager from './local-storage-manager';
 import DoneTask from './done-task';
 import {DoneTaskData} from './types';
-import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
+import {hasValidGoogleToken, isGoogleReloginRequiredError, handleGoogleAuthRedirect} from './google-auth';
 import {syncTasksToGoogleDrive} from './google-drive-service';
 import SessionManager from './session-manager';
 import GoogleAuthAlertController, {
@@ -443,6 +443,9 @@ if (!customElements.get(JsonOrganizer.NAME)) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Google認証のリダイレクトパラメータ処理を実行
+  handleGoogleAuthRedirect();
+  
   SessionManager.startGoogleSessionKeepAlive();
   const container = document.querySelector('.container');
   if (!container) {

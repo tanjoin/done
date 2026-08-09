@@ -1,4 +1,5 @@
 import './style.css';
+import { handleGoogleAuthRedirect } from './google-auth';
 import Footer from './footer';
 import Header from './header';
 import TaskRepository from './task-repository';
@@ -115,6 +116,9 @@ if (!customElements.get(Settings.NAME)) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Google認証のリダイレクトパラメータ処理を実行
+  handleGoogleAuthRedirect();
+
   const container = document.querySelector('.container');
   if (!container) {
     return;

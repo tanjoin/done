@@ -48,12 +48,6 @@ export const GOOGLE_APP_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
 ];
 
-type TokenClient = {
-  requestAccessToken: (options?: {
-    prompt?: string;
-  }) => void;
-};
-
 function ensureScript(id: string, src: string): Promise<void> {
   const existing = document.getElementById(id) as HTMLScriptElement | null;
   if (existing) {
@@ -104,12 +98,6 @@ let accessToken = '';
 let tokenExpiry = 0;
 let googleReloginRequired = false;
 let tokenRequestInFlight: Promise<string> | null = null;
-
-type GoogleTokenResponse = {
-  access_token?: string;
-  error?: string;
-  expires_in?: number;
-};
 
 function hydrateTokenFromStorage(): void {
   const savedToken = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY) || '';
@@ -166,7 +154,7 @@ export function clearGoogleToken(): void {
   localStorage.removeItem(GOOGLE_ACCESS_TOKEN_EXPIRY_KEY);
 }
 
-function setGoogleToken(token: string, expiresInSec = 3000): void {
+function setGoogleToken(token: string, expiresInSec = 3600): void {
   accessToken = token;
   tokenExpiry = Date.now() + expiresInSec * 1000;
   googleReloginRequired = false;
@@ -194,6 +182,9 @@ export function isGoogleReloginRequiredError(error: unknown): boolean {
   );
 }
 
+/**
+ * 新しいタブでGoogle認証画面を開き、アクセストークンを取得する
+ */
 export async function getGoogleAccessToken(
   scopes: string[],
   forcePrompt = false,
@@ -218,68 +209,80 @@ export async function getGoogleAccessToken(
   }
 
   const tokenRequest = (async () => {
-    await ensureGoogleSdkLoaded();
-
     const clientId = (await resolveClientId()).trim();
     if (!clientId) {
       throw new Error('Google OAuth Client ID が未設定です。');
     }
 
-    const oauth = window.google?.accounts?.oauth2;
-    if (!oauth?.initTokenClient) {
-      throw new Error('Google認証ライブラリの読み込みに失敗しました。');
-    }
-
     return new Promise<string>((resolve, reject) => {
-      const tokenClient: TokenClient = oauth.initTokenClient({
-        client_id: clientId,
-        scope: scopes.join(' '),
-        prompt: forcePrompt ? 'consent' : 'none',
-        callback: (response: GoogleTokenResponse) => {
-          if (response.error) {
-            if (
-              !forcePrompt &&
-              refreshIfExpiringSoon &&
-              hadValidTokenAtStart &&
-              hasValidGoogleToken()
-            ) {
-              resolve(accessToken);
-              return;
-            }
+      // OAuth 認可エンドポイントのURL構築
+      const redirectUri = window.location.origin + window.location.pathname;
+      const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      authUrl.searchParams.set('client_id', clientId);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('response_type', 'token');
+      authUrl.searchParams.set('scope', scopes.join(' '));
+      if (forcePrompt) {
+        authUrl.searchParams.set('prompt', 'consent');
+      }
+
+      // 新しいタブで認証ページを開く（第3引数を指定しないことでタブとして開く）
+      const authTab = window.open(authUrl.toString(), '_blank');
+
+      if (!authTab) {
+        reject(new Error('新しいタブを開くことがブラウザにブロックされました。'));
+        return;
+      }
+
+      // 新しいタブからのトークン通知メッセージを監視するイベントリスナー
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) {
+          return;
+        }
+
+        const data = event.data as {
+          type?: string;
+          access_token?: string;
+          error?: string;
+          expires_in?: number;
+        };
+
+        if (data && data.type === 'GOOGLE_AUTH_RESPONSE') {
+          window.removeEventListener('message', handleMessage);
+          clearInterval(checkTabClosed);
+
+          if (data.error) {
             clearGoogleToken();
-            if (GOOGLE_RELOGIN_REQUIRED_ERRORS.has(response.error)) {
+            if (GOOGLE_RELOGIN_REQUIRED_ERRORS.has(data.error)) {
               googleReloginRequired = true;
               reject(createGoogleReloginRequiredError());
               return;
             }
-            reject(new Error(response.error));
+            reject(new Error(data.error));
             return;
           }
-          if (!response.access_token) {
-            if (
-              !forcePrompt &&
-              refreshIfExpiringSoon &&
-              hadValidTokenAtStart &&
-              hasValidGoogleToken()
-            ) {
-              resolve(accessToken);
-              return;
-            }
+
+          if (!data.access_token) {
             clearGoogleToken();
             reject(new Error('アクセストークン取得に失敗しました。'));
             return;
           }
-          setGoogleToken(
-            response.access_token,
-            response.expires_in || 3000,
-          );
-          resolve(response.access_token);
-        },
-      });
 
-      tokenClient.requestAccessToken({
-        prompt: forcePrompt ? 'consent' : 'none',
-      });
+          setGoogleToken(data.access_token, data.expires_in || 3600);
+          resolve(data.access_token);
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+
+      // タブが認証途中で閉じられた場合のチェック
+      const checkTabClosed = setInterval(() => {
+        if (authTab.closed) {
+          clearInterval(checkTabClosed);
+          window.removeEventListener('message', handleMessage);
+          reject(new Error('認証タブが閉じられました。'));
+        }
+      }, 1000);
     });
   })();
 
@@ -306,4 +309,37 @@ export async function getGoogleAccessToken(
     });
 
   return tokenRequestInFlight;
+}
+
+/**
+ * リダイレクト受け取り用スクリプト（アプリ起動時や初期化時に呼び出す）
+ * 新しく開かれたタブ側でURLハッシュのトークンを解析し、親ウィンドウへ送信してタブを閉じます。
+ */
+export function handleGoogleAuthRedirect(): boolean {
+  if (!window.location.hash) {
+    return false;
+  }
+
+  const params = new URLSearchParams(window.location.hash.substring(1));
+  const accessTokenParam = params.get('access_token');
+  const errorParam = params.get('error');
+  const expiresInParam = params.get('expires_in');
+
+  if (accessTokenParam || errorParam) {
+    if (window.opener) {
+      window.opener.postMessage(
+        {
+          type: 'GOOGLE_AUTH_RESPONSE',
+          access_token: accessTokenParam || undefined,
+          error: errorParam || undefined,
+          expires_in: expiresInParam ? Number(expiresInParam) : undefined,
+        },
+        window.location.origin,
+      );
+      window.close();
+      return true;
+    }
+  }
+
+  return false;
 }

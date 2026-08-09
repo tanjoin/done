@@ -25,7 +25,7 @@ import {
   updateTodoEventDescription,
   updateTodoEventColor,
 } from './google-calendar-service';
-import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
+import {hasValidGoogleToken, isGoogleReloginRequiredError, handleGoogleAuthRedirect} from './google-auth';
 import GoogleAuthAlertController, {
   renderGoogleAuthAlert,
 } from './google-auth-alert';
@@ -1450,6 +1450,9 @@ if (!customElements.get(Index.NAME)) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Google認証のリダイレクトパラメータ処理を実行
+  handleGoogleAuthRedirect();
+
   const container = document.querySelector('.container');
   if (container) {
     const header = document.createElement(Header.NAME) as Header;
