@@ -233,11 +233,6 @@ export default class SettingsCalendarSection {
               driveSnapshot.tasks,
             );
             LocalStorageManager.tasks = mergedTasks;
-            await syncTasksToGoogleDrive(mergedTasks, {
-              forceOverwrite: true,
-            });
-          } else {
-            await syncTasksToGoogleDrive(LocalStorageManager.tasks);
           }
         }
         SessionManager.notifyGoogleLoginSucceeded();

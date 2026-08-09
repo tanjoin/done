@@ -464,23 +464,6 @@ export default class TaskRepository {
     LocalStorageManager.tasks = localOnly;
     this.setSessionCache(fetched.mergedTasks);
 
-    if (fetched.driveDataMerged) {
-      try {
-        await syncTasksToGoogleDrive(localOnly, {forceOverwrite: true});
-        this.emitGoogleDriveStatus({
-          state: 'success',
-          message: 'Google Drive: ログイン後の統合データを同期しました',
-        });
-      } catch (error) {
-        this.emitGoogleDriveStatus({
-          state: 'error',
-          message: isGoogleReloginRequiredError(error)
-            ? 'Google Drive: 認証切れ（再ログインしてください）'
-            : 'Google Drive: 統合データの同期失敗',
-        });
-      }
-    }
-
     this.emitTodoCalendarStatus(
       fetched.todoFetchFailed
         ? {
