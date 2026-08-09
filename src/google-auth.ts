@@ -48,6 +48,25 @@ export const GOOGLE_APP_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
 ];
 
+type TokenClient = {
+  requestAccessToken: (options?: {
+    prompt?: string;
+  }) => void;
+};
+
+type GoogleTokenResponse = {
+  access_token?: string;
+  error?: string;
+  expires_in?: number;
+};
+
+const GOOGLE_AUTH_STATE_KEY = 'done_google_auth_state_v1';
+const GOOGLE_AUTH_RETURN_URL_KEY = 'done_google_auth_return_url_v1';
+
+export function getGoogleAuthRedirectUri(): string {
+  return window.location.origin + window.location.pathname;
+}
+
 function ensureScript(id: string, src: string): Promise<void> {
   const existing = document.getElementById(id) as HTMLScriptElement | null;
   if (existing) {
@@ -214,75 +233,52 @@ export async function getGoogleAccessToken(
       throw new Error('Google OAuth Client ID が未設定です。');
     }
 
-    return new Promise<string>((resolve, reject) => {
-      // OAuth 認可エンドポイントのURL構築
-      const redirectUri = window.location.origin + window.location.pathname;
+    if (forcePrompt) {
+      const state = crypto.randomUUID();
+      sessionStorage.setItem(GOOGLE_AUTH_STATE_KEY, state);
+      const returnUrl = new URL(window.location.href);
+      returnUrl.hash = '';
+      sessionStorage.setItem(GOOGLE_AUTH_RETURN_URL_KEY, returnUrl.toString());
+
       const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
       authUrl.searchParams.set('client_id', clientId);
-      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('redirect_uri', getGoogleAuthRedirectUri());
       authUrl.searchParams.set('response_type', 'token');
       authUrl.searchParams.set('scope', scopes.join(' '));
-      if (forcePrompt) {
-        authUrl.searchParams.set('prompt', 'consent');
-      }
+      authUrl.searchParams.set('prompt', 'consent');
+      authUrl.searchParams.set('state', state);
 
-      // 新しいタブで認証ページを開く（第3引数を指定しないことでタブとして開く）
-      const authTab = window.open(authUrl.toString(), '_blank');
+      window.location.assign(authUrl.toString());
+      return new Promise<string>(() => {});
+    }
 
-      if (!authTab) {
-        reject(new Error('新しいタブを開くことがブラウザにブロックされました。'));
-        return;
-      }
+    await ensureGoogleSdkLoaded();
+    const oauth = window.google?.accounts?.oauth2;
+    if (!oauth?.initTokenClient) {
+      throw new Error('Google認証ライブラリの読み込みに失敗しました。');
+    }
 
-      // 新しいタブからのトークン通知メッセージを監視するイベントリスナー
-      const handleMessage = (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) {
-          return;
-        }
-
-        const data = event.data as {
-          type?: string;
-          access_token?: string;
-          error?: string;
-          expires_in?: number;
-        };
-
-        if (data && data.type === 'GOOGLE_AUTH_RESPONSE') {
-          window.removeEventListener('message', handleMessage);
-          clearInterval(checkTabClosed);
-
-          if (data.error) {
-            clearGoogleToken();
-            if (GOOGLE_RELOGIN_REQUIRED_ERRORS.has(data.error)) {
-              googleReloginRequired = true;
-              reject(createGoogleReloginRequiredError());
-              return;
-            }
-            reject(new Error(data.error));
+    return new Promise<string>((resolve, reject) => {
+      const tokenClient: TokenClient = oauth.initTokenClient({
+        client_id: clientId,
+        scope: scopes.join(' '),
+        prompt: 'none',
+        callback: (response: GoogleTokenResponse) => {
+          if (response.error) {
+            reject(new Error(response.error));
             return;
           }
-
-          if (!data.access_token) {
-            clearGoogleToken();
+          if (!response.access_token) {
             reject(new Error('アクセストークン取得に失敗しました。'));
             return;
           }
 
-          setGoogleToken(data.access_token, data.expires_in || 3600);
-          resolve(data.access_token);
-        }
-      };
+          setGoogleToken(response.access_token, response.expires_in || 3600);
+          resolve(response.access_token);
+        },
+      });
 
-      window.addEventListener('message', handleMessage);
-
-      // タブが認証途中で閉じられた場合のチェック
-      const checkTabClosed = setInterval(() => {
-        if (authTab.closed) {
-          clearInterval(checkTabClosed);
-          window.removeEventListener('message', handleMessage);
-          reject(new Error('認証タブが閉じられました。'));
-        }
-      }, 1000);
+      tokenClient.requestAccessToken({prompt: 'none'});
     });
   })();
 
@@ -311,10 +307,6 @@ export async function getGoogleAccessToken(
   return tokenRequestInFlight;
 }
 
-/**
- * リダイレクト受け取り用スクリプト（アプリ起動時や初期化時に呼び出す）
- * 新しく開かれたタブ側でURLハッシュのトークンを解析し、親ウィンドウへ送信してタブを閉じます。
- */
 export function handleGoogleAuthRedirect(): boolean {
   if (!window.location.hash) {
     return false;
@@ -324,21 +316,41 @@ export function handleGoogleAuthRedirect(): boolean {
   const accessTokenParam = params.get('access_token');
   const errorParam = params.get('error');
   const expiresInParam = params.get('expires_in');
+  const stateParam = params.get('state');
 
   if (accessTokenParam || errorParam) {
-    if (window.opener) {
-      window.opener.postMessage(
-        {
-          type: 'GOOGLE_AUTH_RESPONSE',
-          access_token: accessTokenParam || undefined,
-          error: errorParam || undefined,
-          expires_in: expiresInParam ? Number(expiresInParam) : undefined,
-        },
-        window.location.origin,
-      );
-      window.close();
+    const expectedState = sessionStorage.getItem(GOOGLE_AUTH_STATE_KEY);
+    sessionStorage.removeItem(GOOGLE_AUTH_STATE_KEY);
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    if (!expectedState || stateParam !== expectedState) {
+      sessionStorage.removeItem(GOOGLE_AUTH_RETURN_URL_KEY);
+      return false;
+    }
+
+    if (errorParam || !accessTokenParam) {
+      sessionStorage.removeItem(GOOGLE_AUTH_RETURN_URL_KEY);
+      clearGoogleToken();
+      googleReloginRequired = true;
       return true;
     }
+
+    setGoogleToken(
+      accessTokenParam,
+      expiresInParam ? Number(expiresInParam) : 3600,
+    );
+    const returnUrl = sessionStorage.getItem(GOOGLE_AUTH_RETURN_URL_KEY);
+    sessionStorage.removeItem(GOOGLE_AUTH_RETURN_URL_KEY);
+    if (returnUrl) {
+      try {
+        const destination = new URL(returnUrl);
+        if (destination.origin === window.location.origin) {
+          window.location.replace(destination.toString());
+        }
+      } catch {
+        // 不正な復帰先は無視し、OAuthコールバックページを表示する。
+      }
+    }
+    return true;
   }
 
   return false;

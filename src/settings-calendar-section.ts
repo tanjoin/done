@@ -214,9 +214,6 @@ export default class SettingsCalendarSection {
       }
 
       try {
-        // 先にトークン取得を呼び、ユーザー操作コンテキスト内でポップアップを開く。
-        await getGoogleAccessToken(GOOGLE_APP_SCOPES, true);
-
         const current = await loadCalendarSettings();
         await saveCalendarSettings({
           clientId,
@@ -224,6 +221,8 @@ export default class SettingsCalendarSection {
           doneCalendarId:
             doneManualInput.value.trim() || current.doneCalendarId,
         });
+        await getGoogleAccessToken(GOOGLE_APP_SCOPES, true);
+
         updateLoginStatus();
         SessionManager.notifyGoogleSessionStateChanged();
         if (driveToggle.checked) {
