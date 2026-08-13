@@ -11,7 +11,6 @@ import {
   loadTasksFromGoogleDrive,
   syncTasksToGoogleDrive,
 } from './google-drive-service';
-import {mergeTasksFromGoogleDrive} from './task-merge';
 import {
   listGoogleCalendars,
   loadCalendarSettings,
@@ -228,11 +227,10 @@ export default class SettingsCalendarSection {
         if (driveToggle.checked) {
           const driveSnapshot = await loadTasksFromGoogleDrive();
           if (driveSnapshot !== null) {
-            const mergedTasks = mergeTasksFromGoogleDrive(
-              LocalStorageManager.tasks,
-              driveSnapshot.tasks,
-            );
-            LocalStorageManager.tasks = mergedTasks;
+            LocalStorageManager.tasks = driveSnapshot.tasks;
+            if (driveSnapshot.hasTimestamp) {
+              LocalStorageManager.tasksLastUpdatedAt = driveSnapshot.updatedAt;
+            }
           }
         }
         SessionManager.notifyGoogleLoginSucceeded();

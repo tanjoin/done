@@ -1,6 +1,9 @@
 import DoneTask from './done-task';
+import LocalStorageManager from './local-storage-manager';
 import TaskRepository from './task-repository';
-import type {DoneTaskData} from './types';
+import type {DoneTaskData, DoneTaskSyncPayload} from './types';
+
+type JsonExportFormat = 'array' | 'drive';
 
 export default class SettingsDataSection {
   private static excludeGoogleTodoTasks(tasks: DoneTaskData[]): DoneTaskData[] {
@@ -14,6 +17,17 @@ export default class SettingsDataSection {
         <p class="setting-desc">
           タスク設定や履歴をJSONとしてエクスポート/インポートできます。
         </p>
+        <div class="view-mode-switch" role="group" aria-label="JSON形式の切り替え">
+          <span class="view-mode-label">JSON形式</span>
+          <label class="switch-pill" for="jsonExportFormatToggle">
+            <input type="checkbox" id="jsonExportFormatToggle" />
+            <span class="switch-track">
+              <span class="switch-text-left">配列</span>
+              <span class="switch-text-right">Drive</span>
+              <span class="switch-thumb"></span>
+            </span>
+          </label>
+        </div>
         <div class="btn-group-wrap btn-group-vertical">
           <button id="exportJSONBtn" class="btn btn-cancel">データエクスポート</button>
           <button id="importJSONBtn" class="btn btn-cancel">データインポート</button>
@@ -33,6 +47,9 @@ export default class SettingsDataSection {
     const exportBtn = root.querySelector(
       '#exportJSONBtn',
     ) as HTMLButtonElement | null;
+    const formatToggle = root.querySelector(
+      '#jsonExportFormatToggle',
+    ) as HTMLInputElement | null;
     const importBtn = root.querySelector(
       '#importJSONBtn',
     ) as HTMLButtonElement | null;
@@ -49,6 +66,7 @@ export default class SettingsDataSection {
     if (
       !fileInput ||
       !exportBtn ||
+      !formatToggle ||
       !importBtn ||
       !copyBtn ||
       !pasteBtn ||
@@ -58,7 +76,10 @@ export default class SettingsDataSection {
     }
 
     exportBtn.addEventListener('click', () => {
-      SettingsDataSection.exportJSON(taskRepository);
+      SettingsDataSection.exportJSON(
+        taskRepository,
+        SettingsDataSection.getExportFormat(formatToggle),
+      );
     });
 
     importBtn.addEventListener('click', () => {
@@ -70,7 +91,10 @@ export default class SettingsDataSection {
     });
 
     copyBtn.addEventListener('click', async () => {
-      await SettingsDataSection.copyJSONToClipboard(taskRepository);
+      await SettingsDataSection.copyJSONToClipboard(
+        taskRepository,
+        SettingsDataSection.getExportFormat(formatToggle),
+      );
     });
 
     pasteBtn.addEventListener('click', async () => {
@@ -82,11 +106,31 @@ export default class SettingsDataSection {
     });
   }
 
-  private static async updateTasksFromRawArray(
-    rawTasks: unknown,
+  private static getExportFormat(
+    formatToggle: HTMLInputElement,
+  ): JsonExportFormat {
+    return formatToggle.checked ? 'drive' : 'array';
+  }
+
+  private static extractTasksFromJson(
+    parsed: unknown,
+  ): DoneTaskData[] | null {
+    if (Array.isArray(parsed)) {
+      return parsed as DoneTaskData[];
+    }
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    const payload = parsed as Partial<DoneTaskSyncPayload>;
+    return Array.isArray(payload.tasks) ? payload.tasks : null;
+  }
+
+  private static async updateTasksFromJson(
+    parsed: unknown,
     taskRepository: TaskRepository,
   ): Promise<boolean> {
-    if (!Array.isArray(rawTasks)) {
+    const rawTasks = SettingsDataSection.extractTasksFromJson(parsed);
+    if (!rawTasks) {
       return false;
     }
     const tasks = SettingsDataSection.excludeGoogleTodoTasks(
@@ -113,7 +157,7 @@ export default class SettingsDataSection {
         const text = String(loadEvent.target?.result || '');
         const parsed = JSON.parse(text);
         if (
-          !(await SettingsDataSection.updateTasksFromRawArray(
+          !(await SettingsDataSection.updateTasksFromJson(
             parsed,
             taskRepository,
           ))
@@ -142,7 +186,7 @@ export default class SettingsDataSection {
       const text = await navigator.clipboard.readText();
       const parsed = JSON.parse(text);
       if (
-        !(await SettingsDataSection.updateTasksFromRawArray(
+          !(await SettingsDataSection.updateTasksFromJson(
           parsed,
           taskRepository,
         ))
@@ -158,6 +202,7 @@ export default class SettingsDataSection {
 
   private static async copyJSONToClipboard(
     taskRepository: TaskRepository,
+    format: JsonExportFormat,
   ): Promise<void> {
     if (!navigator.clipboard || !window.isSecureContext) {
       alert('この環境ではクリップボード操作が利用できません。');
@@ -165,11 +210,12 @@ export default class SettingsDataSection {
     }
 
     try {
-      const exportTasks = SettingsDataSection.excludeGoogleTodoTasks(
-        taskRepository.tasks,
-      );
       await navigator.clipboard.writeText(
-        JSON.stringify(exportTasks, null, 2),
+        JSON.stringify(
+          SettingsDataSection.createExportPayload(taskRepository, format),
+          null,
+          2,
+        ),
       );
       alert('JSONをクリップボードにコピーしました。');
     } catch {
@@ -177,16 +223,41 @@ export default class SettingsDataSection {
     }
   }
 
-  private static exportJSON(taskRepository: TaskRepository): void {
+  private static createExportPayload(
+    taskRepository: TaskRepository,
+    format: JsonExportFormat,
+  ): DoneTaskData[] | DoneTaskSyncPayload {
     const exportTasks = SettingsDataSection.excludeGoogleTodoTasks(
       taskRepository.tasks,
     );
-    const data = JSON.stringify(exportTasks, null, 2);
+    if (format === 'array') {
+      return exportTasks;
+    }
+    return {
+      updatedAt: LocalStorageManager.tasksLastUpdatedAt || new Date().toISOString(),
+      tasks: exportTasks,
+    };
+  }
+
+  private static exportJSON(
+    taskRepository: TaskRepository,
+    format: JsonExportFormat,
+  ): void {
+    const data = JSON.stringify(
+      SettingsDataSection.createExportPayload(taskRepository, format),
+      null,
+      2,
+    );
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(data);
 
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', 'task_settings_and_history.json');
+    downloadAnchor.setAttribute(
+      'download',
+      format === 'drive'
+        ? 'tanjoin_done_task_sync_backup_v1.json'
+        : 'task_settings_and_history.json',
+    );
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();

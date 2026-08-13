@@ -7,7 +7,6 @@ import {
   syncTasksToGoogleDrive,
 } from './google-drive-service';
 import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
-import {mergeTasksFromGoogleDrive} from './task-merge';
 import type {DoneTaskData} from './types';
 
 export default class TaskRepository {
@@ -21,9 +20,6 @@ export default class TaskRepository {
     'done-todo-calendar-load-status';
   static readonly EVENT_GOOGLE_DRIVE_STATUS = 'done-google-drive-status';
   static readonly EVENT_GOOGLE_RELOGIN_NOTICE = 'done-google-relogin-notice';
-  private _preferDriveOnNextCloudRefresh = false;
-  private _defaultTasksCache: DoneTaskData[] | null = null;
-
   private static mapSyncSkippedReasonToMessage(
     reason: GoogleDriveSyncSkippedReason,
   ): string {
@@ -140,75 +136,6 @@ export default class TaskRepository {
     return this.stripGoogleTodoTasks(this._tasks);
   }
 
-  private async getDefaultTasksFromJson(): Promise<DoneTaskData[] | null> {
-    if (this._defaultTasksCache) {
-      return this._defaultTasksCache;
-    }
-
-    try {
-      const response = await fetch('tasks.json');
-      if (!response.ok) {
-        return null;
-      }
-      const parsed = (await response.json()) as DoneTaskData[];
-      if (!Array.isArray(parsed)) {
-        return null;
-      }
-      this._defaultTasksCache = this.stripGoogleTodoTasks(parsed);
-      return this._defaultTasksCache;
-    } catch {
-      return null;
-    }
-  }
-
-  private pickComparableTaskShape(task: DoneTaskData): string {
-    const picked = {
-      id: task.id || '',
-      text: task.text || '',
-      group: task.group || '',
-      daysOfWeek: Array.isArray(task.daysOfWeek) ? task.daysOfWeek : [],
-      daysOfMonth: Array.isArray(task.daysOfMonth) ? task.daysOfMonth : [],
-      startTime: task.startTime || '',
-      endTime: task.endTime || '',
-      strictMode: task.strictMode ?? null,
-      skipCalendarOnComplete: task.skipCalendarOnComplete ?? null,
-      createTaskViaUrl: task.createTaskViaUrl ?? null,
-      specificDate: task.specificDate || '',
-      endDate: task.endDate || '',
-      sourceType: task.sourceType || 'local',
-    };
-    return JSON.stringify(picked);
-  }
-
-  private async shouldPreferDriveSnapshot(localTasks: DoneTaskData[]): Promise<boolean> {
-    if (this._preferDriveOnNextCloudRefresh) {
-      this._preferDriveOnNextCloudRefresh = false;
-      return true;
-    }
-
-    if (localTasks.length === 0) {
-      return true;
-    }
-
-    const defaultTasks = await this.getDefaultTasksFromJson();
-    if (!defaultTasks || defaultTasks.length === 0) {
-      return false;
-    }
-
-    if (defaultTasks.length !== localTasks.length) {
-      return false;
-    }
-
-    const localComparable = localTasks
-      .map(task => this.pickComparableTaskShape(task))
-      .sort();
-    const defaultComparable = defaultTasks
-      .map(task => this.pickComparableTaskShape(task))
-      .sort();
-
-    return localComparable.every((value, index) => value === defaultComparable[index]);
-  }
-
   get tasks(): DoneTask[] {
     return this._tasks;
   }
@@ -286,7 +213,6 @@ export default class TaskRepository {
 
   private async fetchCloudMergedTasks(
     localTasks: DoneTaskData[],
-    mergeDriveData = false,
   ): Promise<{
     mergedTasks: DoneTaskData[];
     todoCount: number;
@@ -294,14 +220,12 @@ export default class TaskRepository {
     todoFetchAuthExpired: boolean;
     driveLoadFailed: boolean;
     driveLoadAuthExpired: boolean;
-    driveLoadSkippedByTimestamp: boolean;
-    driveDataMerged: boolean;
+    driveUpdatedAt: string;
   }> {
     let workingTasks = localTasks;
     let driveLoadFailed = false;
     let driveLoadAuthExpired = false;
-    let driveLoadSkippedByTimestamp = false;
-    let driveDataMerged = false;
+    let driveUpdatedAt = '';
 
     if (!LocalStorageManager.googleDriveSyncEnabled) {
       this.emitGoogleDriveStatus({
@@ -317,48 +241,14 @@ export default class TaskRepository {
 
     try {
       const fromDrive = await loadTasksFromGoogleDrive();
-      if (fromDrive && fromDrive.tasks.length > 0) {
-        const localUpdatedAt = LocalStorageManager.tasksLastUpdatedAt;
-        if (mergeDriveData) {
-          workingTasks = mergeTasksFromGoogleDrive(localTasks, fromDrive.tasks);
-          driveDataMerged = true;
-        } else if (await this.shouldPreferDriveSnapshot(localTasks)) {
-          workingTasks = fromDrive.tasks;
-          if (fromDrive.hasTimestamp) {
-            LocalStorageManager.tasksLastUpdatedAt = fromDrive.updatedAt;
-          }
-        } else if (!fromDrive.hasTimestamp) {
-          const syncResult = await syncTasksToGoogleDrive(localTasks, {
-            forceOverwrite: true,
-          });
-          if (syncResult.uploaded) {
-            this.emitGoogleDriveStatus({
-              state: 'success',
-              message:
-                'Google Drive: 保存先に最終更新日がないためローカルで上書き同期しました',
-            });
-          }
-        } else if (!localUpdatedAt || localUpdatedAt <= fromDrive.updatedAt) {
-          workingTasks = fromDrive.tasks;
-          LocalStorageManager.tasksLastUpdatedAt = fromDrive.updatedAt;
-        } else {
-          driveLoadSkippedByTimestamp = true;
-          const syncResult = await syncTasksToGoogleDrive(localTasks);
-          if (syncResult.uploaded) {
-            this.emitGoogleDriveStatus({
-              state: 'success',
-              message: 'Google Drive: ローカルが新しいため上書き同期しました',
-            });
-            driveLoadSkippedByTimestamp = false;
-          }
-        }
+      if (fromDrive) {
+        workingTasks = fromDrive.tasks;
+        driveUpdatedAt = fromDrive.hasTimestamp ? fromDrive.updatedAt : '';
       }
       if (LocalStorageManager.googleDriveSyncEnabled) {
         this.emitGoogleDriveStatus({
-          state: driveLoadSkippedByTimestamp ? 'cached' : 'success',
-          message: driveLoadSkippedByTimestamp
-            ? 'Google Drive: 最終更新日比較でローカルを優先'
-            : 'Google Drive: 読み込み完了',
+          state: 'success',
+          message: 'Google Drive: 読み込み完了',
         });
       }
     } catch (error) {
@@ -409,14 +299,12 @@ export default class TaskRepository {
       todoFetchAuthExpired,
       driveLoadFailed,
       driveLoadAuthExpired,
-      driveLoadSkippedByTimestamp,
-      driveDataMerged,
+      driveUpdatedAt,
     };
   }
 
   async refreshFromCloudIfNeeded(
     forceRefresh = false,
-    mergeDriveData = false,
   ): Promise<boolean> {
     if (!hasValidGoogleToken()) {
       this.emitGoogleDriveStatus({
@@ -457,11 +345,13 @@ export default class TaskRepository {
 
     const fetched = await this.fetchCloudMergedTasks(
       LocalStorageManager.tasks || [],
-      mergeDriveData,
     );
     const localOnly = this.stripGoogleTodoTasks(fetched.mergedTasks);
     this._tasks = this.hydrateTasks(fetched.mergedTasks);
     LocalStorageManager.tasks = localOnly;
+    if (fetched.driveUpdatedAt) {
+      LocalStorageManager.tasksLastUpdatedAt = fetched.driveUpdatedAt;
+    }
     this.setSessionCache(fetched.mergedTasks);
 
     this.emitTodoCalendarStatus(
@@ -483,7 +373,7 @@ export default class TaskRepository {
 
   async refreshAfterGoogleLogin(): Promise<boolean> {
     this.hydrateFromLocal();
-    return this.refreshFromCloudIfNeeded(true, true);
+    return this.refreshFromCloudIfNeeded(true);
   }
 
   async loadTasks(): Promise<void> {
@@ -508,7 +398,6 @@ export default class TaskRepository {
     const tasksFromJson = (await response.json()) as DoneTaskData[];
     this._tasks = this.hydrateTasks(tasksFromJson);
     LocalStorageManager.tasks = this._tasks;
-    this._preferDriveOnNextCloudRefresh = true;
     this.setSessionCache(this._tasks);
   }
 

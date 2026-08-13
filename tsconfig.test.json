@@ -14,7 +14,6 @@
     "src/done-task.ts",
     "src/date-helper.ts",
     "src/boolean-helper.ts",
-    "src/task-merge.ts",
     "src/types.d.ts",
     "tests/**/*.ts"
   ]

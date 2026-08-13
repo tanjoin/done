@@ -15,8 +15,10 @@ export default class SessionManager {
     'done-google-session-state-changed';
   static readonly EVENT_GOOGLE_LOGIN_SUCCEEDED =
     'done-google-session-login-succeeded';
+  static readonly EVENT_PAGE_ACTIVATED = 'done-page-activated';
   private static _started = false;
   private static _refreshInFlight = false;
+  private static _pageActivationInFlight = false;
   private static _reloginNoticeSent = false;
 
   static startGoogleSessionKeepAlive(): void {
@@ -29,13 +31,29 @@ export default class SessionManager {
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        void SessionManager.refreshGoogleSessionIfNeeded();
+        void SessionManager.handlePageActivation();
       }
     });
 
     window.addEventListener('focus', () => {
-      void SessionManager.refreshGoogleSessionIfNeeded();
+      void SessionManager.handlePageActivation();
     });
+  }
+
+  private static async handlePageActivation(): Promise<void> {
+    if (SessionManager._pageActivationInFlight) {
+      return;
+    }
+
+    SessionManager._pageActivationInFlight = true;
+    try {
+      await SessionManager.refreshGoogleSessionIfNeeded();
+    } finally {
+      SessionManager._pageActivationInFlight = false;
+      document.dispatchEvent(
+        new CustomEvent(SessionManager.EVENT_PAGE_ACTIVATED),
+      );
+    }
   }
 
   private static async refreshGoogleSessionIfNeeded(): Promise<void> {

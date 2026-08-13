@@ -15,7 +15,7 @@
     "migrate": "node tools/migrate_task_history.js",
     "clean:sort": "node tools/clean_and_sort.js",
     "test": "npm run test:unit",
-    "test:unit": "tsc -p tsconfig.test.json && node --test dist-test/tests/**/*.test.js",
+    "test:unit": "rm -rf dist-test && tsc -p tsconfig.test.json && node --test dist-test/tests/**/*.test.js",
     "build": "vite build",
     "dev": "vite",
     "preview": "vite preview",

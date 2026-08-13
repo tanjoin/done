@@ -1250,6 +1250,15 @@ class Index extends HTMLElement {
         },
       );
 
+      document.addEventListener(SessionManager.EVENT_PAGE_ACTIVATED, () => {
+        if (this._isLoading) {
+          return;
+        }
+        void this.refreshCloudTasksWithLoading(true).then(() => {
+          this.renderCards();
+        });
+      });
+
       taskContainer.addEventListener('click', event => {
         if (!(event.target instanceof HTMLElement)) {
           return;
