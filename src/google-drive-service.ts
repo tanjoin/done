@@ -15,10 +15,10 @@ export type GoogleDriveTaskSnapshot = {
   updatedAt: string;
   revision: string;
   fileId: string;
-  etag: string;
+  version: string;
 };
 
-export type GoogleDriveSyncSkippedReason = 'conflict' | 'precondition_unavailable';
+export type GoogleDriveSyncSkippedReason = 'conflict';
 
 export type GoogleDriveSyncResult = {
   uploaded: boolean;
@@ -30,15 +30,9 @@ type SyncOptions = {
   forceOverwrite?: boolean;
 };
 
-class DriveSyncConflictError extends Error {
-  constructor() {
-    super('Google Drive sync conflict');
-  }
-}
-
 type DriveFileInfo = {
   fileId: string;
-  etag: string;
+  version: string;
 };
 
 function createRevision(): string {
@@ -117,7 +111,7 @@ function parseDrivePayload(
       updatedAt: '',
       revision: 'legacy-array',
       fileId: fileInfo.fileId,
-      etag: fileInfo.etag,
+      version: fileInfo.version,
     };
   }
 
@@ -140,14 +134,14 @@ function parseDrivePayload(
         ? payload.revision.trim()
         : `legacy:${updatedAt || 'unversioned'}`,
     fileId: fileInfo.fileId,
-    etag: fileInfo.etag,
+    version: fileInfo.version,
   };
 }
 
 async function loadFileInfo(fileId: string): Promise<DriveFileInfo> {
   const token = await getGoogleAccessToken(GOOGLE_DRIVE_SCOPE);
   const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id`,
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,version`,
     {headers: {Authorization: `Bearer ${token}`}},
   );
   if (response.status === 401 || response.status === 403) {
@@ -157,8 +151,12 @@ async function loadFileInfo(fileId: string): Promise<DriveFileInfo> {
   if (!response.ok) {
     throw new Error(`Google Drive file lookup failed (${response.status})`);
   }
-  const etag = response.headers.get('etag') || '';
-  return {fileId, etag};
+  const payload = (await response.json()) as {version?: string};
+  const version = typeof payload.version === 'string' ? payload.version : '';
+  if (!version) {
+    throw new Error('Google Drive file version is unavailable');
+  }
+  return {fileId, version};
 }
 
 async function loadSnapshotByFileId(
@@ -192,7 +190,6 @@ async function uploadMultipart(
   metadata: Record<string, unknown>,
   content: string,
   fileId = '',
-  etag = '',
   retried = false,
 ): Promise<void> {
   const boundary = 'done-boundary-' + Math.random().toString(36).slice(2);
@@ -216,19 +213,15 @@ async function uploadMultipart(
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': `multipart/related; boundary=${boundary}`,
-      ...(etag ? {'If-Match': etag} : {}),
     },
     body,
   });
 
   if (!response.ok) {
-    if (response.status === 412) {
-      throw new DriveSyncConflictError();
-    }
     if ((response.status === 401 || response.status === 403) && !retried) {
       clearGoogleToken();
       try {
-        await uploadMultipart(metadata, content, fileId, etag, true);
+        await uploadMultipart(metadata, content, fileId, true);
         return;
       } catch (error) {
         if (!isGoogleReloginRequiredError(error)) {
@@ -263,7 +256,8 @@ export async function syncTasksToGoogleDrive(
       !options.forceOverwrite &&
       (!syncState ||
         syncState.fileId !== fileId ||
-        syncState.baseRevision !== remoteSnapshot?.revision)
+        syncState.baseRevision !== remoteSnapshot?.revision ||
+        syncState.baseDriveVersion !== remoteSnapshot?.version)
     ) {
       return {
         uploaded: false,
@@ -273,29 +267,26 @@ export async function syncTasksToGoogleDrive(
           : {}),
       };
     }
-    if (!remoteSnapshot?.etag) {
-      return {uploaded: false, skippedReason: 'precondition_unavailable'};
-    }
   }
 
   const payload = createDriveTaskSyncPayload(tasks);
   const content = JSON.stringify(payload, null, 2);
-  try {
-    await uploadMultipart(
-      {name: FILE_NAME, mimeType: 'application/json'},
-      content,
-      fileId,
-      remoteSnapshot?.etag,
-    );
-  } catch (error) {
-    if (error instanceof DriveSyncConflictError) {
-      return {uploaded: false, skippedReason: 'conflict'};
-    }
-    throw error;
+  await uploadMultipart(
+    {name: FILE_NAME, mimeType: 'application/json'},
+    content,
+    fileId,
+  );
+  const savedFileId = fileId || (await findBackupFileId());
+  const verifiedSnapshot = savedFileId
+    ? await loadSnapshotByFileId(savedFileId)
+    : null;
+  if (verifiedSnapshot?.revision !== payload.revision) {
+    return {uploaded: false, skippedReason: 'conflict'};
   }
   LocalStorageManager.taskSyncState = {
     baseRevision: payload.revision,
-    fileId: fileId || (await findBackupFileId()),
+    baseDriveVersion: verifiedSnapshot.version,
+    fileId: savedFileId,
     dirty: false,
     baseTasks: payload.tasks,
   };

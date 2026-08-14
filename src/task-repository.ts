@@ -28,9 +28,6 @@ export default class TaskRepository {
   private static mapSyncSkippedReasonToMessage(
     reason: GoogleDriveSyncSkippedReason,
   ): string {
-    if (reason === 'precondition_unavailable') {
-      return 'Google Drive: 同期条件を確認できませんでした';
-    }
     return 'Google Drive: 他の端末で更新されたため同期停止';
   }
 
@@ -209,7 +206,10 @@ export default class TaskRepository {
     }
   }
 
-  private async mergeDriveConflict(localTasks: DoneTaskData[]): Promise<void> {
+  private async mergeDriveConflict(
+    localTasks: DoneTaskData[],
+    attempt = 0,
+  ): Promise<void> {
     const remoteSnapshot = await loadTasksFromGoogleDrive();
     if (!remoteSnapshot) {
       this.emitGoogleDriveStatus({
@@ -232,7 +232,13 @@ export default class TaskRepository {
     this._tasks = this.hydrateTasks([...resolvedTasks, ...googleTodoTasks]);
     this.localMutationVersion++;
     LocalStorageManager.tasks = resolvedTasks;
-    LocalStorageManager.markTaskSyncDirty();
+    LocalStorageManager.taskSyncState = {
+      baseRevision: remoteSnapshot.revision,
+      baseDriveVersion: remoteSnapshot.version,
+      fileId: remoteSnapshot.fileId,
+      dirty: true,
+      baseTasks: remoteSnapshot.tasks,
+    };
     this.emitGoogleDriveStatus({
       state: 'loading',
       message:
@@ -241,11 +247,15 @@ export default class TaskRepository {
           : 'Google Drive: 変更を自動マージして同期中...',
     });
 
-    const result = await this.enqueueDriveSync(resolvedTasks, true);
+    const result = await this.enqueueDriveSync(resolvedTasks, false);
     if (!result.uploaded) {
+      if (result.skippedReason === 'conflict' && attempt < 2) {
+        await this.mergeDriveConflict(resolvedTasks, attempt + 1);
+        return;
+      }
       this.emitGoogleDriveStatus({
         state: 'error',
-        message: 'Google Drive: マージ後の同期でも競合しました',
+        message: 'Google Drive: 他端末で更新が続いているため、同期を保留しました',
       });
       return;
     }
@@ -347,6 +357,7 @@ export default class TaskRepository {
     driveLoadAuthExpired: boolean;
     driveUpdatedAt: string;
     driveRevision: string;
+    driveVersion: string;
     driveFileId: string;
   }> {
     let workingTasks = localTasks;
@@ -354,6 +365,7 @@ export default class TaskRepository {
     let driveLoadAuthExpired = false;
     let driveUpdatedAt = '';
     let driveRevision = '';
+    let driveVersion = '';
     let driveFileId = '';
 
     if (!LocalStorageManager.googleDriveSyncEnabled) {
@@ -374,6 +386,7 @@ export default class TaskRepository {
         workingTasks = fromDrive.tasks;
         driveUpdatedAt = fromDrive.updatedAt;
         driveRevision = fromDrive.revision;
+        driveVersion = fromDrive.version;
         driveFileId = fromDrive.fileId;
       }
       if (LocalStorageManager.googleDriveSyncEnabled) {
@@ -432,6 +445,7 @@ export default class TaskRepository {
       driveLoadAuthExpired,
       driveUpdatedAt,
       driveRevision,
+      driveVersion,
       driveFileId,
     };
   }
@@ -505,6 +519,7 @@ export default class TaskRepository {
         if (fetched.driveRevision && fetched.driveFileId) {
           LocalStorageManager.taskSyncState = {
             baseRevision: fetched.driveRevision,
+            baseDriveVersion: fetched.driveVersion,
             fileId: fetched.driveFileId,
             dirty: false,
             baseTasks: localOnly,

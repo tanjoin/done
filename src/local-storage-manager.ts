@@ -254,8 +254,10 @@ export default class LocalStorageManager {
       const parsed = JSON.parse(raw) as Partial<DoneTaskSyncState>;
       if (
         typeof parsed.baseRevision !== 'string' ||
+        typeof parsed.baseDriveVersion !== 'string' ||
         typeof parsed.fileId !== 'string' ||
         !parsed.baseRevision ||
+        !parsed.baseDriveVersion ||
         !parsed.fileId ||
         !Array.isArray(parsed.baseTasks)
       ) {
@@ -263,6 +265,7 @@ export default class LocalStorageManager {
       }
       return {
         baseRevision: parsed.baseRevision,
+        baseDriveVersion: parsed.baseDriveVersion,
         fileId: parsed.fileId,
         dirty: parsed.dirty === true,
         baseTasks: parsed.baseTasks,

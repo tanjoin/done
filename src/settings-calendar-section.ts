@@ -232,6 +232,7 @@ export default class SettingsCalendarSection {
             }
             LocalStorageManager.taskSyncState = {
               baseRevision: driveSnapshot.revision,
+              baseDriveVersion: driveSnapshot.version,
               fileId: driveSnapshot.fileId,
               dirty: false,
               baseTasks: driveSnapshot.tasks,

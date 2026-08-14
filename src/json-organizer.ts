@@ -248,13 +248,6 @@ class JsonOrganizer extends HTMLElement {
     try {
       const result = await syncTasksToGoogleDrive(tasksToSave);
       if (!result.uploaded && result.skippedReason) {
-        if (result.skippedReason === 'precondition_unavailable') {
-          this.setStatus(
-            'done_tasks は保存しました。Google Driveの同期条件を確認できないため停止しました。',
-            true,
-          );
-          return;
-        }
         this.setStatus(
           'done_tasks は保存しました。別の端末の更新を検出したため同期停止しました。',
           true,

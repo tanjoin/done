@@ -69,6 +69,7 @@ export type DoneTaskSyncPayload = {
 };
 export type DoneTaskSyncState = {
   baseRevision: string;
+  baseDriveVersion: string;
   fileId: string;
   dirty: boolean;
   baseTasks: DoneTaskData[];
