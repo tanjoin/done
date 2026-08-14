@@ -34,7 +34,7 @@ export default class TaskRepository {
   }
 
   private static formatDriveVersion(updatedAt: string): string {
-    return updatedAt ? `（バージョン: ${updatedAt}）` : '';
+    return updatedAt ? `（${new Date(updatedAt).toLocaleString()}）` : '';
   }
 
   static markNextIndexNavigationFromSettings(): void {
