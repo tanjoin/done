@@ -28,8 +28,13 @@ export default class TaskRepository {
   static readonly EVENT_GOOGLE_RELOGIN_NOTICE = 'done-google-relogin-notice';
   private static mapSyncSkippedReasonToMessage(
     reason: GoogleDriveSyncSkippedReason,
+    remoteUpdatedAt = '',
   ): string {
-    return 'Google Drive: 他の端末で更新されたため同期停止';
+    return `Google Drive: 他の端末で更新されたため同期停止${TaskRepository.formatDriveVersion(remoteUpdatedAt)}`;
+  }
+
+  private static formatDriveVersion(updatedAt: string): string {
+    return updatedAt ? `（バージョン: ${updatedAt}）` : '';
   }
 
   static markNextIndexNavigationFromSettings(): void {
@@ -311,8 +316,8 @@ export default class TaskRepository {
       state: 'success',
       message:
         merged.conflicts.length > 0
-          ? 'Google Drive: 競合を解消して同期完了'
-          : 'Google Drive: 自動マージして同期完了',
+          ? `Google Drive: 競合を解消して同期完了${TaskRepository.formatDriveVersion(result.updatedAt || '')}`
+          : `Google Drive: 自動マージして同期完了${TaskRepository.formatDriveVersion(result.updatedAt || '')}`,
     });
   }
 
@@ -439,7 +444,7 @@ export default class TaskRepository {
       if (LocalStorageManager.googleDriveSyncEnabled) {
         this.emitGoogleDriveStatus({
           state: 'success',
-          message: 'Google Drive: 読み込み完了',
+          message: `Google Drive: 読み込み完了${TaskRepository.formatDriveVersion(driveUpdatedAt)}`,
         });
       }
     } catch (error) {
@@ -528,7 +533,7 @@ export default class TaskRepository {
         });
         this.emitGoogleDriveStatus({
           state: 'cached',
-          message: 'Google Drive: キャッシュ利用',
+          message: `Google Drive: キャッシュ利用${TaskRepository.formatDriveVersion(LocalStorageManager.tasksLastUpdatedAt)}`,
         });
         return true;
       }
@@ -653,13 +658,14 @@ export default class TaskRepository {
               state: 'error',
               message: TaskRepository.mapSyncSkippedReasonToMessage(
                 result.skippedReason,
+                result.remoteUpdatedAt,
               ),
             });
             return;
           }
           this.emitGoogleDriveStatus({
             state: 'success',
-            message: 'Google Drive: 同期完了',
+            message: `Google Drive: 同期完了${TaskRepository.formatDriveVersion(result.updatedAt || '')}`,
           });
         })
         .catch(error => {
@@ -714,13 +720,14 @@ export default class TaskRepository {
           state: 'error',
           message: TaskRepository.mapSyncSkippedReasonToMessage(
             result.skippedReason,
+            result.remoteUpdatedAt,
           ),
         });
         return;
       }
       this.emitGoogleDriveStatus({
         state: 'success',
-        message: 'Google Drive: 同期完了',
+        message: `Google Drive: 同期完了${TaskRepository.formatDriveVersion(result.updatedAt || '')}`,
       });
     } catch (error) {
       if (isGoogleReloginRequiredError(error)) {

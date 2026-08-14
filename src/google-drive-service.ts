@@ -23,6 +23,7 @@ export type GoogleDriveSyncSkippedReason = 'conflict';
 export type GoogleDriveSyncResult = {
   uploaded: boolean;
   skippedReason?: GoogleDriveSyncSkippedReason;
+  updatedAt?: string;
   remoteUpdatedAt?: string;
 };
 
@@ -291,7 +292,8 @@ export async function syncTasksToGoogleDrive(
     dirty: false,
     baseTasks: payload.tasks,
   };
-  return {uploaded: true};
+  LocalStorageManager.tasksLastUpdatedAt = payload.updatedAt;
+  return {uploaded: true, updatedAt: payload.updatedAt};
 }
 
 export async function loadTasksFromGoogleDrive(): Promise<GoogleDriveTaskSnapshot | null> {
