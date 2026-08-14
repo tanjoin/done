@@ -4,6 +4,7 @@ import {fetchTodoTasksFromGoogleCalendar} from './google-calendar-service';
 import {
   loadTasksFromGoogleDrive,
   type GoogleDriveSyncSkippedReason,
+  type GoogleDriveSyncResult,
   syncTasksToGoogleDrive,
 } from './google-drive-service';
 import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
@@ -85,6 +86,8 @@ export default class TaskRepository {
   }
 
   private _tasks: DoneTask[] = [];
+  private driveSyncQueue: Promise<void> = Promise.resolve();
+  private localMutationVersion = 0;
 
   private countGoogleTodoTasks(tasks: DoneTaskData[]): number {
     return tasks.filter(task => task.sourceType === 'google-todo').length;
@@ -136,11 +139,27 @@ export default class TaskRepository {
     return this.stripGoogleTodoTasks(this._tasks);
   }
 
+  private enqueueDriveSync(
+    tasks: DoneTaskData[],
+    forceOverwrite: boolean,
+  ): Promise<GoogleDriveSyncResult> {
+    const snapshot = JSON.parse(JSON.stringify(tasks)) as DoneTaskData[];
+    const sync = this.driveSyncQueue
+      .catch(() => undefined)
+      .then(() => syncTasksToGoogleDrive(snapshot, {forceOverwrite}));
+    this.driveSyncQueue = sync.then(
+      () => undefined,
+      () => undefined,
+    );
+    return sync;
+  }
+
   get tasks(): DoneTask[] {
     return this._tasks;
   }
 
   set tasks(value: DoneTask[] | null) {
+    this.localMutationVersion++;
     if (value === null) {
       this._tasks = [];
       LocalStorageManager.tasks = null;
@@ -343,16 +362,21 @@ export default class TaskRepository {
       message: 'TODOカレンダー: 読み込み中...',
     });
 
+    const mutationVersionAtFetchStart = this.localMutationVersion;
     const fetched = await this.fetchCloudMergedTasks(
       LocalStorageManager.tasks || [],
     );
-    const localOnly = this.stripGoogleTodoTasks(fetched.mergedTasks);
-    this._tasks = this.hydrateTasks(fetched.mergedTasks);
-    LocalStorageManager.tasks = localOnly;
-    if (fetched.driveUpdatedAt) {
-      LocalStorageManager.tasksLastUpdatedAt = fetched.driveUpdatedAt;
+    const canApplyCloudResult =
+      mutationVersionAtFetchStart === this.localMutationVersion;
+    if (canApplyCloudResult) {
+      const localOnly = this.stripGoogleTodoTasks(fetched.mergedTasks);
+      this._tasks = this.hydrateTasks(fetched.mergedTasks);
+      LocalStorageManager.tasks = localOnly;
+      if (fetched.driveUpdatedAt) {
+        LocalStorageManager.tasksLastUpdatedAt = fetched.driveUpdatedAt;
+      }
+      this.setSessionCache(fetched.mergedTasks);
     }
-    this.setSessionCache(fetched.mergedTasks);
 
     this.emitTodoCalendarStatus(
       fetched.todoFetchFailed
@@ -368,7 +392,7 @@ export default class TaskRepository {
           },
     );
 
-    return true;
+    return canApplyCloudResult;
   }
 
   async refreshAfterGoogleLogin(): Promise<boolean> {
@@ -402,6 +426,7 @@ export default class TaskRepository {
   }
 
   saveTasks(): void {
+    this.localMutationVersion++;
     const persistableTasks = this.getPersistableTasks();
     LocalStorageManager.tasks = persistableTasks;
     if (hasValidGoogleToken()) {
@@ -418,7 +443,7 @@ export default class TaskRepository {
         message: 'Google Drive: 同期中...',
       });
 
-      void syncTasksToGoogleDrive(persistableTasks)
+      void this.enqueueDriveSync(persistableTasks, false)
         .then(result => {
           if (!result.uploaded && result.skippedReason) {
             this.emitGoogleDriveStatus({
@@ -451,6 +476,7 @@ export default class TaskRepository {
   }
 
   async saveTasksWithSync(forceOverwrite = false): Promise<void> {
+    this.localMutationVersion++;
     const persistableTasks = this.getPersistableTasks();
     LocalStorageManager.tasks = persistableTasks;
     if (!hasValidGoogleToken()) {
@@ -471,9 +497,10 @@ export default class TaskRepository {
     });
 
     try {
-      const result = await syncTasksToGoogleDrive(persistableTasks, {
+      const result = await this.enqueueDriveSync(
+        persistableTasks,
         forceOverwrite,
-      });
+      );
       if (!result.uploaded && result.skippedReason) {
         this.emitGoogleDriveStatus({
           state: 'error',
