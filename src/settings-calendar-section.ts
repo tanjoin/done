@@ -234,6 +234,7 @@ export default class SettingsCalendarSection {
               baseRevision: driveSnapshot.revision,
               fileId: driveSnapshot.fileId,
               dirty: false,
+              baseTasks: driveSnapshot.tasks,
             };
           }
         }

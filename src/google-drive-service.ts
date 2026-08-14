@@ -297,6 +297,7 @@ export async function syncTasksToGoogleDrive(
     baseRevision: payload.revision,
     fileId: fileId || (await findBackupFileId()),
     dirty: false,
+    baseTasks: payload.tasks,
   };
   return {uploaded: true};
 }

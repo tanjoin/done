@@ -71,6 +71,7 @@ export type DoneTaskSyncState = {
   baseRevision: string;
   fileId: string;
   dirty: boolean;
+  baseTasks: DoneTaskData[];
 };
 export type DoneSelectOption<T extends string> = {
   value: T;

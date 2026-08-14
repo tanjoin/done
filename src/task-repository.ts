@@ -9,6 +9,10 @@ import {
 } from './google-drive-service';
 import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
 import type {DoneTaskData} from './types';
+import {
+  mergeTaskSyncData,
+  type TaskSyncConflict,
+} from './task-sync-merge';
 
 export default class TaskRepository {
   private static readonly CLOUD_CACHE_KEY = 'done_cloud_tasks_cache_v1';
@@ -152,6 +156,107 @@ export default class TaskRepository {
       () => undefined,
     );
     return sync;
+  }
+
+  private chooseConflictResolution(conflict: TaskSyncConflict): boolean {
+    const fieldLabel = conflict.field.startsWith('history.')
+      ? `実施履歴 (${conflict.field.slice('history.'.length)})`
+      : conflict.field;
+    return window.confirm(
+      `「${conflict.taskId}」の「${fieldLabel}」が他端末でも変更されています。\n\n` +
+        'OK: この端末の変更を残す\n' +
+        'キャンセル: Google Drive の変更を採用する',
+    );
+  }
+
+  private applyRemoteConflictResolution(
+    tasks: DoneTaskData[],
+    conflict: TaskSyncConflict,
+  ): void {
+    const taskIndex = tasks.findIndex(task => task.id === conflict.taskId);
+    if (conflict.field === 'task') {
+      if (conflict.remoteValue === null) {
+        if (taskIndex >= 0) tasks.splice(taskIndex, 1);
+        return;
+      }
+      const remoteTask = conflict.remoteValue as DoneTaskData;
+      if (taskIndex >= 0) {
+        tasks[taskIndex] = remoteTask;
+      } else {
+        tasks.push(remoteTask);
+      }
+      return;
+    }
+
+    if (taskIndex < 0) return;
+    const task = tasks[taskIndex]! as Record<string, unknown>;
+    if (conflict.field.startsWith('history.')) {
+      const dateKey = conflict.field.slice('history.'.length);
+      const history = (task.history || {}) as DoneTaskData['history'];
+      if (conflict.remoteValue === undefined) {
+        delete history[dateKey];
+      } else {
+        history[dateKey] = conflict.remoteValue as 'completed' | 'cancelled';
+      }
+      task.history = history;
+      return;
+    }
+
+    if (conflict.remoteValue === undefined) {
+      delete task[conflict.field];
+    } else {
+      task[conflict.field] = conflict.remoteValue;
+    }
+  }
+
+  private async mergeDriveConflict(localTasks: DoneTaskData[]): Promise<void> {
+    const remoteSnapshot = await loadTasksFromGoogleDrive();
+    if (!remoteSnapshot) {
+      this.emitGoogleDriveStatus({
+        state: 'error',
+        message: 'Google Drive: 競合データを取得できませんでした',
+      });
+      return;
+    }
+    const baseTasks = LocalStorageManager.taskSyncState?.baseTasks || [];
+    const merged = mergeTaskSyncData(baseTasks, localTasks, remoteSnapshot.tasks);
+    const resolvedTasks = JSON.parse(JSON.stringify(merged.tasks)) as DoneTaskData[];
+
+    for (const conflict of merged.conflicts) {
+      if (!this.chooseConflictResolution(conflict)) {
+        this.applyRemoteConflictResolution(resolvedTasks, conflict);
+      }
+    }
+
+    const googleTodoTasks = this._tasks.filter(task => task.isGoogleTodoTask());
+    this._tasks = this.hydrateTasks([...resolvedTasks, ...googleTodoTasks]);
+    this.localMutationVersion++;
+    LocalStorageManager.tasks = resolvedTasks;
+    LocalStorageManager.markTaskSyncDirty();
+    this.emitGoogleDriveStatus({
+      state: 'loading',
+      message:
+        merged.conflicts.length > 0
+          ? `Google Drive: ${merged.conflicts.length}件の競合を解消して同期中...`
+          : 'Google Drive: 変更を自動マージして同期中...',
+    });
+
+    const result = await this.enqueueDriveSync(resolvedTasks, true);
+    if (!result.uploaded) {
+      this.emitGoogleDriveStatus({
+        state: 'error',
+        message: 'Google Drive: マージ後の同期でも競合しました',
+      });
+      return;
+    }
+    this.setSessionCache(this._tasks);
+    this.emitGoogleDriveStatus({
+      state: 'success',
+      message:
+        merged.conflicts.length > 0
+          ? 'Google Drive: 競合を解消して同期完了'
+          : 'Google Drive: 自動マージして同期完了',
+    });
   }
 
   get tasks(): DoneTask[] {
@@ -402,6 +507,7 @@ export default class TaskRepository {
             baseRevision: fetched.driveRevision,
             fileId: fetched.driveFileId,
             dirty: false,
+            baseTasks: localOnly,
           };
         }
         this.setSessionCache(fetched.mergedTasks);
@@ -476,8 +582,12 @@ export default class TaskRepository {
       });
 
       void this.enqueueDriveSync(persistableTasks, false)
-        .then(result => {
+        .then(async result => {
           if (!result.uploaded && result.skippedReason) {
+            if (result.skippedReason === 'conflict') {
+              await this.mergeDriveConflict(persistableTasks);
+              return;
+            }
             this.emitGoogleDriveStatus({
               state: 'error',
               message: TaskRepository.mapSyncSkippedReasonToMessage(
@@ -535,6 +645,10 @@ export default class TaskRepository {
         forceOverwrite,
       );
       if (!result.uploaded && result.skippedReason) {
+        if (result.skippedReason === 'conflict') {
+          await this.mergeDriveConflict(persistableTasks);
+          return;
+        }
         this.emitGoogleDriveStatus({
           state: 'error',
           message: TaskRepository.mapSyncSkippedReasonToMessage(

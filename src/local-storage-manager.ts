@@ -256,7 +256,8 @@ export default class LocalStorageManager {
         typeof parsed.baseRevision !== 'string' ||
         typeof parsed.fileId !== 'string' ||
         !parsed.baseRevision ||
-        !parsed.fileId
+        !parsed.fileId ||
+        !Array.isArray(parsed.baseTasks)
       ) {
         return null;
       }
@@ -264,6 +265,7 @@ export default class LocalStorageManager {
         baseRevision: parsed.baseRevision,
         fileId: parsed.fileId,
         dirty: parsed.dirty === true,
+        baseTasks: parsed.baseTasks,
       };
     } catch {
       return null;
