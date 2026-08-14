@@ -191,7 +191,7 @@ async function uploadMultipart(
   content: string,
   fileId = '',
   retried = false,
-): Promise<void> {
+): Promise<DriveFileInfo> {
   const boundary = 'done-boundary-' + Math.random().toString(36).slice(2);
   const body =
     `--${boundary}\r\n` +
@@ -205,8 +205,8 @@ async function uploadMultipart(
   const token = await getGoogleAccessToken(GOOGLE_DRIVE_SCOPE);
   const method = fileId ? 'PATCH' : 'POST';
   const endpoint = fileId
-    ? `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=multipart`
-    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    ? `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=multipart&fields=id,version`
+    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,version';
 
   const response = await fetch(endpoint, {
     method,
@@ -221,8 +221,7 @@ async function uploadMultipart(
     if ((response.status === 401 || response.status === 403) && !retried) {
       clearGoogleToken();
       try {
-        await uploadMultipart(metadata, content, fileId, true);
-        return;
+        return await uploadMultipart(metadata, content, fileId, true);
       } catch (error) {
         if (!isGoogleReloginRequiredError(error)) {
           throw error;
@@ -237,6 +236,14 @@ async function uploadMultipart(
     const text = await response.text();
     throw new Error(`Google Drive upload failed (${response.status}): ${text}`);
   }
+
+  const payload = (await response.json()) as {id?: string; version?: string};
+  const savedFileId = typeof payload.id === 'string' ? payload.id : fileId;
+  const version = typeof payload.version === 'string' ? payload.version : '';
+  if (!savedFileId || !version) {
+    throw new Error('Google Drive upload response is missing file version');
+  }
+  return {fileId: savedFileId, version};
 }
 
 export async function syncTasksToGoogleDrive(
@@ -247,7 +254,8 @@ export async function syncTasksToGoogleDrive(
     return {uploaded: false};
   }
 
-  const fileId = await findBackupFileId();
+  const knownFileId = LocalStorageManager.taskSyncState?.fileId || '';
+  const fileId = knownFileId || (await findBackupFileId());
   let remoteSnapshot: GoogleDriveTaskSnapshot | null = null;
   if (fileId) {
     remoteSnapshot = await loadSnapshotByFileId(fileId);
@@ -271,22 +279,15 @@ export async function syncTasksToGoogleDrive(
 
   const payload = createDriveTaskSyncPayload(tasks);
   const content = JSON.stringify(payload, null, 2);
-  await uploadMultipart(
+  const savedFile = await uploadMultipart(
     {name: FILE_NAME, mimeType: 'application/json'},
     content,
     fileId,
   );
-  const savedFileId = fileId || (await findBackupFileId());
-  const verifiedSnapshot = savedFileId
-    ? await loadSnapshotByFileId(savedFileId)
-    : null;
-  if (verifiedSnapshot?.revision !== payload.revision) {
-    return {uploaded: false, skippedReason: 'conflict'};
-  }
   LocalStorageManager.taskSyncState = {
     baseRevision: payload.revision,
-    baseDriveVersion: verifiedSnapshot.version,
-    fileId: savedFileId,
+    baseDriveVersion: savedFile.version,
+    fileId: savedFile.fileId,
     dirty: false,
     baseTasks: payload.tasks,
   };
@@ -298,7 +299,8 @@ export async function loadTasksFromGoogleDrive(): Promise<GoogleDriveTaskSnapsho
     return null;
   }
 
-  const fileId = await findBackupFileId();
+  const fileId =
+    LocalStorageManager.taskSyncState?.fileId || (await findBackupFileId());
   if (!fileId) {
     return null;
   }
@@ -311,7 +313,8 @@ export async function getGoogleDriveBackupFileLink(): Promise<string> {
     return '';
   }
 
-  const fileId = await findBackupFileId();
+  const fileId =
+    LocalStorageManager.taskSyncState?.fileId || (await findBackupFileId());
   if (!fileId) {
     return '';
   }

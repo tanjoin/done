@@ -18,6 +18,7 @@ export default class TaskRepository {
   private static readonly CLOUD_CACHE_KEY = 'done_cloud_tasks_cache_v1';
   private static readonly CLOUD_CACHE_AT_KEY = 'done_cloud_tasks_cache_at_v1';
   private static readonly CLOUD_CACHE_TTL_MS = 3 * 60 * 1000;
+  private static readonly DRIVE_SYNC_DEBOUNCE_MS = 400;
   private static readonly NAV_FROM_SETTINGS_KEY =
     'done_nav_from_settings_to_index_v1';
   private static readonly NAV_HINT_TTL_MS = 30 * 1000;
@@ -88,6 +89,15 @@ export default class TaskRepository {
 
   private _tasks: DoneTask[] = [];
   private driveSyncQueue: Promise<void> = Promise.resolve();
+  private driveSyncTimer: number | undefined;
+  private pendingDriveSync: {
+    tasks: DoneTaskData[];
+    forceOverwrite: boolean;
+    listeners: Array<{
+      resolve: (result: GoogleDriveSyncResult) => void;
+      reject: (reason: unknown) => void;
+    }>;
+  } | null = null;
   private localMutationVersion = 0;
 
   private countGoogleTodoTasks(tasks: DoneTaskData[]): number {
@@ -145,14 +155,51 @@ export default class TaskRepository {
     forceOverwrite: boolean,
   ): Promise<GoogleDriveSyncResult> {
     const snapshot = JSON.parse(JSON.stringify(tasks)) as DoneTaskData[];
+    return new Promise((resolve, reject) => {
+      if (!this.pendingDriveSync) {
+        this.pendingDriveSync = {
+          tasks: snapshot,
+          forceOverwrite,
+          listeners: [],
+        };
+      } else {
+        this.pendingDriveSync.tasks = snapshot;
+        this.pendingDriveSync.forceOverwrite ||= forceOverwrite;
+      }
+      this.pendingDriveSync.listeners.push({resolve, reject});
+
+      if (this.driveSyncTimer !== undefined) {
+        window.clearTimeout(this.driveSyncTimer);
+      }
+      this.driveSyncTimer = window.setTimeout(() => {
+        this.flushPendingDriveSync();
+      }, TaskRepository.DRIVE_SYNC_DEBOUNCE_MS);
+    });
+  }
+
+  private flushPendingDriveSync(): void {
+    const pending = this.pendingDriveSync;
+    this.pendingDriveSync = null;
+    this.driveSyncTimer = undefined;
+    if (!pending) {
+      return;
+    }
+
     const sync = this.driveSyncQueue
       .catch(() => undefined)
-      .then(() => syncTasksToGoogleDrive(snapshot, {forceOverwrite}));
+      .then(() =>
+        syncTasksToGoogleDrive(pending.tasks, {
+          forceOverwrite: pending.forceOverwrite,
+        }),
+      );
     this.driveSyncQueue = sync.then(
       () => undefined,
       () => undefined,
     );
-    return sync;
+    void sync.then(
+      result => pending.listeners.forEach(listener => listener.resolve(result)),
+      error => pending.listeners.forEach(listener => listener.reject(error)),
+    );
   }
 
   private chooseConflictResolution(conflict: TaskSyncConflict): boolean {
