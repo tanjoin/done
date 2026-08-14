@@ -238,6 +238,7 @@ class JsonOrganizer extends HTMLElement {
       task => new DoneTask(task),
     );
     LocalStorageManager.tasks = tasksToSave;
+    LocalStorageManager.markTaskSyncDirty();
 
     if (!LocalStorageManager.googleDriveSyncEnabled || !hasValidGoogleToken()) {
       this.setStatus('done_tasks 全体を保存しました。');
@@ -247,15 +248,15 @@ class JsonOrganizer extends HTMLElement {
     try {
       const result = await syncTasksToGoogleDrive(tasksToSave);
       if (!result.uploaded && result.skippedReason) {
-        if (result.skippedReason === 'missing_local_updated_at') {
+        if (result.skippedReason === 'precondition_unavailable') {
           this.setStatus(
-            'done_tasks は保存しました。Google Driveは最終更新日なしのため上書き停止しました。',
+            'done_tasks は保存しました。Google Driveの同期条件を確認できないため停止しました。',
             true,
           );
           return;
         }
         this.setStatus(
-          'done_tasks は保存しました。Google Drive側が新しいため上書き停止しました。',
+          'done_tasks は保存しました。別の端末の更新を検出したため同期停止しました。',
           true,
         );
         return;

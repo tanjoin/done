@@ -3,6 +3,7 @@ import {
   DoneTheme,
   DoneSwitchViewMode,
   DoneTaskData,
+  DoneTaskSyncState,
 } from './types';
 
 const DONE_NOTIFICATION_SOUNDS: DoneNotificationSound[] = [
@@ -240,6 +241,53 @@ export default class LocalStorageManager {
     return 'done_tasks_last_updated_at_v1';
   }
 
+  static get TASK_SYNC_STATE_KEY(): string {
+    return 'done_task_sync_state_v2';
+  }
+
+  static get taskSyncState(): DoneTaskSyncState | null {
+    try {
+      const raw = localStorage.getItem(LocalStorageManager.TASK_SYNC_STATE_KEY);
+      if (!raw) {
+        return null;
+      }
+      const parsed = JSON.parse(raw) as Partial<DoneTaskSyncState>;
+      if (
+        typeof parsed.baseRevision !== 'string' ||
+        typeof parsed.fileId !== 'string' ||
+        !parsed.baseRevision ||
+        !parsed.fileId
+      ) {
+        return null;
+      }
+      return {
+        baseRevision: parsed.baseRevision,
+        fileId: parsed.fileId,
+        dirty: parsed.dirty === true,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  static set taskSyncState(value: DoneTaskSyncState | null) {
+    if (!value) {
+      localStorage.removeItem(LocalStorageManager.TASK_SYNC_STATE_KEY);
+      return;
+    }
+    localStorage.setItem(
+      LocalStorageManager.TASK_SYNC_STATE_KEY,
+      JSON.stringify(value),
+    );
+  }
+
+  static markTaskSyncDirty(): void {
+    const state = LocalStorageManager.taskSyncState;
+    if (state) {
+      LocalStorageManager.taskSyncState = {...state, dirty: true};
+    }
+  }
+
   static get tasksLastUpdatedAt(): string {
     return (
       localStorage.getItem(LocalStorageManager.TASKS_LAST_UPDATED_AT_KEY) || ''
@@ -324,6 +372,7 @@ export default class LocalStorageManager {
       localStorage.removeItem(LocalStorageManager.TASKS_KEY);
       localStorage.removeItem(LocalStorageManager.LEGACY_V3_TASKS_KEY);
       localStorage.removeItem(LocalStorageManager.TASKS_LAST_UPDATED_AT_KEY);
+      LocalStorageManager.taskSyncState = null;
     } else {
       const serialized = JSON.stringify(
         LocalStorageManager.normalizeTasksForStorage(tasks),

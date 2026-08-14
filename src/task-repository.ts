@@ -24,10 +24,10 @@ export default class TaskRepository {
   private static mapSyncSkippedReasonToMessage(
     reason: GoogleDriveSyncSkippedReason,
   ): string {
-    if (reason === 'missing_local_updated_at') {
-      return 'Google Drive: 最終更新日なし（上書き停止）';
+    if (reason === 'precondition_unavailable') {
+      return 'Google Drive: 同期条件を確認できませんでした';
     }
-    return 'Google Drive: 保存先の方が新しいため上書き停止';
+    return 'Google Drive: 他の端末で更新されたため同期停止';
   }
 
   static markNextIndexNavigationFromSettings(): void {
@@ -160,6 +160,7 @@ export default class TaskRepository {
 
   set tasks(value: DoneTask[] | null) {
     this.localMutationVersion++;
+    LocalStorageManager.markTaskSyncDirty();
     if (value === null) {
       this._tasks = [];
       LocalStorageManager.tasks = null;
@@ -240,11 +241,15 @@ export default class TaskRepository {
     driveLoadFailed: boolean;
     driveLoadAuthExpired: boolean;
     driveUpdatedAt: string;
+    driveRevision: string;
+    driveFileId: string;
   }> {
     let workingTasks = localTasks;
     let driveLoadFailed = false;
     let driveLoadAuthExpired = false;
     let driveUpdatedAt = '';
+    let driveRevision = '';
+    let driveFileId = '';
 
     if (!LocalStorageManager.googleDriveSyncEnabled) {
       this.emitGoogleDriveStatus({
@@ -262,7 +267,9 @@ export default class TaskRepository {
       const fromDrive = await loadTasksFromGoogleDrive();
       if (fromDrive) {
         workingTasks = fromDrive.tasks;
-        driveUpdatedAt = fromDrive.hasTimestamp ? fromDrive.updatedAt : '';
+        driveUpdatedAt = fromDrive.updatedAt;
+        driveRevision = fromDrive.revision;
+        driveFileId = fromDrive.fileId;
       }
       if (LocalStorageManager.googleDriveSyncEnabled) {
         this.emitGoogleDriveStatus({
@@ -319,6 +326,8 @@ export default class TaskRepository {
       driveLoadFailed,
       driveLoadAuthExpired,
       driveUpdatedAt,
+      driveRevision,
+      driveFileId,
     };
   }
 
@@ -341,7 +350,9 @@ export default class TaskRepository {
     }
 
     if (!forceRefresh) {
-      const cached = this.readSessionCache();
+      const cached = LocalStorageManager.taskSyncState?.dirty
+        ? null
+        : this.readSessionCache();
       if (cached) {
         this._tasks = this.hydrateTasks(cached);
         LocalStorageManager.tasks = this.stripGoogleTodoTasks(cached);
@@ -363,19 +374,38 @@ export default class TaskRepository {
     });
 
     const mutationVersionAtFetchStart = this.localMutationVersion;
+    const hasPendingLocalChanges =
+      LocalStorageManager.taskSyncState?.dirty === true;
     const fetched = await this.fetchCloudMergedTasks(
       LocalStorageManager.tasks || [],
     );
     const canApplyCloudResult =
       mutationVersionAtFetchStart === this.localMutationVersion;
     if (canApplyCloudResult) {
-      const localOnly = this.stripGoogleTodoTasks(fetched.mergedTasks);
-      this._tasks = this.hydrateTasks(fetched.mergedTasks);
-      LocalStorageManager.tasks = localOnly;
-      if (fetched.driveUpdatedAt) {
-        LocalStorageManager.tasksLastUpdatedAt = fetched.driveUpdatedAt;
+      if (hasPendingLocalChanges) {
+        const localOnly = this.stripGoogleTodoTasks(this._tasks);
+        this._tasks = this.hydrateTasks([
+          ...localOnly,
+          ...fetched.mergedTasks.filter(
+            task => task.sourceType === 'google-todo',
+          ),
+        ]);
+      } else {
+        const localOnly = this.stripGoogleTodoTasks(fetched.mergedTasks);
+        this._tasks = this.hydrateTasks(fetched.mergedTasks);
+        LocalStorageManager.tasks = localOnly;
+        if (fetched.driveUpdatedAt) {
+          LocalStorageManager.tasksLastUpdatedAt = fetched.driveUpdatedAt;
+        }
+        if (fetched.driveRevision && fetched.driveFileId) {
+          LocalStorageManager.taskSyncState = {
+            baseRevision: fetched.driveRevision,
+            fileId: fetched.driveFileId,
+            dirty: false,
+          };
+        }
+        this.setSessionCache(fetched.mergedTasks);
       }
-      this.setSessionCache(fetched.mergedTasks);
     }
 
     this.emitTodoCalendarStatus(
@@ -422,11 +452,13 @@ export default class TaskRepository {
     const tasksFromJson = (await response.json()) as DoneTaskData[];
     this._tasks = this.hydrateTasks(tasksFromJson);
     LocalStorageManager.tasks = this._tasks;
+    LocalStorageManager.markTaskSyncDirty();
     this.setSessionCache(this._tasks);
   }
 
   saveTasks(): void {
     this.localMutationVersion++;
+    LocalStorageManager.markTaskSyncDirty();
     const persistableTasks = this.getPersistableTasks();
     LocalStorageManager.tasks = persistableTasks;
     if (hasValidGoogleToken()) {
@@ -477,6 +509,7 @@ export default class TaskRepository {
 
   async saveTasksWithSync(forceOverwrite = false): Promise<void> {
     this.localMutationVersion++;
+    LocalStorageManager.markTaskSyncDirty();
     const persistableTasks = this.getPersistableTasks();
     LocalStorageManager.tasks = persistableTasks;
     if (!hasValidGoogleToken()) {

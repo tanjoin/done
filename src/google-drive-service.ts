@@ -13,12 +13,12 @@ const FILE_NAME = 'tanjoin_done_task_sync_backup_v1.json';
 export type GoogleDriveTaskSnapshot = {
   tasks: DoneTaskData[];
   updatedAt: string;
-  hasTimestamp: boolean;
+  revision: string;
+  fileId: string;
+  etag: string;
 };
 
-export type GoogleDriveSyncSkippedReason =
-  | 'missing_local_updated_at'
-  | 'local_is_older';
+export type GoogleDriveSyncSkippedReason = 'conflict' | 'precondition_unavailable';
 
 export type GoogleDriveSyncResult = {
   uploaded: boolean;
@@ -29,6 +29,32 @@ export type GoogleDriveSyncResult = {
 type SyncOptions = {
   forceOverwrite?: boolean;
 };
+
+class DriveSyncConflictError extends Error {
+  constructor() {
+    super('Google Drive sync conflict');
+  }
+}
+
+type DriveFileInfo = {
+  fileId: string;
+  etag: string;
+};
+
+function createRevision(): string {
+  return crypto.randomUUID();
+}
+
+export function createDriveTaskSyncPayload(
+  tasks: DoneTaskData[],
+): DoneTaskSyncPayload {
+  return {
+    schemaVersion: 2,
+    revision: createRevision(),
+    updatedAt: new Date().toISOString(),
+    tasks,
+  };
+}
 
 function driveApi(path: string): string {
   return `https://www.googleapis.com/drive/v3${path}`;
@@ -81,12 +107,17 @@ async function findBackupFileId(): Promise<string> {
   return payload.files?.[0]?.id || '';
 }
 
-function parseDrivePayload(parsed: unknown): GoogleDriveTaskSnapshot | null {
+function parseDrivePayload(
+  parsed: unknown,
+  fileInfo: DriveFileInfo,
+): GoogleDriveTaskSnapshot | null {
   if (Array.isArray(parsed)) {
     return {
       tasks: parsed as DoneTaskData[],
       updatedAt: '',
-      hasTimestamp: false,
+      revision: 'legacy-array',
+      fileId: fileInfo.fileId,
+      etag: fileInfo.etag,
     };
   }
 
@@ -104,13 +135,36 @@ function parseDrivePayload(parsed: unknown): GoogleDriveTaskSnapshot | null {
   return {
     tasks: payload.tasks,
     updatedAt,
-    hasTimestamp: Boolean(updatedAt),
+    revision:
+      typeof payload.revision === 'string' && payload.revision.trim()
+        ? payload.revision.trim()
+        : `legacy:${updatedAt || 'unversioned'}`,
+    fileId: fileInfo.fileId,
+    etag: fileInfo.etag,
   };
+}
+
+async function loadFileInfo(fileId: string): Promise<DriveFileInfo> {
+  const token = await getGoogleAccessToken(GOOGLE_DRIVE_SCOPE);
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id`,
+    {headers: {Authorization: `Bearer ${token}`}},
+  );
+  if (response.status === 401 || response.status === 403) {
+    clearGoogleToken();
+    throw createGoogleReloginRequiredError();
+  }
+  if (!response.ok) {
+    throw new Error(`Google Drive file lookup failed (${response.status})`);
+  }
+  const etag = response.headers.get('etag') || '';
+  return {fileId, etag};
 }
 
 async function loadSnapshotByFileId(
   fileId: string,
 ): Promise<GoogleDriveTaskSnapshot | null> {
+  const fileInfo = await loadFileInfo(fileId);
   const token = await getGoogleAccessToken(GOOGLE_DRIVE_SCOPE);
   const response = await fetch(
     `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
@@ -131,13 +185,14 @@ async function loadSnapshotByFileId(
   }
 
   const parsed = (await response.json()) as unknown;
-  return parseDrivePayload(parsed);
+  return parseDrivePayload(parsed, fileInfo);
 }
 
 async function uploadMultipart(
   metadata: Record<string, unknown>,
   content: string,
   fileId = '',
+  etag = '',
   retried = false,
 ): Promise<void> {
   const boundary = 'done-boundary-' + Math.random().toString(36).slice(2);
@@ -161,15 +216,19 @@ async function uploadMultipart(
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': `multipart/related; boundary=${boundary}`,
+      ...(etag ? {'If-Match': etag} : {}),
     },
     body,
   });
 
   if (!response.ok) {
+    if (response.status === 412) {
+      throw new DriveSyncConflictError();
+    }
     if ((response.status === 401 || response.status === 403) && !retried) {
       clearGoogleToken();
       try {
-        await uploadMultipart(metadata, content, fileId, true);
+        await uploadMultipart(metadata, content, fileId, etag, true);
         return;
       } catch (error) {
         if (!isGoogleReloginRequiredError(error)) {
@@ -195,41 +254,50 @@ export async function syncTasksToGoogleDrive(
     return {uploaded: false};
   }
 
-  const localUpdatedAt = LocalStorageManager.tasksLastUpdatedAt;
-  if (!options.forceOverwrite && !localUpdatedAt) {
-    return {
-      uploaded: false,
-      skippedReason: 'missing_local_updated_at',
-    };
-  }
-
   const fileId = await findBackupFileId();
-  if (fileId && !options.forceOverwrite) {
-    const remoteSnapshot = await loadSnapshotByFileId(fileId);
-    if (remoteSnapshot) {
-      if (
-        remoteSnapshot.hasTimestamp &&
-        localUpdatedAt < remoteSnapshot.updatedAt
-      ) {
-        return {
-          uploaded: false,
-          skippedReason: 'local_is_older',
-          remoteUpdatedAt: remoteSnapshot.updatedAt,
-        };
-      }
+  let remoteSnapshot: GoogleDriveTaskSnapshot | null = null;
+  if (fileId) {
+    remoteSnapshot = await loadSnapshotByFileId(fileId);
+    const syncState = LocalStorageManager.taskSyncState;
+    if (
+      !options.forceOverwrite &&
+      (!syncState ||
+        syncState.fileId !== fileId ||
+        syncState.baseRevision !== remoteSnapshot?.revision)
+    ) {
+      return {
+        uploaded: false,
+        skippedReason: 'conflict',
+        ...(remoteSnapshot?.updatedAt
+          ? {remoteUpdatedAt: remoteSnapshot.updatedAt}
+          : {}),
+      };
+    }
+    if (!remoteSnapshot?.etag) {
+      return {uploaded: false, skippedReason: 'precondition_unavailable'};
     }
   }
 
-  const payload: DoneTaskSyncPayload = {
-    updatedAt: localUpdatedAt || new Date().toISOString(),
-    tasks,
-  };
+  const payload = createDriveTaskSyncPayload(tasks);
   const content = JSON.stringify(payload, null, 2);
-  await uploadMultipart(
-    {name: FILE_NAME, mimeType: 'application/json'},
-    content,
-    fileId,
-  );
+  try {
+    await uploadMultipart(
+      {name: FILE_NAME, mimeType: 'application/json'},
+      content,
+      fileId,
+      remoteSnapshot?.etag,
+    );
+  } catch (error) {
+    if (error instanceof DriveSyncConflictError) {
+      return {uploaded: false, skippedReason: 'conflict'};
+    }
+    throw error;
+  }
+  LocalStorageManager.taskSyncState = {
+    baseRevision: payload.revision,
+    fileId: fileId || (await findBackupFileId()),
+    dirty: false,
+  };
   return {uploaded: true};
 }
 

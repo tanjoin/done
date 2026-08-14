@@ -1,6 +1,6 @@
 import DoneTask from './done-task';
-import LocalStorageManager from './local-storage-manager';
 import TaskRepository from './task-repository';
+import {createDriveTaskSyncPayload} from './google-drive-service';
 import type {DoneTaskData, DoneTaskSyncPayload} from './types';
 
 type JsonExportFormat = 'array' | 'drive';
@@ -233,10 +233,7 @@ export default class SettingsDataSection {
     if (format === 'array') {
       return exportTasks;
     }
-    return {
-      updatedAt: LocalStorageManager.tasksLastUpdatedAt || new Date().toISOString(),
-      tasks: exportTasks,
-    };
+    return createDriveTaskSyncPayload(exportTasks);
   }
 
   private static exportJSON(

@@ -9,7 +9,6 @@ import {
 import {
   getGoogleDriveBackupFileLink,
   loadTasksFromGoogleDrive,
-  syncTasksToGoogleDrive,
 } from './google-drive-service';
 import {
   listGoogleCalendars,
@@ -228,9 +227,14 @@ export default class SettingsCalendarSection {
           const driveSnapshot = await loadTasksFromGoogleDrive();
           if (driveSnapshot !== null) {
             LocalStorageManager.tasks = driveSnapshot.tasks;
-            if (driveSnapshot.hasTimestamp) {
+            if (driveSnapshot.updatedAt) {
               LocalStorageManager.tasksLastUpdatedAt = driveSnapshot.updatedAt;
             }
+            LocalStorageManager.taskSyncState = {
+              baseRevision: driveSnapshot.revision,
+              fileId: driveSnapshot.fileId,
+              dirty: false,
+            };
           }
         }
         SessionManager.notifyGoogleLoginSucceeded();

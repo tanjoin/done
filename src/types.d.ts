@@ -62,8 +62,15 @@ export type DoneTaskData = {
   externalEventId?: string | null;
 };
 export type DoneTaskSyncPayload = {
+  schemaVersion: 2;
+  revision: string;
   updatedAt: string;
   tasks: DoneTaskData[];
+};
+export type DoneTaskSyncState = {
+  baseRevision: string;
+  fileId: string;
+  dirty: boolean;
 };
 export type DoneSelectOption<T extends string> = {
   value: T;
