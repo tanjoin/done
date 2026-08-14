@@ -225,7 +225,7 @@ export default class SettingsCalendarSection {
         SessionManager.notifyGoogleSessionStateChanged();
         if (driveToggle.checked) {
           const driveSnapshot = await loadTasksFromGoogleDrive();
-          if (driveSnapshot !== null) {
+          if (driveSnapshot !== null && !LocalStorageManager.taskSyncDirty) {
             LocalStorageManager.tasks = driveSnapshot.tasks;
             if (driveSnapshot.updatedAt) {
               LocalStorageManager.tasksLastUpdatedAt = driveSnapshot.updatedAt;

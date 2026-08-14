@@ -469,7 +469,7 @@ export default class TaskRepository {
     }
 
     if (!forceRefresh) {
-      const cached = LocalStorageManager.taskSyncState?.dirty
+      const cached = LocalStorageManager.taskSyncDirty
         ? null
         : this.readSessionCache();
       if (cached) {
@@ -493,8 +493,7 @@ export default class TaskRepository {
     });
 
     const mutationVersionAtFetchStart = this.localMutationVersion;
-    const hasPendingLocalChanges =
-      LocalStorageManager.taskSyncState?.dirty === true;
+    const hasPendingLocalChanges = LocalStorageManager.taskSyncDirty;
     const fetched = await this.fetchCloudMergedTasks(
       LocalStorageManager.tasks || [],
     );

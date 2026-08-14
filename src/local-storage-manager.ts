@@ -245,6 +245,14 @@ export default class LocalStorageManager {
     return 'done_task_sync_state_v2';
   }
 
+  static get TASK_SYNC_DIRTY_KEY(): string {
+    return 'done_task_sync_dirty_v1';
+  }
+
+  static get taskSyncDirty(): boolean {
+    return localStorage.getItem(LocalStorageManager.TASK_SYNC_DIRTY_KEY) === '1';
+  }
+
   static get taskSyncState(): DoneTaskSyncState | null {
     try {
       const raw = localStorage.getItem(LocalStorageManager.TASK_SYNC_STATE_KEY);
@@ -278,15 +286,22 @@ export default class LocalStorageManager {
   static set taskSyncState(value: DoneTaskSyncState | null) {
     if (!value) {
       localStorage.removeItem(LocalStorageManager.TASK_SYNC_STATE_KEY);
+      localStorage.removeItem(LocalStorageManager.TASK_SYNC_DIRTY_KEY);
       return;
     }
     localStorage.setItem(
       LocalStorageManager.TASK_SYNC_STATE_KEY,
       JSON.stringify(value),
     );
+    if (value.dirty) {
+      localStorage.setItem(LocalStorageManager.TASK_SYNC_DIRTY_KEY, '1');
+    } else {
+      localStorage.removeItem(LocalStorageManager.TASK_SYNC_DIRTY_KEY);
+    }
   }
 
   static markTaskSyncDirty(): void {
+    localStorage.setItem(LocalStorageManager.TASK_SYNC_DIRTY_KEY, '1');
     const state = LocalStorageManager.taskSyncState;
     if (state) {
       LocalStorageManager.taskSyncState = {...state, dirty: true};
