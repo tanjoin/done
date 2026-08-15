@@ -776,7 +776,7 @@ class Index extends HTMLElement {
       if (!isDisplayTargetDay && LocalStorageManager.filterHideNonTargetDay) {
         return;
       }
-      const todayStatus = task.history[TODAY];
+      const todayStatus = task.history[task.resolveStatusDateKey()];
       const timeCheck = task.timeCheck();
       const isUnprocessedAfterWindow =
         !todayStatus &&
@@ -877,7 +877,7 @@ class Index extends HTMLElement {
         const isTargetDay = targetDayMap[task.id] === true;
         const actionDateKey = task.resolveActionDateKey();
         const actionDateStatus = task.history[actionDateKey];
-        const todayStatus = task.history[TODAY];
+        const todayStatus = task.history[task.resolveStatusDateKey()];
         const yesterdayStatus = task.history[YESTERDAY];
         const timeCheck = task.timeCheck();
         const statusInfo = task.getTaskStatusInfo(

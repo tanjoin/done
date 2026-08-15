@@ -165,25 +165,34 @@ export default class DoneTask implements DoneTaskData {
     return this.normalizeRemindMinutesBefore() !== null;
   }
 
+  getActiveReminderCandidate(now: Date = new Date()): DoneReminderCandidate | null {
+    for (const offset of [0, 1]) {
+      const scheduledDate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + offset,
+        12,
+        0,
+        0,
+        0,
+      );
+      const candidate = this.toReminderCandidate(scheduledDate);
+      if (!candidate || candidate.leadMinutes === null || candidate.leadMinutes <= 0) {
+        continue;
+      }
+      const startAt = new Date(
+        candidate.reminderAt.getTime() + candidate.leadMinutes * 60000,
+      );
+      if (now >= candidate.reminderAt && now < startAt) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
   // リマインド猶予時間が設定されている場合、リマインド時間帯にタスクを表示するかどうかを判定する
   isReminderWindowActive(now: Date = new Date()): boolean {
-    const leadMinutes = this.normalizeRemindMinutesBefore();
-    // リマインド猶予時間が設定されていない場合は、リマインド時間帯は存在しない
-    if (leadMinutes === null || leadMinutes <= 0) {
-      return false;
-    }
-    // タスクが特定の日付にスケジュールされていない場合は、リマインド時間帯は存在しない
-    if (!this.startTime || !this.isTaskScheduledOnDate(now)) {
-      return false;
-    }
-    const candidate = this.toReminderCandidate(now);
-    if (!candidate) {
-      return false;
-    }
-    const startAt = new Date(candidate.reminderAt.getTime() + leadMinutes * 60000);
-    // 現在時刻がリマインド時間帯に含まれるかどうかを判定する
-    // リマインド時間帯は、リマインド開始時刻からタスク開始時刻までの期間
-    return now >= candidate.reminderAt && now < startAt;
+    return this.getActiveReminderCandidate(now) !== null;
   }
 
   get todayStatus(): TodayStatus {
@@ -273,7 +282,7 @@ export default class DoneTask implements DoneTaskData {
   get statusInfo() {
     const now = new Date();
     return this.getTaskStatusInfo(
-      this.todayStatus,
+      this.history[this.resolveStatusDateKey(now)],
       this.timeCheck(),
       this.isTargetDay(now),
       now,
@@ -498,6 +507,11 @@ export default class DoneTask implements DoneTaskData {
   }
 
   resolveActionDateKey(now: Date = new Date()): string {
+    const reminderCandidate = this.getActiveReminderCandidate(now);
+    if (reminderCandidate) {
+      return reminderCandidate.scheduleDateKey;
+    }
+
     if (!this.isOvernightTask()) {
       return this.toKebabCase(now);
     }
@@ -508,6 +522,14 @@ export default class DoneTask implements DoneTaskData {
     }
 
     return this.toKebabCase(now);
+  }
+
+  // 指定された日付に対して、タスクのステータスを判定するためのキーを返す
+  resolveStatusDateKey(now: Date = new Date()): string {
+    const reminderCandidate = this.getActiveReminderCandidate(now);
+    return reminderCandidate
+      ? reminderCandidate.scheduleDateKey
+      : this.toKebabCase(now);
   }
 
   isReminderActiveOnDate(targetDate: Date, now: Date): boolean {

@@ -297,3 +297,44 @@ test('リマインド時間帯の判定は開始前の限定時間だけ true �
     assert.equal(task.isReminderWindowActive(), false);
   });
 });
+
+test('翌日開始のリマインダーは日付をまたいでも表示対象になる', () => {
+  const task = new DoneTask({
+    id: 'task-next-day-reminder',
+    text: '日付またぎリマインダー',
+    group: 'テスト',
+    specificDate: '2026-07-30',
+    startTime: '00:03',
+    endTime: '00:30',
+    remindMinutesBefore: 5,
+    history: {},
+  });
+
+  withMockedNow('2026-07-29T23:59:00+09:00', () => {
+    assert.equal(task.shouldShowTask(), true);
+    assert.equal(task.isReminderWindowActive(), true);
+    assert.equal(task.resolveActionDateKey(), '2026-07-30');
+    assert.equal(task.statusInfo.label, 'リマインダー');
+  });
+});
+
+test('リマインダー中の完了は対象予定日の状態として扱う', () => {
+  const task = new DoneTask({
+    id: 'task-reminder-completed',
+    text: '日付またぎリマインダー',
+    group: 'テスト',
+    specificDate: '2026-07-30',
+    startTime: '00:03',
+    endTime: '00:30',
+    remindMinutesBefore: 5,
+    history: {'2026-07-30': 'completed'},
+  });
+
+  withMockedNow('2026-07-29T23:59:00+09:00', () => {
+    assert.equal(task.resolveActionDateKey(), '2026-07-30');
+    assert.equal(task.statusInfo.label, '追加済み');
+
+    task.history['2026-07-30'] = 'cancelled';
+    assert.equal(task.statusInfo.label, 'キャンセル済');
+  });
+});
