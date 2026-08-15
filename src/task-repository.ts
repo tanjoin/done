@@ -622,10 +622,13 @@ export default class TaskRepository {
     }
 
     const tasksFromJson = (await response.json()) as DoneTaskData[];
+    this.localMutationVersion++;
     this._tasks = this.hydrateTasks(tasksFromJson);
+    LocalStorageManager.googleDriveSyncEnabled = false;
     LocalStorageManager.tasks = this._tasks;
-    LocalStorageManager.markTaskSyncDirty();
-    this.setSessionCache(this._tasks);
+    LocalStorageManager.taskSyncState = null;
+    this.clearSessionCache();
+    await this.refreshFromCloudIfNeeded(true);
   }
 
   saveTasks(): void {
