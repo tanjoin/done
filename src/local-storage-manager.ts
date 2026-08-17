@@ -110,10 +110,6 @@ export default class LocalStorageManager {
     return 'done_google_done_calendar_id_enc_v1';
   }
 
-  static get GOOGLE_DRIVE_SYNC_ENABLED_KEY(): string {
-    return 'done_google_drive_sync_enabled_v1';
-  }
-
   static get calendarTargetId(): string {
     return (
       localStorage.getItem(LocalStorageManager.CALENDAR_TARGET_ID_KEY) || ''
@@ -166,14 +162,6 @@ export default class LocalStorageManager {
       LocalStorageManager.GOOGLE_DONE_CALENDAR_ID_ENCRYPTED_KEY,
       value,
     );
-  }
-
-  static get googleDriveSyncEnabled(): boolean {
-    return this.getFilter(LocalStorageManager.GOOGLE_DRIVE_SYNC_ENABLED_KEY, false);
-  }
-
-  static set googleDriveSyncEnabled(value: boolean) {
-    this.setFilter(LocalStorageManager.GOOGLE_DRIVE_SYNC_ENABLED_KEY, value);
   }
 
   static supportsLocalStorage(): boolean {

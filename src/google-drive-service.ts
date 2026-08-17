@@ -251,10 +251,6 @@ export async function syncTasksToGoogleDrive(
   tasks: DoneTaskData[],
   options: SyncOptions = {},
 ): Promise<GoogleDriveSyncResult> {
-  if (!LocalStorageManager.googleDriveSyncEnabled) {
-    return {uploaded: false};
-  }
-
   const knownFileId = LocalStorageManager.taskSyncState?.fileId || '';
   const fileId = knownFileId || (await findBackupFileId());
   let remoteSnapshot: GoogleDriveTaskSnapshot | null = null;
@@ -297,10 +293,6 @@ export async function syncTasksToGoogleDrive(
 }
 
 export async function loadTasksFromGoogleDrive(): Promise<GoogleDriveTaskSnapshot | null> {
-  if (!LocalStorageManager.googleDriveSyncEnabled) {
-    return null;
-  }
-
   const fileId =
     LocalStorageManager.taskSyncState?.fileId || (await findBackupFileId());
   if (!fileId) {
@@ -311,10 +303,6 @@ export async function loadTasksFromGoogleDrive(): Promise<GoogleDriveTaskSnapsho
 }
 
 export async function getGoogleDriveBackupFileLink(): Promise<string> {
-  if (!LocalStorageManager.googleDriveSyncEnabled) {
-    return '';
-  }
-
   const fileId =
     LocalStorageManager.taskSyncState?.fileId || (await findBackupFileId());
   if (!fileId) {

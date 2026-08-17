@@ -240,7 +240,7 @@ class JsonOrganizer extends HTMLElement {
     LocalStorageManager.tasks = tasksToSave;
     LocalStorageManager.markTaskSyncDirty();
 
-    if (!LocalStorageManager.googleDriveSyncEnabled || !hasValidGoogleToken()) {
+    if (!hasValidGoogleToken()) {
       this.setStatus('done_tasks 全体を保存しました。');
       return;
     }

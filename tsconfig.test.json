@@ -14,6 +14,12 @@
     "src/done-task.ts",
     "src/date-helper.ts",
     "src/boolean-helper.ts",
+    "src/google-auth.ts",
+    "src/google-calendar-service.ts",
+    "src/google-crypto.ts",
+    "src/google-drive-service.ts",
+    "src/local-storage-manager.ts",
+    "src/task-repository.ts",
     "src/task-sync-merge.ts",
     "src/types.d.ts",
     "tests/**/*.ts"

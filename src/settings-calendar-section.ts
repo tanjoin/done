@@ -55,12 +55,8 @@ export default class SettingsCalendarSection {
             placeholder="DONEカレンダーIDを手入力（OAuth未設定でも可）"
             class="setting-input"
           />
-          <label class="checkbox-option" for="googleDriveSyncToggle">
-            <input type="checkbox" id="googleDriveSyncToggle" />
-            Google Drive 同期を有効にする
-          </label>
           <p class="setting-desc">
-            同期を有効にすると、タスクJSONは Google Drive 上の
+            タスクJSONは Google Drive 上の
             <strong>tanjoin_done_task_sync_backup_v1.json</strong> に保存されます。<br />
             保存タイミングはタスク操作後とインポート後です。既存ファイルがあれば更新し、
             なければ作成します。他のファイルは変更しません。
@@ -106,9 +102,6 @@ export default class SettingsCalendarSection {
     const googleLoginStatus = root.querySelector(
       '#googleLoginStatus',
     ) as HTMLElement | null;
-    const driveToggle = root.querySelector(
-      '#googleDriveSyncToggle',
-    ) as HTMLInputElement | null;
     const saveStatus = root.querySelector(
       '#googleSaveStatus',
     ) as HTMLElement | null;
@@ -134,8 +127,7 @@ export default class SettingsCalendarSection {
       !doneManualInput ||
       !googleLoginButton ||
       !googleLoginStatus ||
-      !driveLinkStatus ||
-      !driveToggle
+      !driveLinkStatus
     ) {
       return;
     }
@@ -148,7 +140,6 @@ export default class SettingsCalendarSection {
       doneManualInput.value = settings.doneCalendarId;
     });
 
-    driveToggle.checked = LocalStorageManager.googleDriveSyncEnabled;
     doneManualInput.value = LocalStorageManager.calendarTargetId;
 
     const updateLoginStatus = () => {
@@ -163,12 +154,6 @@ export default class SettingsCalendarSection {
     };
 
     const refreshDriveLink = async () => {
-      if (!driveToggle.checked) {
-        driveLinkStatus.style.display = 'none';
-        driveLinkStatus.innerHTML = '';
-        return;
-      }
-
       driveLinkStatus.style.display = 'block';
       if (!hasValidGoogleToken()) {
         driveLinkStatus.textContent =
@@ -223,21 +208,19 @@ export default class SettingsCalendarSection {
 
         updateLoginStatus();
         SessionManager.notifyGoogleSessionStateChanged();
-        if (driveToggle.checked) {
-          const driveSnapshot = await loadTasksFromGoogleDrive();
-          if (driveSnapshot !== null && !LocalStorageManager.taskSyncDirty) {
-            LocalStorageManager.tasks = driveSnapshot.tasks;
-            if (driveSnapshot.updatedAt) {
-              LocalStorageManager.tasksLastUpdatedAt = driveSnapshot.updatedAt;
-            }
-            LocalStorageManager.taskSyncState = {
-              baseRevision: driveSnapshot.revision,
-              baseDriveVersion: driveSnapshot.version,
-              fileId: driveSnapshot.fileId,
-              dirty: false,
-              baseTasks: driveSnapshot.tasks,
-            };
+        const driveSnapshot = await loadTasksFromGoogleDrive();
+        if (driveSnapshot !== null && !LocalStorageManager.taskSyncDirty) {
+          LocalStorageManager.tasks = driveSnapshot.tasks;
+          if (driveSnapshot.updatedAt) {
+            LocalStorageManager.tasksLastUpdatedAt = driveSnapshot.updatedAt;
           }
+          LocalStorageManager.taskSyncState = {
+            baseRevision: driveSnapshot.revision,
+            baseDriveVersion: driveSnapshot.version,
+            fileId: driveSnapshot.fileId,
+            dirty: false,
+            baseTasks: driveSnapshot.tasks,
+          };
         }
         SessionManager.notifyGoogleLoginSucceeded();
         await refreshDriveLink();
@@ -300,10 +283,6 @@ export default class SettingsCalendarSection {
       doneSelectEditedByUser = true;
     });
 
-    driveToggle.addEventListener('change', () => {
-      void refreshDriveLink();
-    });
-
     form.addEventListener('submit', async event => {
       event.preventDefault();
       try {
@@ -319,7 +298,6 @@ export default class SettingsCalendarSection {
           doneCalendarId,
         });
         doneManualInput.value = doneCalendarId;
-        LocalStorageManager.googleDriveSyncEnabled = driveToggle.checked;
         if (saveStatus) {
           saveStatus.style.display = 'inline';
           setTimeout(() => {

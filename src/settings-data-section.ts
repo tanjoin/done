@@ -264,7 +264,7 @@ export default class SettingsDataSection {
     taskRepository: TaskRepository,
   ): Promise<void> {
     const ok = confirm(
-      'すべてのカスタム設定と履歴を削除し、デフォルトのtasks.jsonから再読み込みしますか？\nGoogle Drive同期はOFFになり、Drive上のデータは変更されません。',
+      'すべてのカスタム設定と履歴を削除し、デフォルトのtasks.jsonから再読み込みしますか？\nログイン中かつ Drive 同期ON の場合、Drive の最新データで上書きされます。',
     );
     if (!ok) {
       return;

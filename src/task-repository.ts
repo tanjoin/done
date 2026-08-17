@@ -420,17 +420,10 @@ export default class TaskRepository {
     let driveVersion = '';
     let driveFileId = '';
 
-    if (!LocalStorageManager.googleDriveSyncEnabled) {
-      this.emitGoogleDriveStatus({
-        state: 'off',
-        message: 'Google Drive: 同期OFF',
-      });
-    } else {
-      this.emitGoogleDriveStatus({
-        state: 'loading',
-        message: 'Google Drive: 読み込み中...',
-      });
-    }
+    this.emitGoogleDriveStatus({
+      state: 'loading',
+      message: 'Google Drive: 読み込み中...',
+    });
 
     try {
       const fromDrive = await loadTasksFromGoogleDrive();
@@ -441,12 +434,10 @@ export default class TaskRepository {
         driveVersion = fromDrive.version;
         driveFileId = fromDrive.fileId;
       }
-      if (LocalStorageManager.googleDriveSyncEnabled) {
-        this.emitGoogleDriveStatus({
-          state: 'success',
-          message: `Google Drive: 読み込み完了${TaskRepository.formatDriveVersion(driveUpdatedAt)}`,
-        });
-      }
+      this.emitGoogleDriveStatus({
+        state: 'success',
+        message: `Google Drive: 読み込み完了${TaskRepository.formatDriveVersion(driveUpdatedAt)}`,
+      });
     } catch (error) {
       // Google Drive が未設定/未認証の場合はローカルのみで継続する。
       driveLoadFailed = true;
@@ -456,14 +447,12 @@ export default class TaskRepository {
           'Google認証の有効期限が切れました。再ログインするにはこのメッセージをクリックしてください。',
         );
       }
-      if (LocalStorageManager.googleDriveSyncEnabled) {
-        this.emitGoogleDriveStatus({
-          state: 'error',
-          message: driveLoadAuthExpired
-            ? 'Google Drive: 認証切れ（再ログインしてください）'
-            : 'Google Drive: 読み込み失敗',
-        });
-      }
+      this.emitGoogleDriveStatus({
+        state: 'error',
+        message: driveLoadAuthExpired
+          ? 'Google Drive: 認証切れ（再ログインしてください）'
+          : 'Google Drive: 読み込み失敗',
+      });
     }
 
     let googleTodoTasks: DoneTaskData[] = [];
@@ -511,13 +500,6 @@ export default class TaskRepository {
         message: 'Google Drive: 未ログイン',
       });
       return false;
-    }
-
-    if (!LocalStorageManager.googleDriveSyncEnabled) {
-      this.emitGoogleDriveStatus({
-        state: 'off',
-        message: 'Google Drive: 同期OFF',
-      });
     }
 
     if (!forceRefresh) {
@@ -624,7 +606,6 @@ export default class TaskRepository {
     const tasksFromJson = (await response.json()) as DoneTaskData[];
     this.localMutationVersion++;
     this._tasks = this.hydrateTasks(tasksFromJson);
-    LocalStorageManager.googleDriveSyncEnabled = false;
     LocalStorageManager.tasks = this._tasks;
     LocalStorageManager.taskSyncState = null;
     this.clearSessionCache();
@@ -637,14 +618,6 @@ export default class TaskRepository {
     const persistableTasks = this.getPersistableTasks();
     LocalStorageManager.tasks = persistableTasks;
     if (hasValidGoogleToken()) {
-      if (!LocalStorageManager.googleDriveSyncEnabled) {
-        this.emitGoogleDriveStatus({
-          state: 'off',
-          message: 'Google Drive: 同期OFF',
-        });
-        return;
-      }
-
       this.emitGoogleDriveStatus({
         state: 'loading',
         message: 'Google Drive: 同期中...',
@@ -693,14 +666,6 @@ export default class TaskRepository {
     const persistableTasks = this.getPersistableTasks();
     LocalStorageManager.tasks = persistableTasks;
     if (!hasValidGoogleToken()) {
-      return;
-    }
-
-    if (!LocalStorageManager.googleDriveSyncEnabled) {
-      this.emitGoogleDriveStatus({
-        state: 'off',
-        message: 'Google Drive: 同期OFF',
-      });
       return;
     }
 
