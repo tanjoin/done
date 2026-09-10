@@ -21,6 +21,7 @@
     "src/google-drive-service.ts",
     "src/local-storage-manager.ts",
     "src/footer.ts",
+    "src/sort-manager.ts",
     "src/task-repository.ts",
     "src/task-sync-merge.ts",
     "src/types.d.ts",

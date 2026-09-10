@@ -287,6 +287,59 @@ test('複数の表示カレンダーを保存して取得できる', async () =>
   }
 });
 
+test('overdueTasks もソートされる', () => {
+  const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'window',
+  );
+  const originalDocumentDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'document',
+  );
+
+  try {
+    Object.defineProperty(globalThis, 'window', {
+      value: {
+        setTimeout: () => 0,
+        clearTimeout: () => undefined,
+      },
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'document', {
+      value: {
+        addEventListener: () => undefined,
+      },
+      configurable: true,
+    });
+
+    const {default: SortManager} = require('../src/sort-manager');
+    const sortManager = new SortManager();
+    sortManager.updateSortState('task');
+
+    const overdueTasks = [
+      {task: {text: 'zzz', group: 'A', history: {}, startTime: '', endTime: ''}, dateKey: '2026-09-11'},
+      {task: {text: 'aaa', group: 'A', history: {}, startTime: '', endTime: ''}, dateKey: '2026-09-10'},
+    ];
+
+    sortManager.sortOverdueTasks(overdueTasks as any);
+    assert.deepEqual(
+      overdueTasks.map(({task}) => task.text),
+      ['aaa', 'zzz'],
+    );
+  } finally {
+    if (originalWindowDescriptor) {
+      Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
+    } else {
+      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'window');
+    }
+    if (originalDocumentDescriptor) {
+      Object.defineProperty(globalThis, 'document', originalDocumentDescriptor);
+    } else {
+      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'document');
+    }
+  }
+});
+
 test('resetToDefault は Drive 同期を OFF にしない', async () => {
   const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
     globalThis,

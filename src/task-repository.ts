@@ -8,7 +8,7 @@ import {
   syncTasksToGoogleDrive,
 } from './google-drive-service';
 import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
-import type {DoneTaskData} from './types';
+import type {DoneOverdueTask, DoneTaskData} from './types';
 import {
   mergeTaskSyncData,
   type TaskSyncConflict,
@@ -319,6 +319,109 @@ export default class TaskRepository {
           ? `Google Drive: 競合を解消して同期完了${TaskRepository.formatDriveVersion(result.updatedAt || '')}`
           : `Google Drive: 自動マージして同期完了${TaskRepository.formatDriveVersion(result.updatedAt || '')}`,
     });
+  }
+
+  private parseDateKey(dateKey: string): Date | null {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      return null;
+    }
+    const [year, month, day] = dateKey.split('-').map(Number);
+    if (!year || !month || !day) {
+      return null;
+    }
+    return new Date(year, month - 1, day, 12, 0, 0, 0);
+  }
+
+  collectOverdueTasks(task: DoneTask): DoneOverdueTask[] {
+    const referenceDate = this.parseDateKey(
+      LocalStorageManager.overdueReferenceDate,
+    );
+    if (!referenceDate) {
+      return [];
+    }
+
+    const yesterday = new Date();
+    yesterday.setHours(12, 0, 0, 0);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (referenceDate > yesterday) {
+      return [];
+    }
+
+    if (task.specificDate && task.endDate && !task.isGoogleTodoTask()) {
+      const yesterdayKey = task.toKebabCase(yesterday);
+      const referenceDateKey = task.toKebabCase(referenceDate);
+      const hasProcessedTask = Object.entries(task.history).some(
+        ([dateKey, status]) =>
+          dateKey >= task.specificDate! &&
+          dateKey <= task.endDate! &&
+          Boolean(status),
+      );
+      if (
+        yesterdayKey < task.endDate ||
+        referenceDateKey > task.endDate ||
+        hasProcessedTask
+      ) {
+        return [];
+      }
+      return [{task, dateKey: task.endDate}];
+    }
+
+    const overdueTasks: DoneOverdueTask[] = [];
+    const startNorm = task.normalizeStartTime();
+    const endNorm = task.normalizeEndTime();
+    const now = new Date();
+
+    let loopStart = new Date(referenceDate);
+    if (startNorm > endNorm) {
+      loopStart.setDate(loopStart.getDate() - 1);
+    }
+
+    const cursor = new Date(loopStart);
+    let guard = 0;
+    while (cursor <= yesterday && guard < 370) {
+      const dateKey = task.toKebabCase(cursor);
+      const hasEnded = task.hasExecutionWindowEndedOnDate(cursor, now);
+
+      if (
+        !task.history[dateKey] &&
+        task.isTaskScheduledOnDate(cursor) &&
+        hasEnded
+      ) {
+        overdueTasks.push({task, dateKey});
+      }
+      cursor.setDate(cursor.getDate() + 1);
+      guard++;
+    }
+
+    return overdueTasks;
+  }
+
+  collectOverdueGroups(): Record<string, DoneOverdueTask[]> {
+    const overdueGroups: Record<string, DoneOverdueTask[]> = {};
+    const forceShowOverdue = LocalStorageManager.filterForceShowOverdue;
+
+    if (!forceShowOverdue) {
+      return overdueGroups;
+    }
+
+    this._tasks.forEach((task: DoneTask) => {
+      const overdueTasks = this.collectOverdueTasks(new DoneTask(task));
+      if (overdueTasks.length === 0) {
+        return;
+      }
+      const overdueGroup = new DoneTask(task).normalizeGroup();
+      if (!overdueGroups[overdueGroup]) {
+        overdueGroups[overdueGroup] = [];
+      }
+      overdueGroups[overdueGroup]?.push(...overdueTasks);
+    });
+
+    return overdueGroups;
+  }
+
+  getOverdueTasks(): DoneOverdueTask[] {
+    return Object.values(this.collectOverdueGroups()).flat();
   }
 
   get tasks(): DoneTask[] {

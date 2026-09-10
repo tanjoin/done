@@ -1,5 +1,6 @@
 import DateHelper from './date-helper';
 import DoneTask from './done-task';
+import type {DoneOverdueTask} from './types';
 import TaskRepository from './task-repository';
 
 export default class SortManager {
@@ -15,9 +16,61 @@ export default class SortManager {
     }
   }
 
-  handleSort(columnName: string, taskRepository: TaskRepository): void {
+  handleSort(
+    columnName: string,
+    taskRepository: TaskRepository,
+    overdueTasks: DoneOverdueTask[] = [],
+  ): void {
     this.updateSortState(columnName);
+    if (overdueTasks.length > 0) {
+      this.sortOverdueTasks(overdueTasks);
+      return;
+    }
     this.sortTasks(taskRepository.tasks);
+  }
+
+  sortOverdueTasks(overdueTasks: DoneOverdueTask[]): void {
+    const col = this._column;
+    if (!col || overdueTasks.length === 0) return;
+
+    const ascMult = this._ascending ? 1 : -1;
+    const TODAY = DateHelper.today;
+
+    overdueTasks.sort((a, b) => {
+      const taskA = a.task;
+      const taskB = b.task;
+      let valA = '';
+      let valB = '';
+
+      switch (col) {
+        case 'group':
+          valA = taskA.group || '';
+          valB = taskB.group || '';
+          break;
+        case 'task':
+          valA = taskA.text || '';
+          valB = taskB.text || '';
+          break;
+        case 'time':
+          valA = taskA.startTime || '';
+          valB = taskB.startTime || '';
+          break;
+        case 'date':
+          valA = a.dateKey;
+          valB = b.dateKey;
+          break;
+        case 'status':
+          valA = taskA.history && taskA.history[TODAY] ? taskA.history[TODAY] : '';
+          valB = taskB.history && taskB.history[TODAY] ? taskB.history[TODAY] : '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (valA < valB) return -1 * ascMult;
+      if (valA > valB) return 1 * ascMult;
+      return 0;
+    });
   }
 
   sortTasks(tasks: DoneTask[]): void {

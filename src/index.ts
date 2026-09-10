@@ -75,83 +75,6 @@ class Index extends HTMLElement {
     return this._taskRepository.tasks.findIndex(task => task.id === taskId);
   }
 
-  private parseDateKey(dateKey: string): Date | null {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-      return null;
-    }
-    const [year, month, day] = dateKey.split('-').map(Number);
-    if (!year || !month || !day) {
-      return null;
-    }
-    return new Date(year, month - 1, day, 12, 0, 0, 0);
-  }
-
-  private collectOverdueTasks(task: DoneTask): DoneOverdueTask[] {
-    const referenceDate = this.parseDateKey(
-      LocalStorageManager.overdueReferenceDate,
-    );
-    if (!referenceDate) {
-      return [];
-    }
-
-    const yesterday = new Date();
-    yesterday.setHours(12, 0, 0, 0);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (referenceDate > yesterday) {
-      return [];
-    }
-
-    if (task.specificDate && task.endDate && !task.isGoogleTodoTask()) {
-      const yesterdayKey = task.toKebabCase(yesterday);
-      const referenceDateKey = task.toKebabCase(referenceDate);
-      const hasProcessedTask = Object.entries(task.history).some(
-        ([dateKey, status]) =>
-          dateKey >= task.specificDate! &&
-          dateKey <= task.endDate! &&
-          Boolean(status),
-      );
-      if (
-        yesterdayKey < task.endDate ||
-        referenceDateKey > task.endDate ||
-        hasProcessedTask
-      ) {
-        return [];
-      }
-      return [{task, dateKey: task.endDate}];
-    }
-
-    const overdueTasks: DoneOverdueTask[] = [];
-    const startNorm = task.normalizeStartTime();
-    const endNorm = task.normalizeEndTime();
-    const now = new Date();
-
-    // 翌日またぎの場合はループを一日前から開始
-    let loopStart = new Date(referenceDate);
-    if (startNorm > endNorm) {
-      loopStart.setDate(loopStart.getDate() - 1);
-    }
-
-    const cursor = new Date(loopStart);
-    let guard = 0;
-    while (cursor <= yesterday && guard < 370) {
-      const dateKey = task.toKebabCase(cursor);
-      const hasEnded = task.hasExecutionWindowEndedOnDate(cursor, now);
-
-      if (
-        !task.history[dateKey] &&
-        task.isTaskScheduledOnDate(cursor) &&
-        hasEnded
-      ) {
-        overdueTasks.push({task, dateKey});
-      }
-      cursor.setDate(cursor.getDate() + 1);
-      guard++;
-    }
-
-    return overdueTasks;
-  }
-
   private executeTask(
     taskId: string,
     isCancel: boolean,
@@ -740,9 +663,7 @@ class Index extends HTMLElement {
     const filteredTasks: DoneTask[] = [];
     const targetDayMap: TargetDayMap = {};
     const groups: DoneGroups = {};
-    const overdueGroups: Record<string, DoneOverdueTask[]> = {};
-
-    const forceShowOverdue = LocalStorageManager.filterForceShowOverdue;
+    const overdueGroups = this._taskRepository.collectOverdueGroups();
 
     this._taskRepository.tasks.forEach((task: DoneTask) => {
       task = new DoneTask(task);
@@ -753,17 +674,6 @@ class Index extends HTMLElement {
 
       if (task.isGoogleTodoTask() && LocalStorageManager.filterHideGoogleTodo) {
         return;
-      }
-
-      if (forceShowOverdue) {
-        const overdueTasks = this.collectOverdueTasks(task);
-        if (overdueTasks.length > 0) {
-          const overdueGroup = task.normalizeGroup();
-          if (!overdueGroups[overdueGroup]) {
-            overdueGroups[overdueGroup] = [];
-          }
-          overdueGroups[overdueGroup]?.push(...overdueTasks);
-        }
       }
 
       const isTargetDay = task.shouldShowTask();
@@ -1282,7 +1192,8 @@ class Index extends HTMLElement {
         if (th) {
           const colName = th.getAttribute('data-sort-col');
           if (colName) {
-            this._sortManager.handleSort(colName, this._taskRepository);
+            const overdueTasks = this._taskRepository.getOverdueTasks();
+            this._sortManager.handleSort(colName, this._taskRepository, overdueTasks);
             this.renderCards();
           }
         }
