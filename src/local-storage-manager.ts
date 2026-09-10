@@ -548,6 +548,21 @@ export default class LocalStorageManager {
     this.setFilter(LocalStorageManager.FILTER_HIDE_GOOGLE_TODO_KEY, value);
   }
 
+  static get SKIP_SECOND_CALENDAR_PEACOCK_KEY(): string {
+    return 'skip_second_calendar_peacock';
+  }
+
+  static get skipSecondCalendarPeacock(): boolean {
+    return this.getFilter(
+      LocalStorageManager.SKIP_SECOND_CALENDAR_PEACOCK_KEY,
+      false,
+    );
+  }
+
+  static set skipSecondCalendarPeacock(value: boolean) {
+    this.setFilter(LocalStorageManager.SKIP_SECOND_CALENDAR_PEACOCK_KEY, value);
+  }
+
   static getFilter(key: string, defaultValue = false): boolean {
     const currentValue = localStorage.getItem(key);
     if (currentValue === null) {

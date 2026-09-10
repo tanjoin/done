@@ -52,6 +52,10 @@ export default class SettingsCalendarSection {
           <select id="doneCalendarSelect" class="setting-input">
             <option value="">DONEカレンダーを選択</option>
           </select>
+          <label class="checkbox-option">
+            <input type="checkbox" id="skipSecondCalendarPeacockToggle" />
+            <span>表示カレンダー2のピーコック色タスクをスルーする</span>
+          </label>
           <input
             type="text"
             id="doneCalendarManualInput"
@@ -96,6 +100,9 @@ export default class SettingsCalendarSection {
     const doneSelect = root.querySelector(
       '#doneCalendarSelect',
     ) as HTMLSelectElement | null;
+    const skipSecondCalendarPeacockToggle = root.querySelector(
+      '#skipSecondCalendarPeacockToggle',
+    ) as HTMLInputElement | null;
     const loadListButton = root.querySelector(
       '#loadCalendarListBtn',
     ) as HTMLButtonElement | null;
@@ -161,6 +168,14 @@ export default class SettingsCalendarSection {
     });
 
     doneManualInput.value = LocalStorageManager.calendarTargetId;
+    if (skipSecondCalendarPeacockToggle) {
+      skipSecondCalendarPeacockToggle.checked =
+        LocalStorageManager.skipSecondCalendarPeacock;
+      skipSecondCalendarPeacockToggle.addEventListener('change', () => {
+        LocalStorageManager.skipSecondCalendarPeacock =
+          skipSecondCalendarPeacockToggle.checked;
+      });
+    }
 
     const updateLoginStatus = () => {
       if (!googleLoginStatus) {

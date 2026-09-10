@@ -314,6 +314,10 @@ export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]
     return [];
   }
 
+  const secondCalendarId = (await loadCalendarSettings()).todoCalendarIds[1] || '';
+  const skipSecondCalendarPeacock =
+    LocalStorageManager.skipSecondCalendarPeacock && Boolean(secondCalendarId);
+
   const {timeMin, timeMax} = buildTodoFetchWindow();
   const maxResults = 2500;
 
@@ -323,8 +327,14 @@ export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]
       const payload = await fetchCalendarApi<{items?: GoogleCalendarEvent[]}>(
         `/calendars/${encodeURIComponent(calendarId)}/events?singleEvents=true&orderBy=startTime&timeMin=${timeMin}&timeMax=${timeMax}&maxResults=${maxResults}`,
       );
+      const filteredEvents =
+        skipSecondCalendarPeacock && calendarId === secondCalendarId
+          ? (payload.items || []).filter(
+              event => event.id && event.colorId !== '11',
+            )
+          : payload.items || [];
       tasks.push(
-        ...(payload.items || [])
+        ...filteredEvents
           .filter(event => Boolean(event.id))
           .map(event => toTaskDataFromEvent(event, 'google-todo', calendarId)),
       );
