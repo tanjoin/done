@@ -1,5 +1,17 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
+import {execSync} from 'child_process';
+
+const gitCommitSha = (() => {
+  try {
+    return execSync('git rev-parse --short HEAD', {
+      cwd: __dirname,
+      encoding: 'utf8',
+    }).trim();
+  } catch {
+    return 'dev';
+  }
+})();
 
 export default defineConfig({
   base: '/done/',
@@ -7,6 +19,9 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, './src'),
     },
+  },
+  define: {
+    __APP_GIT_COMMIT_SHA__: JSON.stringify(gitCommitSha),
   },
   build: {
     outDir: 'docs',
