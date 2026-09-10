@@ -44,7 +44,10 @@ export default class SettingsCalendarSection {
             <button type="button" class="btn" id="loadCalendarListBtn">カレンダー一覧を取得</button>
           </div>
           <select id="todoCalendarSelect" class="setting-input">
-            <option value="">TODOカレンダーを選択</option>
+            <option value="">表示カレンダー1を選択</option>
+          </select>
+          <select id="todoCalendarSelect2" class="setting-input">
+            <option value="">表示カレンダー2を選択</option>
           </select>
           <select id="doneCalendarSelect" class="setting-input">
             <option value="">DONEカレンダーを選択</option>
@@ -87,6 +90,9 @@ export default class SettingsCalendarSection {
     const todoSelect = root.querySelector(
       '#todoCalendarSelect',
     ) as HTMLSelectElement | null;
+    const todoSelect2 = root.querySelector(
+      '#todoCalendarSelect2',
+    ) as HTMLSelectElement | null;
     const doneSelect = root.querySelector(
       '#doneCalendarSelect',
     ) as HTMLSelectElement | null;
@@ -123,6 +129,7 @@ export default class SettingsCalendarSection {
       !clientIdInput ||
       !form ||
       !todoSelect ||
+      !todoSelect2 ||
       !doneSelect ||
       !doneManualInput ||
       !googleLoginButton ||
@@ -134,9 +141,22 @@ export default class SettingsCalendarSection {
 
     void loadCalendarSettings().then(settings => {
       clientIdInput.value = settings.clientId;
-      if (settings.todoCalendarId) {
-        todoSelect.innerHTML = `<option value="${settings.todoCalendarId}">${settings.todoCalendarId}</option>`;
+      const selectedTodoIds = settings.todoCalendarIds.length
+        ? settings.todoCalendarIds
+        : settings.todoCalendarId
+          ? [settings.todoCalendarId]
+          : [];
+      const options = ['<option value="">選択してください</option>'];
+      todoSelect.innerHTML = options.join('');
+      todoSelect2.innerHTML = options.join('');
+      if (selectedTodoIds[0]) {
+        todoSelect.innerHTML = `<option value="${selectedTodoIds[0]}">${selectedTodoIds[0]}</option>`;
       }
+      if (selectedTodoIds[1]) {
+        todoSelect2.innerHTML = `<option value="${selectedTodoIds[1]}">${selectedTodoIds[1]}</option>`;
+      }
+      todoSelect.value = selectedTodoIds[0] || '';
+      todoSelect2.value = selectedTodoIds[1] || '';
       doneManualInput.value = settings.doneCalendarId;
     });
 
@@ -200,7 +220,7 @@ export default class SettingsCalendarSection {
         const current = await loadCalendarSettings();
         await saveCalendarSettings({
           clientId,
-          todoCalendarId: current.todoCalendarId,
+          todoCalendarIds: current.todoCalendarIds,
           doneCalendarId:
             doneManualInput.value.trim() || current.doneCalendarId,
         });
@@ -249,7 +269,7 @@ export default class SettingsCalendarSection {
         const current = await loadCalendarSettings();
         await saveCalendarSettings({
           clientId: clientIdInput.value,
-          todoCalendarId: current.todoCalendarId,
+          todoCalendarIds: current.todoCalendarIds,
           doneCalendarId: current.doneCalendarId,
         });
 
@@ -263,8 +283,15 @@ export default class SettingsCalendarSection {
           )
           .join('');
         todoSelect.innerHTML = options;
+        todoSelect2.innerHTML = options;
         doneSelect.innerHTML = options;
-        todoSelect.value = current.todoCalendarId;
+        const selectedTodoIds = current.todoCalendarIds.length
+          ? current.todoCalendarIds
+          : current.todoCalendarId
+            ? [current.todoCalendarId]
+            : [];
+        todoSelect.value = selectedTodoIds[0] || '';
+        todoSelect2.value = selectedTodoIds[1] || '';
         doneSelect.value = current.doneCalendarId;
         googleAuthAlertController.hide();
       } catch (error) {
@@ -292,9 +319,12 @@ export default class SettingsCalendarSection {
           : doneSelectEditedByUser
             ? doneSelect.value.trim()
             : '';
+        const todoCalendarIds = [todoSelect.value, todoSelect2.value]
+          .map(value => value.trim())
+          .filter(Boolean);
         await saveCalendarSettings({
           clientId: clientIdInput.value,
-          todoCalendarId: todoSelect.value,
+          todoCalendarIds,
           doneCalendarId,
         });
         doneManualInput.value = doneCalendarId;

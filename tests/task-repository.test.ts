@@ -25,6 +25,119 @@ function createLocalStorage(): Storage {
   };
 }
 
+test('複数の表示カレンダーを保存して取得できる', async () => {
+  const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'window',
+  );
+  const originalDocumentDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'document',
+  );
+  const originalFetchDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'fetch',
+  );
+  const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'localStorage',
+  );
+
+  try {
+    Object.defineProperty(globalThis, 'window', {
+      value: {
+        setTimeout: () => 0,
+        clearTimeout: () => undefined,
+        location: {origin: 'http://localhost', href: 'http://localhost/'},
+      },
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'document', {
+      value: {
+        createElement: () => ({addEventListener: () => undefined}),
+        head: {appendChild: () => undefined},
+        getElementById: () => null,
+      },
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: createLocalStorage(),
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'fetch', {
+      value: async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.includes('calendar1')) {
+          return {
+            ok: true,
+            json: async () => ({items: [{id: 'event-1', summary: 'A'}]}),
+          } as Response;
+        }
+        if (url.includes('calendar2')) {
+          return {
+            ok: true,
+            json: async () => ({items: [{id: 'event-2', summary: 'B'}]}),
+          } as Response;
+        }
+        throw new Error(`unexpected url: ${url}`);
+      },
+      configurable: true,
+    });
+
+    const {default: LocalStorageManager} = require('../src/local-storage-manager');
+    const {
+      saveCalendarSettings,
+      loadCalendarSettings,
+      fetchTodoTasksFromGoogleCalendar,
+    } = require('../src/google-calendar-service');
+
+    const future = Date.now() + 60_000;
+    LocalStorageManager.googleClientIdEncrypted = 'xxx';
+    localStorage.setItem('done_google_access_token_v1', 'token');
+    localStorage.setItem('done_google_access_token_expiry_v1', String(future));
+
+    await saveCalendarSettings({
+      clientId: 'client-id',
+      todoCalendarIds: ['calendar1', 'calendar2'],
+      doneCalendarId: 'done-calendar',
+    });
+
+    const settings = await loadCalendarSettings();
+    assert.deepEqual(settings.todoCalendarIds, ['calendar1', 'calendar2']);
+    const tasks = await fetchTodoTasksFromGoogleCalendar();
+    assert.equal(tasks.length, 2);
+    assert.deepEqual(
+      tasks.map((task: {text: string}) => task.text).sort(),
+      ['A', 'B'],
+    );
+  } finally {
+    if (originalWindowDescriptor) {
+      Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
+    } else {
+      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'window');
+    }
+    if (originalDocumentDescriptor) {
+      Object.defineProperty(globalThis, 'document', originalDocumentDescriptor);
+    } else {
+      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'document');
+    }
+    if (originalFetchDescriptor) {
+      Object.defineProperty(globalThis, 'fetch', originalFetchDescriptor);
+    } else {
+      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'fetch');
+    }
+    if (originalLocalStorageDescriptor) {
+      Object.defineProperty(
+        globalThis,
+        'localStorage',
+        originalLocalStorageDescriptor,
+      );
+    } else {
+      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'localStorage');
+    }
+  }
+});
+
 test('resetToDefault は Drive 同期を OFF にしない', async () => {
   const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
     globalThis,

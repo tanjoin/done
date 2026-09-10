@@ -106,6 +106,10 @@ export default class LocalStorageManager {
     return 'done_google_todo_calendar_id_enc_v1';
   }
 
+  static get GOOGLE_TODO_CALENDAR_IDS_ENCRYPTED_KEY(): string {
+    return 'done_google_todo_calendar_ids_enc_v1';
+  }
+
   static get GOOGLE_DONE_CALENDAR_ID_ENCRYPTED_KEY(): string {
     return 'done_google_done_calendar_id_enc_v1';
   }
@@ -135,6 +139,10 @@ export default class LocalStorageManager {
   }
 
   static get googleTodoCalendarIdEncrypted(): string {
+    const saved = LocalStorageManager.googleTodoCalendarIdsEncrypted;
+    if (saved.length > 0) {
+      return saved[0] ?? '';
+    }
     return (
       localStorage.getItem(
         LocalStorageManager.GOOGLE_TODO_CALENDAR_ID_ENCRYPTED_KEY,
@@ -143,10 +151,63 @@ export default class LocalStorageManager {
   }
 
   static set googleTodoCalendarIdEncrypted(value: string) {
-    localStorage.setItem(
-      LocalStorageManager.GOOGLE_TODO_CALENDAR_ID_ENCRYPTED_KEY,
-      value,
+    LocalStorageManager.googleTodoCalendarIdsEncrypted = value
+      ? [value]
+      : [];
+  }
+
+  static get googleTodoCalendarIdsEncrypted(): string[] {
+    const raw = localStorage.getItem(
+      LocalStorageManager.GOOGLE_TODO_CALENDAR_IDS_ENCRYPTED_KEY,
     );
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as unknown;
+        if (Array.isArray(parsed)) {
+          const normalized = parsed
+            .filter((id): id is string => typeof id === 'string')
+            .map(id => id.trim())
+            .filter(Boolean);
+          if (normalized.length > 0) {
+            return Array.from(new Set(normalized));
+          }
+        }
+      } catch {
+        // 旧形式の文字列または破損したJSONは後方互換のフォールバックに委ねる
+      }
+    }
+
+    const legacy =
+      localStorage.getItem(LocalStorageManager.GOOGLE_TODO_CALENDAR_ID_ENCRYPTED_KEY) ||
+      '';
+    return legacy ? [legacy] : [];
+  }
+
+  static set googleTodoCalendarIdsEncrypted(value: string[]) {
+    const normalized = Array.from(
+      new Set(
+        value
+          .map(item => item.trim())
+          .filter(Boolean),
+      ),
+    );
+
+    if (normalized.length === 0) {
+      localStorage.removeItem(LocalStorageManager.GOOGLE_TODO_CALENDAR_IDS_ENCRYPTED_KEY);
+      localStorage.removeItem(LocalStorageManager.GOOGLE_TODO_CALENDAR_ID_ENCRYPTED_KEY);
+      return;
+    }
+
+    localStorage.setItem(
+      LocalStorageManager.GOOGLE_TODO_CALENDAR_IDS_ENCRYPTED_KEY,
+      JSON.stringify(normalized),
+    );
+    if (normalized[0]) {
+      localStorage.setItem(
+        LocalStorageManager.GOOGLE_TODO_CALENDAR_ID_ENCRYPTED_KEY,
+        normalized[0],
+      );
+    }
   }
 
   static get googleDoneCalendarIdEncrypted(): string {

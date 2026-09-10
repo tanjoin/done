@@ -304,29 +304,38 @@ function buildTodoFetchWindow(): {timeMin: string; timeMax: string} {
 }
 
 export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]> {
-  const calendarId = await resolveCalendarId(
-    LocalStorageManager.googleTodoCalendarIdEncrypted,
+  const calendarIds = await Promise.all(
+    LocalStorageManager.googleTodoCalendarIdsEncrypted.map(async encryptedId =>
+      resolveCalendarId(encryptedId),
+    ),
   );
-  if (!calendarId) {
+  const validCalendarIds = Array.from(new Set(calendarIds.filter(Boolean)));
+  if (validCalendarIds.length === 0) {
     return [];
   }
+
   const {timeMin, timeMax} = buildTodoFetchWindow();
   const maxResults = 2500;
 
-  try {
-    const payload = await fetchCalendarApi<{items?: GoogleCalendarEvent[]}>(
-      `/calendars/${encodeURIComponent(calendarId)}/events?singleEvents=true&orderBy=startTime&timeMin=${timeMin}&timeMax=${timeMax}&maxResults=${maxResults}`,
-    );
-
-    return (payload.items || [])
-      .filter(event => Boolean(event.id))
-      .map(event => toTaskDataFromEvent(event, 'google-todo', calendarId));
-  } catch (error) {
-    if (isGoogleReloginRequiredError(error)) {
-      throw error;
+  const tasks: DoneTaskData[] = [];
+  for (const calendarId of validCalendarIds) {
+    try {
+      const payload = await fetchCalendarApi<{items?: GoogleCalendarEvent[]}>(
+        `/calendars/${encodeURIComponent(calendarId)}/events?singleEvents=true&orderBy=startTime&timeMin=${timeMin}&timeMax=${timeMax}&maxResults=${maxResults}`,
+      );
+      tasks.push(
+        ...(payload.items || [])
+          .filter(event => Boolean(event.id))
+          .map(event => toTaskDataFromEvent(event, 'google-todo', calendarId)),
+      );
+    } catch (error) {
+      if (isGoogleReloginRequiredError(error)) {
+        throw error;
+      }
     }
-    return [];
   }
+
+  return tasks;
 }
 
 export async function addEventToDoneCalendarFromTask(task: DoneTask): Promise<void> {
@@ -404,19 +413,30 @@ export async function updateTodoEventDescription(
 
 export async function saveCalendarSettings(options: {
   clientId: string;
-  todoCalendarId: string;
+  todoCalendarId?: string;
+  todoCalendarIds?: string[];
   doneCalendarId: string;
 }): Promise<void> {
   const clientId = options.clientId.trim();
-  const todoCalendarId = options.todoCalendarId.trim();
+  const todoCalendarIds = Array.from(
+    new Set(
+      (options.todoCalendarIds ?? [options.todoCalendarId ?? ''])
+        .flatMap(entry =>
+          typeof entry === 'string' ? entry.split(',').map(item => item.trim()) : [],
+        )
+        .filter(Boolean),
+    ),
+  );
   const doneCalendarId = options.doneCalendarId.trim();
 
   LocalStorageManager.googleClientIdEncrypted = clientId
     ? await encryptText(clientId)
     : '';
-  LocalStorageManager.googleTodoCalendarIdEncrypted = todoCalendarId
-    ? await encryptText(todoCalendarId)
-    : '';
+  LocalStorageManager.googleTodoCalendarIdsEncrypted = todoCalendarIds.length
+    ? await Promise.all(
+        todoCalendarIds.map(async calendarId => encryptText(calendarId)),
+      )
+    : [];
   LocalStorageManager.googleDoneCalendarIdEncrypted = doneCalendarId
     ? await encryptText(doneCalendarId)
     : '';
@@ -431,20 +451,29 @@ export async function isGoogleOAuthClientConfigured(): Promise<boolean> {
 export async function loadCalendarSettings(): Promise<{
   clientId: string;
   todoCalendarId: string;
+  todoCalendarIds: string[];
   doneCalendarId: string;
 }> {
-  const [clientId, todoCalendarId, doneCalendarIdEncrypted] =
+  const [clientId, todoCalendarIdsEncrypted, doneCalendarIdEncrypted] =
     await Promise.all([
       resolveCalendarId(LocalStorageManager.googleClientIdEncrypted),
-      resolveCalendarId(LocalStorageManager.googleTodoCalendarIdEncrypted),
+      Promise.all(
+        LocalStorageManager.googleTodoCalendarIdsEncrypted.map(async encryptedId =>
+          resolveCalendarId(encryptedId),
+        ),
+      ),
       resolveCalendarId(LocalStorageManager.googleDoneCalendarIdEncrypted),
     ]);
+  const todoCalendarIds = Array.from(
+    new Set(todoCalendarIdsEncrypted.map(id => id.trim()).filter(Boolean)),
+  );
   const doneCalendarId =
     doneCalendarIdEncrypted.trim() || LocalStorageManager.calendarTargetId;
 
   return {
     clientId,
-    todoCalendarId,
+    todoCalendarId: todoCalendarIds[0] || '',
+    todoCalendarIds,
     doneCalendarId,
   };
 }
