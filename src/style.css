@@ -1051,6 +1051,27 @@ a:not(.nav-link):hover {
     color: var(--text-muted);
 }
 
+.app-footer__meta {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.app-footer__version,
+.app-footer__separator,
+.app-footer__copyright {
+    color: var(--text-muted);
+    opacity: 0.9;
+}
+
+.app-footer__version {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+}
+
 .task-type-dialog {
     width: min(460px, calc(100% - 32px));
     border: 1px solid var(--border-color);

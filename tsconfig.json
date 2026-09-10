@@ -12,6 +12,7 @@
     /* 出力・型チェック */
     "noEmit": true,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true,
     "noImplicitReturns": true,
     "strictNullChecks": true,

@@ -25,6 +25,48 @@ function createLocalStorage(): Storage {
   };
 }
 
+test('Footer はバージョン情報を控えめに表示する', () => {
+  const originalCustomElementsDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'customElements',
+  );
+
+  try {
+    Object.defineProperty(globalThis, 'HTMLElement', {
+      value: class HTMLElement {
+        innerHTML = '';
+        connectedCallback(): void {
+          return;
+        }
+      },
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'customElements', {
+      value: {
+        get: () => undefined,
+        define: () => undefined,
+      },
+      configurable: true,
+    });
+
+    const {default: Footer} = require('../src/footer');
+    const footer = new Footer();
+    footer.connectedCallback();
+
+    assert.match(footer.innerHTML, /v?2026\.09\.11|2026\.09\.11/);
+  } finally {
+    if (originalCustomElementsDescriptor) {
+      Object.defineProperty(
+        globalThis,
+        'customElements',
+        originalCustomElementsDescriptor,
+      );
+    } else {
+      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'customElements');
+    }
+  }
+});
+
 test('複数の表示カレンダーを保存して取得できる', async () => {
   const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
     globalThis,
