@@ -22,11 +22,10 @@ export default class SortManager {
     overdueTasks: DoneOverdueTask[] = [],
   ): void {
     this.updateSortState(columnName);
+    this.sortTasks(taskRepository.tasks);
     if (overdueTasks.length > 0) {
       this.sortOverdueTasks(overdueTasks);
-      return;
     }
-    this.sortTasks(taskRepository.tasks);
   }
 
   sortOverdueTasks(overdueTasks: DoneOverdueTask[]): void {

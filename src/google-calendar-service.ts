@@ -327,14 +327,12 @@ export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]
       const payload = await fetchCalendarApi<{items?: GoogleCalendarEvent[]}>(
         `/calendars/${encodeURIComponent(calendarId)}/events?singleEvents=true&orderBy=startTime&timeMin=${timeMin}&timeMax=${timeMax}&maxResults=${maxResults}`,
       );
-      const filteredEvents =
+      const peacockFilteredEvents =
         skipSecondCalendarPeacock && calendarId === secondCalendarId
-          ? (payload.items || []).filter(
-              event => event.id && event.colorId !== '11',
-            )
+          ? (payload.items || []).filter(event => event.colorId !== '7')
           : payload.items || [];
       tasks.push(
-        ...filteredEvents
+        ...peacockFilteredEvents
           .filter(event => Boolean(event.id))
           .map(event => toTaskDataFromEvent(event, 'google-todo', calendarId)),
       );
