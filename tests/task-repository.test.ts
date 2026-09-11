@@ -76,7 +76,7 @@ test('表示カレンダー2のピーコック色タスクをスルー設定で�
         if (url.includes('calendar2')) {
           return {
             ok: true,
-            json: async () => ({items: [{id: 'event-2', summary: 'B', colorId: '11'}]}),
+            json: async () => ({items: [{id: 'event-2', summary: 'B', colorId: '7'}]}),
           } as Response;
         }
         throw new Error(`unexpected url: ${url}`);
