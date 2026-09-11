@@ -307,7 +307,8 @@ export default class DoneTask implements DoneTaskData {
     return (
       this.isGoogleTodoTask() &&
       this.isSecondCalendarTodo === true &&
-      this.treatAsLongTermTask === true
+      this.treatAsLongTermTask === true &&
+      Boolean(this.specificDate && this.endDate && this.endDate > this.specificDate)
     );
   }
 

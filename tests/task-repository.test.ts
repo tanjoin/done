@@ -284,6 +284,50 @@ test('過去履歴がある表示カレンダー2長期タスクも未完了な�
   assert.equal(overdueTasks.length, 1);
 });
 
+test('表示カレンダー2の単発予定は未完了一覧に表示する', () => {
+  const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'localStorage',
+  );
+
+  try {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: createLocalStorage(),
+      configurable: true,
+    });
+    localStorage.setItem('overdue_reference_date', '2025-01-01');
+
+    const {default: DoneTask} = require('../src/done-task');
+    const {default: TaskRepository} = require('../src/task-repository');
+    const task = new DoneTask({
+      id: 'second-calendar-single-event-1',
+      text: '単発予定',
+      specificDate: '2025-10-25',
+      sourceType: 'google-todo',
+      isSecondCalendarTodo: true,
+      treatAsLongTermTask: true,
+      history: {},
+    });
+
+    const overdueTasks = new TaskRepository().collectOverdueTasks(task);
+
+    assert.deepEqual(
+      overdueTasks.map((overdueTask: {dateKey: string}) => overdueTask.dateKey),
+      ['2025-10-25'],
+    );
+  } finally {
+    if (originalLocalStorageDescriptor) {
+      Object.defineProperty(
+        globalThis,
+        'localStorage',
+        originalLocalStorageDescriptor,
+      );
+    } else {
+      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'localStorage');
+    }
+  }
+});
+
 test('overdueTasks もソートされる', () => {
   const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
     globalThis,
