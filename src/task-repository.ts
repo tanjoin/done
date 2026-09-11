@@ -334,10 +334,14 @@ export default class TaskRepository {
 
   collectOverdueTasks(task: DoneTask): DoneOverdueTask[] {
     if (task.isSecondCalendarLongTermTask()) {
+      const scheduledStatus = task.specificDate
+        ? task.history[task.specificDate]
+        : undefined;
       if (
         !task.endDate ||
         !task.shouldHideFromRegularListAsLongTermOverdue() ||
-        Object.values(task.history).some(Boolean)
+        scheduledStatus === 'completed' ||
+        scheduledStatus === 'cancelled'
       ) {
         return [];
       }
