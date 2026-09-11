@@ -1,5 +1,6 @@
 import LocalStorageManager from './local-storage-manager';
 import {decryptText} from './google-crypto';
+import {logGoogleAuth} from './google-request-log';
 
 declare global {
   interface Window {
@@ -265,15 +266,20 @@ export async function getGoogleAccessToken(
         prompt: 'none',
         callback: (response: GoogleTokenResponse) => {
           if (response.error) {
+            logGoogleAuth('token request failed', {error: response.error});
             reject(new Error(response.error));
             return;
           }
           if (!response.access_token) {
+            logGoogleAuth('token request failed', {error: 'access_token is missing'});
             reject(new Error('アクセストークン取得に失敗しました。'));
             return;
           }
 
           setGoogleToken(response.access_token, response.expires_in || 3600);
+          logGoogleAuth('token request succeeded', {
+            expiresIn: response.expires_in || 3600,
+          });
           resolve(response.access_token);
         },
       });
@@ -284,6 +290,9 @@ export async function getGoogleAccessToken(
 
   tokenRequestInFlight = tokenRequest
     .catch(error => {
+      logGoogleAuth('token request rejected', {
+        message: error instanceof Error ? error.message : String(error),
+      });
       if (forcePrompt) {
         throw error;
       }

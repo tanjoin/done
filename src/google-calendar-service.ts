@@ -9,6 +9,7 @@ import {
   isGoogleReloginRequiredError,
 } from './google-auth';
 import DateHelper from './date-helper';
+import {logGoogleRequest, logGoogleResponse} from './google-request-log';
 
 export type GoogleCalendarSummary = {
   id: string;
@@ -47,7 +48,10 @@ async function fetchCalendarApi<T>(
   retried = false,
 ): Promise<T> {
   const token = await getGoogleAccessToken(GOOGLE_CALENDAR_SCOPE);
-  const response = await fetch(calendarApiUrl(path), {
+  const url = calendarApiUrl(path);
+  const method = init?.method || 'GET';
+  logGoogleRequest('Calendar', method, url);
+  const response = await fetch(url, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -55,6 +59,7 @@ async function fetchCalendarApi<T>(
       ...(init?.headers || {}),
     },
   });
+  await logGoogleResponse('Calendar', method, url, response);
 
   if (!response.ok) {
     if ((response.status === 401 || response.status === 403) && !retried) {

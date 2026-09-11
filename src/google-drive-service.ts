@@ -6,6 +6,7 @@ import {
   getGoogleAccessToken,
   isGoogleReloginRequiredError,
 } from './google-auth';
+import {logGoogleRequest, logGoogleResponse} from './google-request-log';
 
 const GOOGLE_DRIVE_SCOPE = ['https://www.googleapis.com/auth/drive.file'];
 const FILE_NAME = 'tanjoin_done_task_sync_backup_v1.json';
@@ -61,13 +62,17 @@ async function fetchDriveApi<T>(
   retried = false,
 ): Promise<T> {
   const token = await getGoogleAccessToken(GOOGLE_DRIVE_SCOPE);
-  const response = await fetch(driveApi(path), {
+  const url = driveApi(path);
+  const method = init?.method || 'GET';
+  logGoogleRequest('Drive', method, url);
+  const response = await fetch(url, {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
       ...(init?.headers || {}),
     },
   });
+  await logGoogleResponse('Drive', method, url, response);
 
   if (!response.ok) {
     if ((response.status === 401 || response.status === 403) && !retried) {
@@ -141,10 +146,13 @@ function parseDrivePayload(
 
 async function loadFileInfo(fileId: string): Promise<DriveFileInfo> {
   const token = await getGoogleAccessToken(GOOGLE_DRIVE_SCOPE);
+  const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,version`;
+  logGoogleRequest('Drive', 'GET', url);
   const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,version`,
+    url,
     {headers: {Authorization: `Bearer ${token}`}},
   );
+  await logGoogleResponse('Drive', 'GET', url, response);
   if (response.status === 401 || response.status === 403) {
     clearGoogleToken();
     throw createGoogleReloginRequiredError();
@@ -165,14 +173,17 @@ async function loadSnapshotByFileId(
 ): Promise<GoogleDriveTaskSnapshot | null> {
   const fileInfo = await loadFileInfo(fileId);
   const token = await getGoogleAccessToken(GOOGLE_DRIVE_SCOPE);
+  const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`;
+  logGoogleRequest('Drive', 'GET', url);
   const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
+    url,
     {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     },
   );
+  await logGoogleResponse('Drive', 'GET', url, response);
 
   if (response.status === 401 || response.status === 403) {
     clearGoogleToken();
@@ -209,6 +220,7 @@ async function uploadMultipart(
     ? `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=multipart&fields=id,version`
     : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,version';
 
+  logGoogleRequest('Drive', method, endpoint);
   const response = await fetch(endpoint, {
     method,
     headers: {
@@ -217,6 +229,7 @@ async function uploadMultipart(
     },
     body,
   });
+  await logGoogleResponse('Drive', method, endpoint, response);
 
   if (!response.ok) {
     if ((response.status === 401 || response.status === 403) && !retried) {

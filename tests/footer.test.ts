@@ -34,7 +34,10 @@ test('Footer はコミットハッシュを最下部に表示する', () => {
     footer.connectedCallback();
 
     assert.doesNotMatch(footer.innerHTML, /v\d+\.\d+\.\d+/);
-    assert.match(footer.innerHTML, /commit\s+abcdef1/i);
+    assert.match(
+      footer.innerHTML,
+      /href="https:\/\/github\.com\/tanjoin\/done\/commit\/abcdef1"/i,
+    );
   } finally {
     if (originalCustomElementsDescriptor) {
       Object.defineProperty(
