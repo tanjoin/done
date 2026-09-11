@@ -85,7 +85,9 @@ export default class TableManager {
         row.appendChild(timeTd);
 
         const dateTd = document.createElement('td');
-        if (task.isGoogleTodoTask() && task.specificDate) {
+        if (task.isSecondCalendarLongTermTask()) {
+          dateTd.textContent = `予定日: ${task.scheduleLabel}`;
+        } else if (task.isGoogleTodoTask() && task.specificDate) {
           dateTd.textContent = task.specificDate === overdue.dateKey
             ? `未完了日: ${overdue.dateKey}`
             : `予定日: ${task.scheduleLabel} / 未完了日: ${overdue.dateKey}`;

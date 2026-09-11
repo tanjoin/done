@@ -333,6 +333,17 @@ export default class TaskRepository {
   }
 
   collectOverdueTasks(task: DoneTask): DoneOverdueTask[] {
+    if (task.isSecondCalendarLongTermTask()) {
+      if (
+        !task.endDate ||
+        !task.shouldHideFromRegularListAsLongTermOverdue() ||
+        Object.values(task.history).some(Boolean)
+      ) {
+        return [];
+      }
+      return [{task, dateKey: task.endDate}];
+    }
+
     const referenceDate = this.parseDateKey(
       LocalStorageManager.overdueReferenceDate,
     );

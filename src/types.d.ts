@@ -60,6 +60,8 @@ export type DoneTaskData = {
   sourceType?: DoneTaskSourceType;
   externalCalendarId?: string | null;
   externalEventId?: string | null;
+  isSecondCalendarTodo?: boolean | null;
+  treatAsLongTermTask?: boolean | null;
 };
 export type DoneTaskSyncPayload = {
   schemaVersion: 2;

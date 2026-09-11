@@ -49,13 +49,17 @@ export default class SettingsCalendarSection {
           <select id="todoCalendarSelect2" class="setting-input">
             <option value="">表示カレンダー2を選択</option>
           </select>
-          <select id="doneCalendarSelect" class="setting-input">
-            <option value="">DONEカレンダーを選択</option>
-          </select>
           <label class="checkbox-option">
             <input type="checkbox" id="skipSecondCalendarPeacockToggle" />
             <span>表示カレンダー2のピーコック色タスクをスルーする</span>
           </label>
+          <label class="checkbox-option">
+            <input type="checkbox" id="treatSecondCalendarAsLongTermToggle" />
+            <span>表示カレンダー2を長期タスクとして表示する</span>
+          </label>
+          <select id="doneCalendarSelect" class="setting-input">
+            <option value="">DONEカレンダーを選択</option>
+          </select>
           <input
             type="text"
             id="doneCalendarManualInput"
@@ -102,6 +106,9 @@ export default class SettingsCalendarSection {
     ) as HTMLSelectElement | null;
     const skipSecondCalendarPeacockToggle = root.querySelector(
       '#skipSecondCalendarPeacockToggle',
+    ) as HTMLInputElement | null;
+    const treatSecondCalendarAsLongTermToggle = root.querySelector(
+      '#treatSecondCalendarAsLongTermToggle',
     ) as HTMLInputElement | null;
     const loadListButton = root.querySelector(
       '#loadCalendarListBtn',
@@ -174,6 +181,14 @@ export default class SettingsCalendarSection {
       skipSecondCalendarPeacockToggle.addEventListener('change', () => {
         LocalStorageManager.skipSecondCalendarPeacock =
           skipSecondCalendarPeacockToggle.checked;
+      });
+    }
+    if (treatSecondCalendarAsLongTermToggle) {
+      treatSecondCalendarAsLongTermToggle.checked =
+        LocalStorageManager.treatSecondCalendarAsLongTerm;
+      treatSecondCalendarAsLongTermToggle.addEventListener('change', () => {
+        LocalStorageManager.treatSecondCalendarAsLongTerm =
+          treatSecondCalendarAsLongTermToggle.checked;
       });
     }
 

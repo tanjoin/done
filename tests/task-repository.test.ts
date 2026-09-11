@@ -245,6 +245,26 @@ test('複数の表示カレンダーを保存して取得できる', async () =>
   }
 });
 
+test('終了済みの表示カレンダー2長期タスクは未完了一覧に1件だけ表示する', () => {
+  const {default: DoneTask} = require('../src/done-task');
+  const {default: TaskRepository} = require('../src/task-repository');
+  const task = new DoneTask({
+    id: 'second-calendar-long-term-1',
+    text: '長期予定',
+    specificDate: '2025-10-25',
+    endDate: '2026-01-31',
+    sourceType: 'google-todo',
+    isSecondCalendarTodo: true,
+    treatAsLongTermTask: true,
+    history: {},
+  });
+
+  const overdueTasks = new TaskRepository().collectOverdueTasks(task);
+
+  assert.equal(overdueTasks.length, 1);
+  assert.equal(overdueTasks[0]?.dateKey, '2026-01-31');
+});
+
 test('overdueTasks もソートされる', () => {
   const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
     globalThis,

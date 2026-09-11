@@ -110,6 +110,46 @@ test('期間中の一時タスクは終了時刻後も未実施にならない',
   });
 });
 
+test('長期表示のカレンダー予定は期間中に未実施にならない', () => {
+  withMockedNow('2026-07-28T12:00:00+09:00', () => {
+    const task = new DoneTask({
+      id: 'long-term-calendar-event-1',
+      text: '長期予定',
+      group: 'カレンダー',
+      startTime: '08:00',
+      endTime: '08:59',
+      specificDate: '2025-10-25',
+      endDate: '2026-10-25',
+      sourceType: 'google-todo',
+      isSecondCalendarTodo: true,
+      treatAsLongTermTask: true,
+      history: {},
+    });
+
+    assert.equal(task.statusInfo.label, '実施可能');
+  });
+});
+
+test('カレンダー1由来の予定は長期表示フラグがあっても未実施になる', () => {
+  withMockedNow('2026-07-28T12:00:00+09:00', () => {
+    const task = new DoneTask({
+      id: 'first-calendar-event-1',
+      text: 'カレンダー1の予定',
+      group: 'カレンダー',
+      startTime: '08:00',
+      endTime: '08:59',
+      specificDate: '2026-07-20',
+      endDate: '2026-10-25',
+      sourceType: 'google-todo',
+      isSecondCalendarTodo: false,
+      treatAsLongTermTask: true,
+      history: {},
+    });
+
+    assert.equal(task.statusInfo.label, '未実施');
+  });
+});
+
 test('期間終了後の一時タスクは当日表示の対象外になる', () => {
   withMockedNow('2026-07-31T12:00:00+09:00', () => {
     const task = new DoneTask({

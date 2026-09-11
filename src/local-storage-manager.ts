@@ -563,6 +563,24 @@ export default class LocalStorageManager {
     this.setFilter(LocalStorageManager.SKIP_SECOND_CALENDAR_PEACOCK_KEY, value);
   }
 
+  static get TREAT_SECOND_CALENDAR_AS_LONG_TERM_KEY(): string {
+    return 'treat_second_calendar_as_long_term';
+  }
+
+  static get treatSecondCalendarAsLongTerm(): boolean {
+    return this.getFilter(
+      LocalStorageManager.TREAT_SECOND_CALENDAR_AS_LONG_TERM_KEY,
+      false,
+    );
+  }
+
+  static set treatSecondCalendarAsLongTerm(value: boolean) {
+    this.setFilter(
+      LocalStorageManager.TREAT_SECOND_CALENDAR_AS_LONG_TERM_KEY,
+      value,
+    );
+  }
+
   static getFilter(key: string, defaultValue = false): boolean {
     const currentValue = localStorage.getItem(key);
     if (currentValue === null) {

@@ -103,6 +103,8 @@ function toTaskDataFromEvent(
   event: GoogleCalendarEvent,
   sourceType: DoneTaskSourceType,
   calendarId: string,
+  isSecondCalendarTodo = false,
+  treatAsLongTermTask = false,
 ): DoneTaskData {
   const schedule = resolveEventSchedule(event);
   const time = resolveEventTimeRange(event);
@@ -128,8 +130,10 @@ function toTaskDataFromEvent(
     sourceType,
     externalCalendarId: calendarId,
     externalEventId: event.id,
+    isSecondCalendarTodo,
     specificDate: schedule.specificDate,
     endDate: schedule.endDate,
+    treatAsLongTermTask,
   };
 }
 
@@ -317,6 +321,9 @@ export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]
   const secondCalendarId = (await loadCalendarSettings()).todoCalendarIds[1] || '';
   const skipSecondCalendarPeacock =
     LocalStorageManager.skipSecondCalendarPeacock && Boolean(secondCalendarId);
+  const treatSecondCalendarAsLongTerm =
+    LocalStorageManager.treatSecondCalendarAsLongTerm &&
+    Boolean(secondCalendarId);
 
   const {timeMin, timeMax} = buildTodoFetchWindow();
   const maxResults = 2500;
@@ -334,7 +341,15 @@ export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]
       tasks.push(
         ...peacockFilteredEvents
           .filter(event => Boolean(event.id))
-          .map(event => toTaskDataFromEvent(event, 'google-todo', calendarId)),
+          .map(event =>
+            toTaskDataFromEvent(
+              event,
+              'google-todo',
+              calendarId,
+              calendarId === secondCalendarId,
+              treatSecondCalendarAsLongTerm && calendarId === secondCalendarId,
+            ),
+          ),
       );
     } catch (error) {
       if (isGoogleReloginRequiredError(error)) {

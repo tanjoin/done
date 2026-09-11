@@ -32,6 +32,8 @@ export default class DoneTask implements DoneTaskData {
   sourceType?: DoneTaskSourceType;
   externalCalendarId?: string | null;
   externalEventId?: string | null;
+  isSecondCalendarTodo?: boolean | null;
+  treatAsLongTermTask?: boolean | null;
 
   constructor(task: DoneTaskData) {
     this.id = task.id;
@@ -58,6 +60,14 @@ export default class DoneTask implements DoneTaskData {
     this.sourceType = task.sourceType || 'local';
     this.externalCalendarId = task.externalCalendarId || null;
     this.externalEventId = task.externalEventId || null;
+    this.isSecondCalendarTodo = normalizeBoolean(
+      task.isSecondCalendarTodo,
+      false,
+    );
+    this.treatAsLongTermTask = normalizeBoolean(
+      task.treatAsLongTermTask,
+      false,
+    );
   }
 
   hourOfStartTime(): number | null {
@@ -291,6 +301,24 @@ export default class DoneTask implements DoneTaskData {
 
   isGoogleTodoTask(): boolean {
     return this.sourceType === 'google-todo';
+  }
+
+  isSecondCalendarLongTermTask(): boolean {
+    return (
+      this.isGoogleTodoTask() &&
+      this.isSecondCalendarTodo === true &&
+      this.treatAsLongTermTask === true
+    );
+  }
+
+  shouldHideFromRegularListAsLongTermOverdue(
+    now: Date = new Date(),
+  ): boolean {
+    return Boolean(
+      this.isSecondCalendarLongTermTask() &&
+        this.endDate &&
+        this.toKebabCase(now) > this.endDate,
+    );
   }
 
   shouldHidePastDoneGoogleTodo(): boolean {
@@ -686,6 +714,13 @@ export default class DoneTask implements DoneTaskData {
   timeCheck(): TimeCheck {
     // startTime と endTime が両方とも未設定の場合は常に有効
     if (!this.startTime && !this.endTime) {
+      return {valid: true, ready: false, msg: ''};
+    }
+
+    if (
+      this.isSecondCalendarLongTermTask() &&
+      this.isTaskScheduledOnDate(DateHelper.todayDate)
+    ) {
       return {valid: true, ready: false, msg: ''};
     }
 

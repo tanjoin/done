@@ -668,7 +668,10 @@ class Index extends HTMLElement {
     this._taskRepository.tasks.forEach((task: DoneTask) => {
       task = new DoneTask(task);
 
-      if (task.shouldHidePastDoneGoogleTodo()) {
+      if (
+        task.shouldHidePastDoneGoogleTodo() ||
+        task.shouldHideFromRegularListAsLongTermOverdue()
+      ) {
         return;
       }
 
@@ -976,7 +979,9 @@ class Index extends HTMLElement {
 
           const overdueDate = document.createElement('div');
           overdueDate.className = 'overdue-date-label';
-          if (task.isGoogleTodoTask() && task.specificDate) {
+          if (task.isSecondCalendarLongTermTask()) {
+            overdueDate.textContent = `予定日: ${task.scheduleLabel}`;
+          } else if (task.isGoogleTodoTask() && task.specificDate) {
             overdueDate.textContent = task.specificDate === overdue.dateKey
               ? task.formatUnfinishedDateLabel(overdue.dateKey)
               : `予定日: ${task.scheduleLabel} / ${task.formatUnfinishedDateLabel(overdue.dateKey)}`;
