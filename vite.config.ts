@@ -1,14 +1,18 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {execSync} from 'child_process';
+import {fileURLToPath} from 'url';
+
+const configDirectory = fileURLToPath(new URL('.', import.meta.url));
 
 const gitCommitSha = (() => {
   try {
     return execSync('git rev-parse --short HEAD', {
-      cwd: __dirname,
+      cwd: configDirectory,
       encoding: 'utf8',
     }).trim();
-  } catch {
+  } catch (error) {
+    console.warn('Failed to get git commit SHA:', error);
     return 'dev';
   }
 })();
@@ -21,7 +25,7 @@ export default defineConfig({
     },
   },
   define: {
-    __APP_GIT_COMMIT_SHA__: JSON.stringify(gitCommitSha),
+    'globalThis.__APP_GIT_COMMIT_SHA__': JSON.stringify(gitCommitSha),
   },
   build: {
     outDir: 'docs',
