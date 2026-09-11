@@ -30,7 +30,17 @@ export default class SortManager {
 
   sortOverdueTasks(overdueTasks: DoneOverdueTask[]): void {
     const col = this._column;
-    if (!col || overdueTasks.length === 0) return;
+    if (overdueTasks.length === 0) return;
+
+    if (!col) {
+      overdueTasks.sort((a, b) => {
+        if (a.dateKey === b.dateKey) {
+          return a.task.normalizeGroup().localeCompare(b.task.normalizeGroup());
+        }
+        return a.dateKey.localeCompare(b.dateKey);
+      });
+      return;
+    }
 
     const ascMult = this._ascending ? 1 : -1;
     const TODAY = DateHelper.today;

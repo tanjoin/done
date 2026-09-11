@@ -742,9 +742,8 @@ class Index extends HTMLElement {
       currentViewMode === 'table',
     );
     if (currentViewMode === 'table') {
-      const overdueTasks = Object.values(overdueGroups)
-        .flat()
-        .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+      const overdueTasks = Object.values(overdueGroups).flat();
+      this._sortManager.sortOverdueTasks(overdueTasks);
       this._tableManager.renderTableView(
         container,
         filteredTasks,

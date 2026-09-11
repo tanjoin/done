@@ -66,14 +66,7 @@ export default class TableManager {
     overdueTasks: DoneOverdueTask[],
     tbody: HTMLElement,
   ): void {
-    overdueTasks
-      .sort((a, b) => {
-        if (a.dateKey === b.dateKey) {
-          return a.task.normalizeGroup().localeCompare(b.task.normalizeGroup());
-        }
-        return a.dateKey.localeCompare(b.dateKey);
-      })
-      .forEach(overdue => {
+    overdueTasks.forEach(overdue => {
         const task = new DoneTask(overdue.task);
         const row = document.createElement('tr');
         row.setAttribute('data-overdue', 'true');
@@ -142,7 +135,7 @@ export default class TableManager {
         row.appendChild(actionTd);
 
         tbody.appendChild(row);
-      });
+  });
   }
 
   private createTableBody() {
