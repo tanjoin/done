@@ -61,6 +61,7 @@ done は、日次タスク管理と Google Calendar / Google Drive 連携を行�
 保存・競合仕様
 - 通常同期では、Drive本文の `revision` とローカルの基準 `revision` を比較する。
 - `version` 専用の取得リクエストは行わない。アップロード応答の `version` は互換情報として同期状態へ保持する。
+- Drive本文取得時に `version` が空でも同期状態を有効として保持し、`revision` とファイルIDを競合判定に使用する。
 - `forceOverwrite` 指定時は比較用のDrive本文を取得せず、ローカル内容を優先して保存する。
 - TODO カレンダー由来タスクは Drive 保存対象から除外する。
 - Drive ファイルが存在しない場合は、ローカルデータを継続利用する。
@@ -129,7 +130,7 @@ done は、日次タスク管理と Google Calendar / Google Drive 連携を行�
 }
 ```
 
-同期状態は、基準 `revision`、Drive `version`、ファイルID、dirtyフラグ、基準タスクを保持する。競合判定の主キーは `revision` とする。
+同期状態は、基準 `revision`、Drive `version`、ファイルID、dirtyフラグ、基準タスクを保持する。競合判定の主キーは `revision` とし、本文取得時のDrive `version` は空文字を許容する。
 
 ## 4.3 主要なlocalStorageキー
 

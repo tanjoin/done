@@ -314,7 +314,6 @@ export default class LocalStorageManager {
         typeof parsed.baseDriveVersion !== 'string' ||
         typeof parsed.fileId !== 'string' ||
         !parsed.baseRevision ||
-        !parsed.baseDriveVersion ||
         !parsed.fileId ||
         !Array.isArray(parsed.baseTasks)
       ) {

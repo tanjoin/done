@@ -25,6 +25,48 @@ function createLocalStorage(): Storage {
   };
 }
 
+void test('Drive本文取得後の空versionでも同期基準を保持する', () => {
+  const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'localStorage',
+  );
+
+  try {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: createLocalStorage(),
+      configurable: true,
+    });
+    const {
+      default: LocalStorageManager,
+    } = require('../src/local-storage-manager');
+    const state = {
+      baseRevision: 'remote-revision',
+      baseDriveVersion: '',
+      fileId: 'drive-file-id',
+      dirty: true,
+      baseTasks: [],
+    };
+
+    LocalStorageManager.taskSyncState = state;
+
+    assert.deepEqual(LocalStorageManager.taskSyncState, state);
+    assert.equal(LocalStorageManager.taskSyncDirty, true);
+  } finally {
+    if (originalLocalStorageDescriptor) {
+      Object.defineProperty(
+        globalThis,
+        'localStorage',
+        originalLocalStorageDescriptor,
+      );
+    } else {
+      Reflect.deleteProperty(
+        globalThis as Record<string, unknown>,
+        'localStorage',
+      );
+    }
+  }
+});
+
 test('表示カレンダー2のピーコック色タスクをスルー設定できる', async () => {
   const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
     globalThis,
