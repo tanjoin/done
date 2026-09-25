@@ -18,7 +18,7 @@ export default class TaskRepository {
   private static readonly CLOUD_CACHE_KEY = 'done_cloud_tasks_cache_v1';
   private static readonly CLOUD_CACHE_AT_KEY = 'done_cloud_tasks_cache_at_v1';
   private static readonly CLOUD_CACHE_TTL_MS = 3 * 60 * 1000;
-  private static readonly DRIVE_SYNC_DEBOUNCE_MS = 400;
+  private static readonly DRIVE_SYNC_DEBOUNCE_MS = 3000;
   private static readonly NAV_FROM_SETTINGS_KEY =
     'done_nav_from_settings_to_index_v1';
   private static readonly NAV_HINT_TTL_MS = 30 * 1000;
