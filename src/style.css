@@ -531,13 +531,16 @@ a:not(.nav-link):hover {
 
 .status-text-button {
     appearance: none;
+    display: inline-block;
     border: none;
     background: transparent;
     color: inherit;
     font: inherit;
     margin: 0;
+    max-width: 100%;
     padding: 0;
     cursor: pointer;
+    text-align: inherit;
 }
 
 .status-text-button:disabled {
