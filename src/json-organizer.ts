@@ -246,14 +246,9 @@ class JsonOrganizer extends HTMLElement {
     }
 
     try {
-      const result = await syncTasksToGoogleDrive(tasksToSave);
-      if (!result.uploaded && result.skippedReason) {
-        this.setStatus(
-          'done_tasks は保存しました。別の端末の更新を検出したため同期停止しました。',
-          true,
-        );
-        return;
-      }
+      await syncTasksToGoogleDrive(tasksToSave, {
+        forceOverwrite: true,
+      });
       this.setStatus('done_tasks 全体を保存し、Google Drive に同期しました。');
     } catch (error) {
       if (isGoogleReloginRequiredError(error)) {
