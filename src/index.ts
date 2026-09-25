@@ -91,18 +91,21 @@ class Index extends HTMLElement {
     const task = this._taskRepository.tasks[taskIndex]!;
 
     task.history[targetDateKey] = isCancel ? 'cancelled' : 'completed';
-
-    void this._taskRepository.saveTasksWithSync().catch(error => {
-      if (isGoogleReloginRequiredError(error)) {
-        this.notifyGoogleReloginRequired();
-        return;
-      }
-      alert('Google Drive への同期に失敗しました。');
-    });
-
+    const calendarTask = new DoneTask(task);
     this.renderCards();
 
-    const calendarTask = new DoneTask(task);
+    if (!calendarTask.isGoogleTodoTask()) {
+      window.setTimeout(() => {
+        void this._taskRepository.saveTasksWithSync().catch(error => {
+          if (isGoogleReloginRequiredError(error)) {
+            this.notifyGoogleReloginRequired();
+            return;
+          }
+          alert('Google Drive への同期に失敗しました。');
+        });
+      }, 0);
+    }
+
     void (async () => {
       const googleEnabled = hasValidGoogleToken();
 
@@ -163,14 +166,20 @@ class Index extends HTMLElement {
     const history = this._taskRepository.tasks[taskIndex]!.history;
     if (history[targetDateKey]) {
       delete history[targetDateKey];
-      void this._taskRepository.saveTasksWithSync().catch(error => {
-        if (isGoogleReloginRequiredError(error)) {
-          this.notifyGoogleReloginRequired();
-          return;
-        }
-        alert('Google Drive への同期に失敗しました。');
-      });
       this.renderCards();
+
+      const task = new DoneTask(this._taskRepository.tasks[taskIndex]!);
+      if (!task.isGoogleTodoTask()) {
+        window.setTimeout(() => {
+          void this._taskRepository.saveTasksWithSync().catch(error => {
+            if (isGoogleReloginRequiredError(error)) {
+              this.notifyGoogleReloginRequired();
+              return;
+            }
+            alert('Google Drive への同期に失敗しました。');
+          });
+        }, 0);
+      }
     }
   }
 
