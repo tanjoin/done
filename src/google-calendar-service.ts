@@ -10,6 +10,7 @@ import {
 } from './google-auth';
 import DateHelper from './date-helper';
 import {logGoogleRequest, logGoogleResponse} from './google-request-log';
+import {fetchWithDriveRateLimitRetry} from './google-drive-retry';
 
 export type GoogleCalendarSummary = {
   id: string;
@@ -33,6 +34,11 @@ type GoogleCalendarEvent = {
   };
 };
 
+type GoogleCalendarEventsPayload = {
+  items?: GoogleCalendarEvent[];
+  nextPageToken?: string;
+};
+
 const GOOGLE_CALENDAR_SCOPE = [
   'https://www.googleapis.com/auth/calendar',
   'https://www.googleapis.com/auth/calendar.events',
@@ -51,14 +57,16 @@ async function fetchCalendarApi<T>(
   const url = calendarApiUrl(path);
   const method = init?.method || 'GET';
   logGoogleRequest('Calendar', method, url);
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(init?.headers || {}),
-    },
-  });
+  const response = await fetchWithDriveRateLimitRetry(() =>
+    fetch(url, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(init?.headers || {}),
+      },
+    }),
+  );
   await logGoogleResponse('Calendar', method, url, response);
 
   if (!response.ok) {
@@ -312,6 +320,26 @@ function buildTodoFetchWindow(): {timeMin: string; timeMax: string} {
   };
 }
 
+async function fetchCalendarEvents(
+  calendarId: string,
+  timeMin: string,
+  timeMax: string,
+  maxResults: number,
+): Promise<GoogleCalendarEvent[]> {
+  const events: GoogleCalendarEvent[] = [];
+  let pageToken = '';
+
+  do {
+    const page = await fetchCalendarApi<GoogleCalendarEventsPayload>(
+      `/calendars/${encodeURIComponent(calendarId)}/events?singleEvents=true&orderBy=startTime&timeMin=${timeMin}&timeMax=${timeMax}&maxResults=${maxResults}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`,
+    );
+    events.push(...(page.items || []));
+    pageToken = page.nextPageToken || '';
+  } while (pageToken);
+
+  return events;
+}
+
 export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]> {
   const calendarIds = await Promise.all(
     LocalStorageManager.googleTodoCalendarIdsEncrypted.map(async encryptedId =>
@@ -323,7 +351,7 @@ export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]
     return [];
   }
 
-  const secondCalendarId = (await loadCalendarSettings()).todoCalendarIds[1] || '';
+  const secondCalendarId = validCalendarIds[1] || '';
   const skipSecondCalendarPeacock =
     LocalStorageManager.skipSecondCalendarPeacock && Boolean(secondCalendarId);
   const treatSecondCalendarAsLongTerm =
@@ -333,18 +361,20 @@ export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]
   const {timeMin, timeMax} = buildTodoFetchWindow();
   const maxResults = 2500;
 
-  const tasks: DoneTaskData[] = [];
-  for (const calendarId of validCalendarIds) {
-    try {
-      const payload = await fetchCalendarApi<{items?: GoogleCalendarEvent[]}>(
-        `/calendars/${encodeURIComponent(calendarId)}/events?singleEvents=true&orderBy=startTime&timeMin=${timeMin}&timeMax=${timeMax}&maxResults=${maxResults}`,
-      );
-      const peacockFilteredEvents =
-        skipSecondCalendarPeacock && calendarId === secondCalendarId
-          ? (payload.items || []).filter(event => event.colorId !== '7')
-          : payload.items || [];
-      tasks.push(
-        ...peacockFilteredEvents
+  const tasksByCalendar = await Promise.all(
+    validCalendarIds.map(async calendarId => {
+      try {
+        const events = await fetchCalendarEvents(
+          calendarId,
+          timeMin,
+          timeMax,
+          maxResults,
+        );
+        const peacockFilteredEvents =
+          skipSecondCalendarPeacock && calendarId === secondCalendarId
+            ? events.filter(event => event.colorId !== '7')
+            : events;
+        return peacockFilteredEvents
           .filter(event => Boolean(event.id))
           .map(event =>
             toTaskDataFromEvent(
@@ -354,16 +384,17 @@ export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]
               calendarId === secondCalendarId,
               treatSecondCalendarAsLongTerm && calendarId === secondCalendarId,
             ),
-          ),
-      );
-    } catch (error) {
-      if (isGoogleReloginRequiredError(error)) {
-        throw error;
+          );
+      } catch (error) {
+        if (isGoogleReloginRequiredError(error)) {
+          throw error;
+        }
+        return [];
       }
-    }
-  }
+    }),
+  );
 
-  return tasks;
+  return tasksByCalendar.flat();
 }
 
 export async function addEventToDoneCalendarFromTask(task: DoneTask): Promise<void> {

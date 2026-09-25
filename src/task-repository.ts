@@ -14,6 +14,8 @@ import {
   type TaskSyncConflict,
 } from './task-sync-merge';
 
+type CloudRefreshTarget = 'all' | 'drive' | 'calendar';
+
 export default class TaskRepository {
   private static readonly CLOUD_CACHE_KEY = 'done_cloud_tasks_cache_v1';
   private static readonly CLOUD_CACHE_AT_KEY = 'done_cloud_tasks_cache_at_v1';
@@ -518,6 +520,7 @@ export default class TaskRepository {
 
   private async fetchCloudMergedTasks(
     localTasks: DoneTaskData[],
+    target: CloudRefreshTarget,
   ): Promise<{
     mergedTasks: DoneTaskData[];
     todoCount: number;
@@ -538,55 +541,59 @@ export default class TaskRepository {
     let driveVersion = '';
     let driveFileId = '';
 
-    this.emitGoogleDriveStatus({
-      state: 'loading',
-      message: 'Google Drive: 読み込み中...',
-    });
+    if (target !== 'calendar') {
+      this.emitGoogleDriveStatus({
+        state: 'loading',
+        message: 'Google Drive: 読み込み中...',
+      });
 
-    try {
-      const fromDrive = await loadTasksFromGoogleDrive();
-      if (fromDrive) {
-        workingTasks = fromDrive.tasks;
-        driveUpdatedAt = fromDrive.updatedAt;
-        driveRevision = fromDrive.revision;
-        driveVersion = fromDrive.version;
-        driveFileId = fromDrive.fileId;
+      try {
+        const fromDrive = await loadTasksFromGoogleDrive();
+        if (fromDrive) {
+          workingTasks = fromDrive.tasks;
+          driveUpdatedAt = fromDrive.updatedAt;
+          driveRevision = fromDrive.revision;
+          driveVersion = fromDrive.version;
+          driveFileId = fromDrive.fileId;
+        }
+        this.emitGoogleDriveStatus({
+          state: 'success',
+          message: `Google Drive: 読み込み完了${TaskRepository.formatDriveVersion(driveUpdatedAt)}`,
+        });
+      } catch (error) {
+        driveLoadFailed = true;
+        driveLoadAuthExpired = isGoogleReloginRequiredError(error);
+        if (driveLoadAuthExpired) {
+          this.emitGoogleReloginNotice(
+            'Google認証の有効期限が切れました。再ログインするにはこのメッセージをクリックしてください。',
+          );
+        }
+        this.emitGoogleDriveStatus({
+          state: 'error',
+          message: driveLoadAuthExpired
+            ? 'Google Drive: 認証切れ（再ログインしてください）'
+            : 'Google Drive: 読み込み失敗',
+        });
       }
-      this.emitGoogleDriveStatus({
-        state: 'success',
-        message: `Google Drive: 読み込み完了${TaskRepository.formatDriveVersion(driveUpdatedAt)}`,
-      });
-    } catch (error) {
-      // Google Drive が未設定/未認証の場合はローカルのみで継続する。
-      driveLoadFailed = true;
-      driveLoadAuthExpired = isGoogleReloginRequiredError(error);
-      if (driveLoadAuthExpired) {
-        this.emitGoogleReloginNotice(
-          'Google認証の有効期限が切れました。再ログインするにはこのメッセージをクリックしてください。',
-        );
-      }
-      this.emitGoogleDriveStatus({
-        state: 'error',
-        message: driveLoadAuthExpired
-          ? 'Google Drive: 認証切れ（再ログインしてください）'
-          : 'Google Drive: 読み込み失敗',
-      });
     }
 
-    let googleTodoTasks: DoneTaskData[] = [];
+    let googleTodoTasks: DoneTaskData[] = localTasks.filter(
+      task => task.sourceType === 'google-todo',
+    );
     let todoFetchFailed = false;
     let todoFetchAuthExpired = false;
-    try {
-      googleTodoTasks = await fetchTodoTasksFromGoogleCalendar();
-    } catch (error) {
-      // Google Calendar が未設定/未認証の場合はローカルのみで継続する。
-      googleTodoTasks = [];
-      todoFetchFailed = true;
-      todoFetchAuthExpired = isGoogleReloginRequiredError(error);
-      if (todoFetchAuthExpired) {
-        this.emitGoogleReloginNotice(
-          'Google認証の有効期限が切れました。再ログインするにはこのメッセージをクリックしてください。',
-        );
+    if (target !== 'drive') {
+      try {
+        googleTodoTasks = await fetchTodoTasksFromGoogleCalendar();
+      } catch (error) {
+        googleTodoTasks = [];
+        todoFetchFailed = true;
+        todoFetchAuthExpired = isGoogleReloginRequiredError(error);
+        if (todoFetchAuthExpired) {
+          this.emitGoogleReloginNotice(
+            'Google認証の有効期限が切れました。再ログインするにはこのメッセージをクリックしてください。',
+          );
+        }
       }
     }
 
@@ -611,6 +618,7 @@ export default class TaskRepository {
 
   async refreshFromCloudIfNeeded(
     forceRefresh = false,
+    target: CloudRefreshTarget = 'all',
   ): Promise<boolean> {
     if (!hasValidGoogleToken()) {
       this.emitGoogleDriveStatus({
@@ -620,7 +628,7 @@ export default class TaskRepository {
       return false;
     }
 
-    if (!forceRefresh) {
+    if (!forceRefresh && target === 'all') {
       const cached = LocalStorageManager.taskSyncDirty
         ? null
         : this.readSessionCache();
@@ -639,16 +647,18 @@ export default class TaskRepository {
       }
     }
 
-    this.emitTodoCalendarStatus({
-      state: 'loading',
-      message: 'TODOカレンダー: 読み込み中...',
-    });
+    if (target !== 'drive') {
+      this.emitTodoCalendarStatus({
+        state: 'loading',
+        message: 'TODOカレンダー: 読み込み中...',
+      });
+    }
 
     const mutationVersionAtFetchStart = this.localMutationVersion;
     const hasPendingLocalChanges = LocalStorageManager.taskSyncDirty;
-    const fetched = await this.fetchCloudMergedTasks(
-      LocalStorageManager.tasks || [],
-    );
+    const sourceTasks =
+      target === 'all' ? LocalStorageManager.tasks || [] : this._tasks;
+    const fetched = await this.fetchCloudMergedTasks(sourceTasks, target);
     const canApplyCloudResult =
       mutationVersionAtFetchStart === this.localMutationVersion;
     if (canApplyCloudResult) {
@@ -680,19 +690,21 @@ export default class TaskRepository {
       }
     }
 
-    this.emitTodoCalendarStatus(
-      fetched.todoFetchFailed
-        ? {
-            state: 'error',
-            message: fetched.todoFetchAuthExpired
-              ? 'TODOカレンダー: 認証切れ（再ログインしてください）'
-              : 'TODOカレンダー: 読み込み失敗（ローカル表示中）',
-          }
-        : {
-            state: 'success',
-            message: `TODOカレンダー: ${fetched.todoCount}件読み込み`,
-          },
-    );
+    if (target !== 'drive') {
+      this.emitTodoCalendarStatus(
+        fetched.todoFetchFailed
+          ? {
+              state: 'error',
+              message: fetched.todoFetchAuthExpired
+                ? 'TODOカレンダー: 認証切れ（再ログインしてください）'
+                : 'TODOカレンダー: 読み込み失敗（ローカル表示中）',
+            }
+          : {
+              state: 'success',
+              message: `TODOカレンダー: ${fetched.todoCount}件読み込み`,
+            },
+      );
+    }
 
     return canApplyCloudResult;
   }

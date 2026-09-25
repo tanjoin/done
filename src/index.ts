@@ -38,6 +38,7 @@ class Index extends HTMLElement {
   private _sortManager: SortManager = new SortManager();
   private _tableManager: TableManager = new TableManager();
   private _isLoading = false;
+  private _cloudRefreshPromise: Promise<void> | null = null;
   private _lastPageActivationRefreshAt = 0;
   private _googleAuthAlertController: GoogleAuthAlertController | null = null;
 
@@ -1261,7 +1262,7 @@ class Index extends HTMLElement {
           'TODOカレンダー: 再読み込み中...',
           'loading',
         );
-        void this.refreshCloudTasksWithLoading(true).then(() => {
+        void this.refreshCloudTasksWithLoading(true, 'calendar').then(() => {
           this.renderCards();
         });
       });
@@ -1276,7 +1277,7 @@ class Index extends HTMLElement {
           return;
         }
         this.setGoogleDriveStatus('Google Drive: 再読み込み中...', 'loading');
-        void this.refreshCloudTasksWithLoading(true).then(() => {
+        void this.refreshCloudTasksWithLoading(true, 'drive').then(() => {
           this.renderCards();
         });
       });
@@ -1303,18 +1304,35 @@ class Index extends HTMLElement {
     await this._taskRepository.loadTasks();
   }
 
-  private async refreshCloudTasksWithLoading(forceRefresh = false): Promise<void> {
-    this.setLoading(true);
+  private async refreshCloudTasksWithLoading(
+    forceRefresh = false,
+    target: 'all' | 'drive' | 'calendar' = 'all',
+  ): Promise<void> {
+    if (this._cloudRefreshPromise) {
+      return this._cloudRefreshPromise;
+    }
+
+    const refreshPromise = (async () => {
+      this.setLoading(true);
+      try {
+        await this._taskRepository.refreshFromCloudIfNeeded(forceRefresh, target);
+      } finally {
+        this.setLoading(false);
+      }
+    })();
+    this._cloudRefreshPromise = refreshPromise;
     try {
-      await this._taskRepository.refreshFromCloudIfNeeded(forceRefresh);
+      await refreshPromise;
     } finally {
-      this.setLoading(false);
+      if (this._cloudRefreshPromise === refreshPromise) {
+        this._cloudRefreshPromise = null;
+      }
     }
   }
 
-  registerNotification(): void {
+  registerNotification(): boolean {
     if (Notification.permission !== 'granted') {
-      return;
+      return false;
     }
     const now = new Date();
     let isUpdated = false;
@@ -1328,6 +1346,9 @@ class Index extends HTMLElement {
       }
       const candidate = new DoneTask(task).toNotificationCandidate(now);
       if (!candidate) {
+        return;
+      }
+      if (task.notifiedDate === candidate.scheduleDateKey) {
         return;
       }
 
@@ -1346,6 +1367,7 @@ class Index extends HTMLElement {
     if (isUpdated) {
       this._taskRepository.saveTasks();
     }
+    return isUpdated;
   }
 
   async init(): Promise<void> {
@@ -1372,9 +1394,9 @@ class Index extends HTMLElement {
 
     this.registerNotification();
     setInterval(() => {
-      this.registerNotification();
-      this.renderCards();
-      console.log('Periodic render of cards');
+      if (this.registerNotification()) {
+        this.renderCards();
+      }
     }, 60 * 1000);
   }
 

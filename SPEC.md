@@ -1,575 +1,185 @@
 # 1. 概要 / 目的
 
-done は、日次タスク管理に Google カレンダー連携と Google ドライブ同期を組み合わせ、
-ローカル運用とクラウド連携を両立させるブラウザアプリである。
+done は、日次タスク管理と Google Calendar / Google Drive 連携を行うブラウザアプリである。
 
-目的は以下の 3 点。
-- タスクの実施状況を日付付き履歴で管理する
-- TODO カレンダー由来タスクをアプリ内で処理し、カレンダー側に結果を反映する
-- タスク JSON を Drive に同期し、ログイン済み時の再利用性を高める
+目的は以下のとおり。
+- タスクの実施状況を日付付き履歴で管理する。
+- Google Calendar の TODO 予定をタスクとして表示し、完了・キャンセルを予定へ反映する。
+- ローカルタスクを Google Drive の同期ファイルへ保存する。
+- オフラインや Google API 障害時もローカル運用を継続する。
 
 # 2. 機能要件 (できること、入力、出力)
 
-## 2.1 タスク表示・判定
+## 2.1 タスク表示・操作
 
 できること
-- カード/テーブル表示の切替
-- テーブル見出しクリックによるタスク・未完了タスクの昇順/降順ソート
-- 表示モード切替時は再取得せず、保持済みタスクを再描画する
-- フィルタ適用（対象日外、時間外、追加済み、キャンセル済み、未完了強制表示）
-- TODO カレンダー表示 ON/OFF フィルター
-- 未完了日ラベル表示（未完了日: YYYY-MM-DD）
+- カード表示とテーブル表示を切り替える。
+- タスク、未完了タスクを見出しクリックでソートする。
+- 対象日外、時間外、完了済み、キャンセル済み、未完了強制表示などのフィルターを適用する。
+- タスクを完了、追加、追記、キャンセル、取り消し、削除する。
+- 日跨ぎタスク、リマインド時間帯、一時タスクの対象日と未完了日を正しく判定する。
+- `specificDate` と `endDate` を持つローカル一時タスクは期間中に未完了扱いにせず、期間終了後に未処理なら1件だけ未完了表示する。
+- タスク操作後はローカル保存を直ちに行い、ログイン中は Drive 同期を行う。
 
-入力
-- タスク定義（曜日、日付、期間、開始終了時刻、履歴など）
-- 現在日時
-- 表示設定（未完了表示基準日、各種フィルタ）
+主な入力
+- タスク定義（曜日、日付、期間、時刻、履歴、通知設定）。
+- 現在日時、表示設定、ユーザーの操作。
 
-出力
-- 表示対象タスク
-- ステータス（追加済み、キャンセル済、リマインダー、実施可能、未実施、対象日外、時間外）
-- remindMinutesBefore が明示設定されているタスクは、リマインド時間帯（リマインド開始時刻〜タスク開始時刻）の間のみ時間外フィルタの対象外として表示し、リマインド時間帯より前は通常の時間外フィルタで非表示とする
-- 日付をまたぐリマインド時間帯での完了・キャンセルは、リマインド対象日の history に記録し、リマインド時間帯後の同一タスクへ反映する
-- 日跨ぎタスク（startTime > endTime）の targetDay は、当日 startTime から翌日 endTime までの連続区間として扱う
-- 日跨ぎタスクの未実施判定も上記 targetDay 区間を基準に行う
-- 日跨ぎタスクで日を跨いだ後（00:00〜endTime）に完了/キャンセル操作した場合、history は当日ではなく開始日の日付キー（前日）へ記録する
-- 日跨ぎ時間帯（例: 03:00-02:59）のタスクは、翌日 00:00-終了時刻帯に前日日付の history が存在する場合、当日開始時刻（例: 03:00）まで非表示にする
-- 一時タスク（local の specificDate/endDate 指定）は単一タスクとして扱い、期間内は当日タスクとして表示して未完了にしない。endDate 経過後、期間内に完了またはキャンセル履歴がなければ、endDate を未完了日として1件だけ表示する
+主な出力
+- タスク一覧、状態表示、`history` の更新、localStorage の更新。
+- 条件に応じた Google Calendar API / Google Drive API の通信。
 
-## 2.2 タスク操作
+## 2.2 Google Calendar 連携
 
 できること
-- 完了
-- 追加
-- 追記
-- キャンセル
-- 取り消し
-- 削除（特定日タスク）
+- OAuth Client ID でログイン・ログアウトする。
+- TODO カレンダーを最大2件まで設定し、予定をタスクとして取得する。
+- 複数カレンダーのイベント取得は並列に行う。
+- Google Calendar API の `nextPageToken` を使い、イベントを全ページ取得する。
+- 2件目のカレンダーで `colorId=7` のイベントを除外する設定を持つ。
+- 2件目の期間予定を長期タスクとして扱う設定を持つ。単発予定は通常の未完了判定を行う。
+- TODO 由来タスクの完了・キャンセルでイベント色を更新する（完了 `colorId=8`、キャンセル `colorId=4`）。
+- DONE カレンダーへイベントを追加する。追加イベントの開始時刻と終了時刻は同一時刻とする。
+- イベント説明の改行、URL、チェックリスト、location を表示し、チェックリスト変更をイベント説明へ反映する。
 
-入力
-- ボタン操作
-- タスク属性（skipCalendarOnComplete, createTaskViaUrl, sourceType）
+取得仕様
+- 取得期間は未完了表示基準日から翌日末までとする。
+- 各カレンダー取得失敗時は、認証失効を除き、成功したカレンダーの結果で表示を継続する。
+- 取得件数が1ページの上限を超えた場合はページングする。
 
-出力
-- history 更新
-- localStorage 保存
-- （条件に応じて）Google Calendar API 呼び出し、または URL 起票
-- 完了済み/キャンセル済みのタスクは「未実施に戻す」操作で、対象日の history キーを削除して未実施状態へ戻せる
-
-分岐ルール
-- 完了: skipCalendarOnComplete が true、または TODO カレンダー由来タスク
-- 追加: skipCalendarOnComplete が false かつ DONE カレンダー系タスク
-- 追記: createTaskViaUrl が true かつ DONE カレンダー系タスク
-
-ボタン色
-- 完了: 青
-- 追加: 緑
-- 追記: 黄
-
-## 2.3 Google カレンダー連携
+## 2.3 Google Drive 連携
 
 できること
-- OAuth Client ID を使って認証
-- ログイン状態に応じてログイン/ログアウト操作
-- ユーザー操作によるログインはポップアップを使わず、認証開始時に開いていたページをリダイレクト URI として同一タブで認証する
-- iPhone のホーム画面アプリ（standalone）では、ポップアップが使えない場合にリダイレクト認証へ自動フォールバック
-- カレンダー一覧取得
-- TODO/DONE カレンダー選択
-- TODO カレンダー予定をタスク化して取り込み
-- TODO 由来タスクの完了/キャンセル時にイベント色を更新
-- DONE カレンダーへイベント追加
-- URL ベースの追記起票
+- Drive 同期の ON/OFF を設定する。
+- `tanjoin_done_task_sync_backup_v1.json` を検索、読み込み、作成、更新する。
+- Drive の読み込み・同期状態を一覧画面に表示する。
+- ステータスのテキスト部分を押すと、対象サービスだけを再読み込みする。
+- 連続したローカル操作は3000ms以内の最新状態へ集約し、Drive同期を直列化する。
+- 複数端末の変更を検出した場合は、基準スナップショット・ローカル・Driveをマージする。
 
-入力
-- OAuth 2.0 Client ID
-- TODO カレンダー ID
-- DONE カレンダー ID
-- タスク操作（完了/追加/追記/キャンセル）
+保存・競合仕様
+- 通常同期では、Drive本文の `revision` とローカルの基準 `revision` を比較する。
+- `version` 専用の取得リクエストは行わない。アップロード応答の `version` は互換情報として同期状態へ保持する。
+- `forceOverwrite` 指定時は比較用のDrive本文を取得せず、ローカル内容を優先して保存する。
+- TODO カレンダー由来タスクは Drive 保存対象から除外する。
+- Drive ファイルが存在しない場合は、ローカルデータを継続利用する。
 
-出力
-- 認証トークン取得
-- アクセストークンを保持し、期限前または期限切れ時に Google Identity Services のサイレントトークン取得（prompt: 'none'）で自動更新を試行する
-- カレンダー一覧
-- TODO カレンダー予定のタスク表示（表示設定の基準日 00:00 を start、翌日 23:59:59 を end）
-- TODO 由来タスクの説明文は、改行とURLを保持したリッチテキストとして表示する
-- TODO 由来タスク説明文の URL が Google リダイレクト形式（google.com/url?q=...）の場合は、実URLへ正規化して表示・遷移する
-- TODO 由来タスク説明文に含まれる a タグは、href ではなくリンクテキストを表示して遷移できること
-- TODO 由来タスクはカレンダー予定日（specificDate / endDate）を一覧表示に反映
-- TODO 由来タスクはイベント時刻（start/end dateTime）をタスク時刻として反映し、実施可能/時間外判定に利用
-- TODO 由来タスクは色IDを状態へ反映（グラファイト=colorId:8 は完了、フラミンゴ=colorId:4 はキャンセル）
-- 「表示カレンダー2のピーコック色タスクをスルーする」が有効な場合、2つ目のTODOカレンダーにあるピーコック（colorId:7）色の予定をタスク一覧へ取り込まない
-- 「表示カレンダー2を長期タスクとして表示する」が有効な場合、2つ目のTODOカレンダーの期間予定は予定期間中に未実施とせず、未完了日一覧へ個別追加しない
-- TODO イベント色更新（完了: グラファイト、キャンセル: フラミンゴ）
-- TODO 由来タスクで、過去日付かつ完了/キャンセル状態のタスクは表示しない
-- ただし開始日が過去でも終了日が当日以降の跨ぎ予定（specificDate/endDate の範囲内）は表示対象とする
-- DONE カレンダーへのイベント追加
-- DONE カレンダー追加時のイベント時刻は start/end 同一時刻で作成する
+レート制限・認証
+- HTTP 429 とレート制限系403（`rateLimitExceeded`、`userRateLimitExceeded`、`quotaExceeded`、`backendError` など）は自動再試行する。
+- `Retry-After` を優先し、未指定時は指数バックオフを使用する。再試行は最大3回とする。
+- 401 と認証系403は再ログイン要求として扱い、レート制限系403ではトークンを破棄しない。
 
-補足
-- TODO 由来タスクのグループ名は「カレンダー」
-- TODO 由来タスクの副操作は削除ではなくキャンセルを使用し、フラミンゴ色への更新で扱う
-- カード表示時のみ、TODO 由来タスク説明文のチェックリスト記法（- [ ] / - [x]）をチェックボックス表示する
-- 上記チェックボックスの操作は、対応する Google カレンダーイベント description を更新して反映する
-- カード表示時のみ、TODO 由来タスクの location（住所やURL）を表示する
-- TODO 由来タスクはローカル通知対象に含めない
-- TODO カレンダーの読み込み状況（読込中/成功/失敗/キャッシュ利用）を一覧画面に控えめ表示する
-- 上記の読み込み状況表示をクリックすると TODO カレンダーを再読込できる（表示スタイルは変更しない）
-- Google Drive の読み込み/同期状況（読込中/成功/失敗/OFF）を一覧画面に控えめ表示する
-- Google Drive の状況表示をクリックすると Google/Drive の再読込を実行する
-- 画面リロード時はキャッシュを使わず、Google/Drive から再取得して最新化する
-- Google 未ログイン時は TODO/Drive の各ステータス表示を出さない
-- Google 認証が失効した場合は、TODO/Drive のステータス表示と操作時アラートで再ログインを促す
-- Google 認証が失効した場合は、再ログイン画面を自動表示しない
-- Google 認証が失効した場合は、OAuth Client ID が設定済みなら一覧画面上に再ログイン通知を表示し、ユーザー操作時のみ設定・データ管理画面へ遷移する
-- Google 認証関連の通知は、ブラウザ標準ダイアログではなく全画面（一覧 / 設定 / JSON整理）の Web 画面上部に alert 形式（Bootstrap 風）で表示する
-- 再ログイン通知は一覧画面上部の alert として 1 件だけ表示し、ユーザーが閉じるまで維持する。閉じた後は同じ画面内で再表示しない
-- OAuth Client ID が未設定の場合は、認証切れによる自動遷移を行わない
-- SessionManager は 1 分ごとの定期タイマーを使用せず、アプリ起動時・画面再表示時（visibilitychange）・フォーカス復帰時のみ、期限前または期限切れ時のサイレント更新を試行する
-- タスク一覧画面では、ページの表示復帰時（visibilitychange / focus）に Google ログイン状態を確認する。未同期のローカル変更がある場合は Drive への同期を最優先で直ちに実行し、同期完了後に表示を更新する。未同期のローカル変更がない場合は短時間の復帰ではセッションキャッシュを利用し、キャッシュ TTL（3分）を超えた場合だけ再取得して表示を最新化する
-- サイレント更新では Google Identity Services の prompt: 'none' を使用し、アカウント選択画面やログイン画面を自動表示しない
-- Google認証、Google Calendar API、Google Drive API の通信結果は、アクセストークンを除いてブラウザの開発者コンソールへ出力する
-- 期限前のサイレント更新が失敗しても、既存アクセストークンが未期限切れならトークンを保持し、期限切れまでは継続利用する
-- サイレント更新がログイン状態・同意状態の失効で失敗した場合は、一覧画面上部に再ログイン通知を表示する
-- 認証失効を検知した後は、自動のトークン取得を停止し、ユーザーが設定画面のログイン操作を行うまで認証ダイアログを表示しない
-- 同時に発生したトークン取得要求は 1 件に集約し、Google Identity Services の認証ダイアログが重複して起動しないようにする
-- OAuth Client ID 設定済みの場合、タスク一覧・設定・JSON整理の共通ヘッダーに Google ログイン状態を表示する控えめなボタンを置く。未ログイン時はログイン、ログイン済み時はログアウト操作を提供する
-- ページの表示復帰時（visibilitychange / focus）に Google ログイン状態を確認し、共通ヘッダーのボタン表示を更新する
+## 2.4 認証・キャッシュ・通知
 
-## 2.4 Google ドライブ連携
+- 同時に発生したアクセストークン取得要求は1件に集約する。
+- サイレント更新はアプリ起動時、画面復帰時、フォーカス復帰時に必要な場合だけ行う。
+- 一覧の画面復帰時、未同期ローカル変更があれば Drive 同期を優先する。
+- 未同期変更がない場合は、3分以内のセッションキャッシュを利用する。
+- 通知済みのタスクは同じ通知日には再保存せず、毎分の不要な Drive 同期を防ぐ。
+- Google未ログイン時は Calendar / Drive のステータスを表示しない。
+- 認証失効時は自動ログイン画面を開かず、画面上の再ログイン通知を表示する。
 
-できること
-- 同期 ON/OFF
-- タスク JSON の Drive 保存
-- ログイン済み時の自動読み込み（保存済みファイルがある場合）
-- 既存インポート機能との共存（インポート後も同期対象）
+# 3. 非機能要件 / 技術スタック
 
-入力
-- Drive 同期 ON/OFF
-- タスク更新操作
+- TypeScript + Vite の完全フロントエンドアプリとする。
+- Browser APIs（localStorage、sessionStorage、Fetch、Web Crypto、Notification）を使用する。
+- Google Identity Services、Google Calendar API v3、Google Drive API v3を使用する。
+- 認証情報は暗号化してlocalStorageへ保存する。
+- Google APIのアクセストークンをログへ出力しない。
+- Google API通信に失敗しても、可能な範囲でローカル表示を継続する。
+- Google Calendar の複数取得、Driveの本文取得、対象別再読み込みにより不要な待機と通信を抑える。
 
-出力
-- Drive 上の専用 JSON ファイル（tanjoin_done_task_sync_backup_v1.json）に保存
-- 起動時の自動読み込み
-- 同一タブ内の画面遷移時はセッションキャッシュを優先し、短時間での再取得を抑止する
-- ユーザーによる一覧画面リロード時はキャッシュを使わず Google/Drive を再取得する
-- 設定画面から一覧画面へ戻る遷移時はセッションキャッシュを優先利用する
-- Drive 保存データは schemaVersion、revision、updatedAt、tasks を持つバージョン付きJSON形式とする
-- 一覧画面の Google Drive 状況表示には、読み込みまたは同期した JSON の updatedAt をバージョン情報として表示する
-- Drive から読み込んだ revision・version・ファイルIDをローカルに同期状態として保持し、同期基準の有無とは独立して未同期ローカル変更フラグを保持する
-- 同期済みのファイルIDは再利用し、通常の保存でDriveファイル検索を繰り返さない
-- 400ms以内の連続したローカル操作は最新状態1件へ集約し、1回のDrive同期で反映する
-- 未同期のローカル変更がない場合は Drive のタスク一覧を正として localStorage を完全に置換する。空のタスク一覧も有効な Drive データとして採用する
-- 未同期のローカル変更がある場合は、Drive 再読み込みでローカルタスクを上書きしない。TODO カレンダー由来タスクのみ最新化する
-- 完了・キャンセル・取り消しなどのローカル操作後は、同期基準が未作成または旧形式であっても未同期ローカル変更フラグを直ちに記録し、Drive 再読込によるローカル作業のロールバックを防ぐ
-- Googleログイン直後のDrive読込も未同期ローカル変更フラグを尊重し、ローカルタスクを直接上書きしない
-- Drive ファイルが存在しない場合のみ、ローカルデータを継続利用する
-
-保存方針
-- TODO カレンダー由来タスク（sourceType=google-todo）はローカル保存対象に含めない
-- 完了・追加操作では localStorage 保存を即時実行し、Google Drive 同期も都度実行する
-- 連続したタスク操作の Google Drive 同期は操作順に直列化し、各操作時点のスナップショットを保存する
-- 通常同期は、ローカルが保持する基準 revision と基準 version が Drive の最新値と一致する場合だけ実行する
-- Drive の単調増加する version を保存前の変更検出に使用し、保存成功時はアップロード応答の version を次回同期の基準として保存する
-- revision または version の不一致を検出した場合は、基準スナップショット・ローカル・Drive の三者マージを実行する
-- タスクIDが異なる追加、片側だけが変更したフィールド、history の異なる日付キーは自動マージする
-- 同一タスクの同一フィールド、または同一 history 日付キーが両方で異なる内容に変更されている場合だけ、ローカルまたはDriveの採用をユーザーに確認する
-- 自動マージまたは選択解消の後は、最新のDrive versionを基準に再同期する。次回の同期または再読込で他端末の変更を検出した場合は、最大2回まで再読込・再マージ・再保存する
-- クラウド再読み込み中にタスク操作が行われた場合、操作より前に開始した読み込み結果でローカルの最新状態を上書きしない
-- 再ログイン直後は、Google Drive に既存タスクデータがある場合、Drive の内容でローカルを完全に置換する。ログインまたは読み込みだけではDriveへ保存しない
-- Googleログイン成功後は、Driveデータの置換、TODOカレンダーの再取得、一覧の再描画を順に実行する
-- 既存の配列形式および旧 `{ updatedAt, tasks }` 形式は読み込み互換性を維持し、次回保存時に新形式へ移行する
-
-## 2.5 設定とデータ管理
-
-できること
-- 設定・データ管理画面で Google 連携設定
-- JSON エクスポート/インポート
-- クリップボードコピー/読み込み
-- 初期データ復元
-
-入力
-- 各入力フォーム
-- JSON ファイル/クリップボード文字列
-
-出力
-- ローカル保存更新
-- タスクデータ更新
-- 設定画面表示時は平文フォールバック値を先に反映し、暗号化値の復号完了後に最新値で上書きする
-- JSON エクスポート/コピー/JSON整理では TODO カレンダー由来タスクを除外する
-- データ管理の JSON 出力形式は、配列形式と Drive 同期ファイルと同じ `{ schemaVersion, revision, updatedAt, tasks }` 形式をスイッチで切り替える。エクスポートとクリップボードコピーは各1つのボタンで、選択中の形式を出力する
-- データ管理の JSON インポートとクリップボード読み込みは、タスク配列形式と Drive 同期ファイル形式の両方を自動判別して受け付ける
-- 設定・データ管理画面の JSON インポートは revision 比較を無視して同期を試行するが、保存後の revision 検証は維持する
-- JSON Organizer の done_tasks 全体保存は、Google Drive 同期ONかつログイン中なら、編集中のローカル done_tasks 全体を Drive の最新ファイルへ即時反映する。通常操作の競合マージとは異なり、明示的な全体保存ではローカル編集内容を優先する
-- 「全て初期状態に戻す」はローカルのタスクをデフォルトの tasks.json に復元し、Google Drive 同期をOFFにする。リセット時は同期基準・未同期ローカル変更フラグ・クラウドキャッシュを破棄し、ログイン済みなら Drive を読み込んでその内容でローカルを完全に置換する。未ログインでリセットした場合も、それまでのローカル処理を同期対象に残さず、次回ログイン時に Drive に保存済みのデータがあればその内容でローカルを完全に置換する。リセット操作および直後の自動保存で Drive 上のデータを変更してはならない
-
-1. 概要 / 目的
-- アプリが「全て初期状態に戻す」を実行した際に、ローカルのタスクをデフォルトの tasks.json で再初期化し、ログイン中かつ Drive 同期ON の場合は Drive の保存済み最新データでローカルを上書きする。
-- 目標は、リセット後に同期設定が勝手に OFF になることを防ぎ、ユーザーが意図した Drive 上書き動作を維持すること。
-
-2. 機能要件 (できること、入力、出力)
-- できること
-  - 「全て初期状態に戻す」でローカルの完了タスクをデフォルト JSON に戻す
-  - Google Drive 同期が有効な場合、リセット直後の再読込で Drive の最新状態を優先して反映する
-  - 同期基準・未同期ローカル変更フラグ・セッションキャッシュを破棄して、再読込後の整合性を確保する
-- 入力
-  - ユーザー操作: 「全て初期状態に戻す」クリック
-  - 設定状態: Google ログイン状態、Drive 同期 ON/OFF
-- 出力
-  - localStorage のタスク更新
-  - Drive 読み込み後のローカル置換
-  - Google Drive ステータス表示は同期OFFではなく、読み込みまたは同期の状態を維持する
-
-3. 非機能要件 / 技術スタック (使用言語、ライブラリ、制約事項など)
-- TypeScript + Vite のブラウザアプリ
-- Google Drive API と Google Identity Services を利用
-- localStorage で同期状態とタスク状態を保持
-- リセット時に同期設定を OFF にしてはならない
-- Drive 読み込みに失敗してもローカル復元処理自体は継続する
-
-4. データ構造 / API設計 (該当する場合)
-- LocalStorageManager.googleDriveSyncEnabled を保持し、リセットでは false へ変更しない
-- TaskRepository.resetToDefault() は tasks.json を読み込み、その後 refreshFromCloudIfNeeded(true) を呼び、Drive ファイルが存在する場合はその内容でローカルを置換する
-- taskSyncState, taskSyncDirty, cloud cache はリセット時にクリアする
-
-5. 画面・UIフロー (該当する場合)
-- 設定画面の「全て初期状態に戻す」ボタンを押下
-- 確認ダイアログ表示
-- OK の場合、デフォルト JSON を読み込んでローカル再初期化
-- ログイン状態と Drive 同期ON の場合、Drive の最新データを再読込してローカルを上書き
-- リセット完了メッセージ表示
-
-6. 未決定事項・今後の課題
-- リセット操作と同時に完了タスク以外のユーザー設定まで一括で初期化してよいかは、将来的に UX の確認が必要
-
-# カレンダー2長期タスク表示
-
-1. 概要 / 目的
-- 表示カレンダー2の期間予定を、未完了日ごとの複数タスクではなく、予定期間を持つ1件の長期タスクとして表示する。
-
-2. 機能要件 (できること、入力、出力)
-- 設定画面で「表示カレンダー2を長期タスクとして表示する」を切り替えられる。
-- 有効時、表示カレンダー2から取得した期間予定は期間中に終了時刻を過ぎても未実施・時間外状態にせず、1件だけ実施可能な長期タスクとして表示する。
-- 有効時、該当予定が期間終了後も未処理なら、未完了日を表示せず予定期間を示す長期タスク1件として未完了一覧に表示する。
-- 長期タスクの過去履歴だけでは未完了一覧から除外せず、予定開始日の状態が完了またはキャンセルの場合のみ除外する。
-- 無効時、従来の未実施・未完了日表示を維持する。
-
-3. 非機能要件 / 技術スタック (使用言語、ライブラリ、制約事項など)
-- TypeScript + Vite のブラウザアプリとして実装する。
-- 設定値は localStorage に永続化し、既存ユーザーは初期値OFFとする。
-- 表示カレンダー1およびローカルタスクの判定は変更しない。
-
-4. データ構造 / API設計 (該当する場合)
-- localStorage キー `treat_second_calendar_as_long_term` に真偽値を保存する。
-- Google Calendar から変換した表示カレンダー2のタスクに `isSecondCalendarTodo` と `treatAsLongTermTask` を設定する。表示カレンダー1およびローカルタスクは長期表示の判定対象にしない。
-
-5. 画面・UIフロー (該当する場合)
-- 設定・データ管理画面で表示カレンダー2を選択する。
-- 表示カレンダー2の直下にある「表示カレンダー2を長期タスクとして表示する」をチェックする。
-- タスク一覧を再読込すると、表示カレンダー2の期間予定が長期タスク1件として表示される。
-
-6. 未決定事項・今後の課題
-- 長期タスク表示を個別のイベント単位で切り替える必要が生じた場合は、Google Calendarイベントの拡張プロパティによる指定を検討する。
-- 同期ON かつ Drive 取得失敗時に、未ログイン状態か認証切れかをより明確に表示する改善余地がある
-
-# カレンダー2の単発予定の未完了表示
-
-1. 概要 / 目的
-- 表示カレンダー2の長期タスク表示設定を有効にしていても、単発予定が未完了一覧から消えないようにする。
-
-2. 機能要件 (できること、入力、出力)
-- 入力: 表示カレンダー2から取得した Google Calendar の予定と長期タスク表示設定。
-- 開始日と異なる終了日を持つ期間予定だけを長期タスクとして扱う。
-- 終了日を持たない単発予定は、長期タスク表示設定が有効でも通常の未完了日判定で一覧に表示する。
-- 出力: 過去の未処理の単発予定は、その予定日を未完了日として1件表示する。
-
-3. 非機能要件 / 技術スタック (使用言語、ライブラリ、制約事項など)
-- TypeScript + Vite のブラウザアプリとして実装する。
-- Google Calendar API から変換済みの既存タスクにも同じ判定を適用する。
-
-4. データ構造 / API設計 (該当する場合)
-- `DoneTask.isSecondCalendarLongTermTask()` は、`sourceType=google-todo`、表示カレンダー2、長期表示設定に加え、`specificDate` より後の `endDate` を必要条件とする。
-
-5. 画面・UIフロー (該当する場合)
-- ユーザーが表示カレンダー2の長期タスク表示を有効にする。
-- 期間予定は期間中の長期タスク表示を維持する。
-- 単発予定の終了後、未処理であれば未完了一覧に予定日付きで表示する。
-
-6. 未決定事項・今後の課題
-- Google Calendar のイベント単位で長期扱いを上書きする要件が生じた場合は、拡張プロパティによる指定を検討する。
-
-# 3. 非機能要件 / 技術スタック (使用言語、ライブラリ、制約事項など)
-
-技術スタック
-- TypeScript
-- Vite
-- Browser APIs（localStorage, Notification, Web Crypto, Fetch）
-- Google Identity Services（OAuth トークン取得）
-- Google Calendar API v3
-- Google Drive API v3
-
-制約事項
-- サーバーサイドなし（完全フロントエンド）
-- 認証情報は localStorage に暗号化保存（復号鍵も同一オリジン管理）
-- Google API 利用には事前に OAuth Client ID 設定が必要
-- リダイレクト認証を利用するため、Google Cloud Console の OAuth クライアントにはログイン操作を行える各ページの URL を承認済みのリダイレクト URI として登録する。承認済みの JavaScript 生成元にはパスを含めず、オリジンだけを登録する
-- Google Identity Services のトークンモデルではリフレッシュトークンを扱わず、Google のログインセッションが有効な間はサイレントにアクセストークンを再取得する
-- ネットワーク障害時はローカル運用を継続
-
-性能要件（設定画面）
-- Google 連携設定の読み込み時、複数の復号処理は並列実行する
-- localStorage の平文フォールバック値（DONE カレンダー ID）は初期描画で即時反映する
-
-# 4. データ構造 / API設計 (該当する場合)
+# 4. データ構造 / API設計
 
 ## 4.1 DoneTaskData
 
-- id: string
-- text: string
-- description?: string | null
-- link?: string | null
-- group?: string
-- daysOfWeek?: number[]
-- daysOfMonth?: number[]
-- startTime?: string | null
-- endTime?: string | null
-- history: Record<YYYY-MM-DD, completed | cancelled>
-- notifiedDate?: string | null
-- remindMinutesBefore?: number | null
-- skipCalendarOnComplete?: boolean | null
-- strictMode?: boolean | null
-- createTaskViaUrl?: boolean | null
-- specificDate?: string | null
-- endDate?: string | null
-- sourceType?: local | google-todo | google-done
-- externalCalendarId?: string | null
-- externalEventId?: string | null
+- `id: string`
+- `text: string`
+- `description?: string | null`
+- `location?: string | null`
+- `link?: string | null`
+- `group?: string`
+- `daysOfWeek?: number[]`
+- `daysOfMonth?: number[]`
+- `startTime?: string | null`
+- `endTime?: string | null`
+- `history: Record<string, 'completed' | 'cancelled' | undefined>`
+- `notifiedDate?: string | null`
+- `remindMinutesBefore?: number | null`
+- `skipCalendarOnComplete?: boolean | null`
+- `strictMode?: boolean | null`
+- `createTaskViaUrl?: boolean | null`
+- `specificDate?: string | null`
+- `endDate?: string | null`
+- `sourceType?: 'local' | 'google-todo' | 'google-done'`
+- `externalCalendarId?: string | null`
+- `externalEventId?: string | null`
+- `isSecondCalendarTodo?: boolean | null`
+- `treatAsLongTermTask?: boolean | null`
 
-## 4.2 localStorage キー
+## 4.2 Drive同期データ
 
-- done_tasks
-- done_tasks_last_updated_at_v1
-- done_google_access_token_v1
-- done_google_access_token_expiry_v1
-- done_google_client_id_enc_v1
-- done_google_todo_calendar_id_enc_v1
-- done_google_done_calendar_id_enc_v1
-- done_google_drive_sync_enabled_v1
-- done_google_crypto_key_v1
-- notification_sound
-- done_app_theme
-- overdue_reference_date
-- filter_hide_non_target_day
-- filter_hide_out_of_time
-- filter_hide_completed
-- filter_hide_cancelled
-- filter_force_show_overdue
-- done_task_sync_state_v2
+```json
+{
+  "schemaVersion": 2,
+  "revision": "UUID",
+  "updatedAt": "ISO 8601",
+  "tasks": []
+}
+```
 
-## 4.3 Drive 同期 JSON
+同期状態は、基準 `revision`、Drive `version`、ファイルID、dirtyフラグ、基準タスクを保持する。競合判定の主キーは `revision` とする。
 
-- schemaVersion: 2
-- revision: UUID 形式のリビジョンID
-- updatedAt: ISO 8601 形式の最終更新日時
-- tasks: DoneTaskData[]
-- データ管理の Drive 形式エクスポートは、この構造と同じ JSON を出力する
+## 4.3 主要なlocalStorageキー
 
-## 4.4 外部 API（利用概要）
+- `done_tasks`
+- `done_tasks_last_updated_at_v1`
+- `done_google_access_token_v1`
+- `done_google_access_token_expiry_v1`
+- `done_google_client_id_enc_v1`
+- `done_google_todo_calendar_id_enc_v1`
+- `done_google_todo_calendar_ids_enc_v1`
+- `done_google_done_calendar_id_enc_v1`
+- `done_google_drive_sync_enabled_v1`
+- `done_task_sync_state_v2`
+- `done_cloud_tasks_cache_v1`
+- `done_cloud_tasks_cache_at_v1`
 
-- Google Calendar
-  - calendarList 取得
-  - events 取得（TODO）
-  - events 追加（DONE）
-  - events PATCH（TODO 色更新）
-- Google Drive
-  - files 検索
-  - multipart アップロード（作成/更新）
-  - alt=media 取得
-  - version を使う保存前比較と保存後検証
-  - revision・version・基準スナップショットを使う三者マージと限定再試行
+## 4.4 主要API
 
-# 5. 画面・UIフロー (該当する場合)
+- Calendar: calendarList取得、events取得、events追加、events PATCH。
+- Drive: backupファイル検索、本文取得、multipart作成・更新、webViewLink取得。
+- `TaskRepository.refreshFromCloudIfNeeded()` は更新対象として `all`、`drive`、`calendar` を扱う。
 
-## 5.1 設定・データ管理画面
+# 5. 画面・UIフロー
 
-1. OAuth Client ID 入力
-2. カレンダー一覧取得
-3. TODO/DONE カレンダー選択
-4. Drive 同期 ON/OFF 選択
-5. 設定保存
+## 5.1 一覧画面
 
-## 5.2 メイン画面
+1. localStorageのタスクを先に表示する。
+2. 必要に応じてDriveとTODO Calendarを取得する。
+3. 取得中は対象サービスのステータスだけを更新する。
+4. タスク操作後、ローカル保存とDrive同期を行う。
+5. TODO Calendarステータスのテキストを押すとCalendarだけを再取得する。
+6. Driveステータスのテキストを押すとDriveだけを再取得する。
 
-1. タスク読込（ローカル + 条件付きで Drive + TODO カレンダー）
-2. 読込中はローディングインジケーター（くるくる）を表示
-3. フィルタ適用と描画
-4. 各タスクで完了/追加/追記/キャンセルを実行
-5. 操作後に保存（Drive 同期 ON 時は Drive へ反映）
-6. Googleログイン成功時は Drive 統合・TODO再取得後に一覧を更新
+## 5.2 設定画面
 
-モバイル表示要件
-- テーブル表示は横スクロール可能とし、TODO カレンダー由来の長い日付表示でも操作ボタンが欠けないこと
+1. OAuth Client IDを入力する。
+2. Google Calendar一覧を取得する。
+3. TODO Calendarを最大2件、DONE Calendarを1件選択する。
+4. Drive同期、表示、通知、テーマなどを設定する。
+5. 設定保存後、一覧画面へ戻る場合はセッションキャッシュを優先する。
 
-## 5.3 JSON Organizer 画面
+## 5.3 JSON Organizer
 
-1. タスク選択と JSON 編集
-2. 通常タスク/一時タスク追加
-3. 単体反映または全体保存
-4. 保存内容をメイン画面に反映
-5. Google Drive 同期ONかつログイン中なら全体保存時に Drive へ同期
+1. タスクJSONを編集する。
+2. 配列形式またはDrive同期形式で読み込み・出力する。
+3. 保存時はTODO Calendar由来タスクを除外する。
+4. Drive同期ONかつログイン中は、明示的な全体保存でDriveへ反映する。
 
 # 6. 未決定事項・今後の課題
 
-- TODO/DONE イベント色の厳密な colorId 定義は運用で再確認が必要
-- OAuth トークン期限切れ時の UX（再認証導線）を改善余地あり
-- Google のログインセッションまたは認可状態が失効した場合、共通ヘッダーのログイン導線を利用する
-- カレンダー一覧取得や同期失敗時のリトライ UI は最小実装
-- 削除と編集が同時に発生した競合では、タスク単位でローカルまたはDriveを選択する
-- E2E テスト未整備（Google API モックを含む統合検証は今後追加）
-
-1. 概要 / 目的
-- 2 つ目の表示カレンダーで、ピーコック色（colorId: 11）のタスクをスルー対象にできるようにする。
-- 設定画面で ON にした場合のみ、2 つ目のカレンダー由来のピーコック色タスクを一覧から除外する。
-
-2. 機能要件 (できること、入力、出力)
-- できること
-  - 設定画面に「表示カレンダー2のピーコック色タスクをスルーする」チェックボックスを追加する
-  - ON のとき、表示カレンダー2の colorId: 11 を持つイベントを取得時に除外する
-  - 1 つ目のカレンダーやその他の色は通常どおり表示する
-- 入力
-  - 設定画面のチェック状態
-  - 2 つ目の表示カレンダー ID
-  - Google Calendar API のイベント colorId
-- 出力
-  - 2 つ目のカレンダーのピーコック色イベントを含まない TODO 一覧
-  - そのほかのカレンダー事件は従来どおり読み込まれる
-
-3. 非機能要件 / 技術スタック (使用言語、ライブラリ、制約事項など)
-- TypeScript + Vite のブラウザアプリ
-- Google Calendar API v3 を利用
-- localStorage に ON/OFF 状態を保持
-- 既存の 1 つ目カレンダー処理と互換性を維持する
-
-4. データ構造 / API設計 (該当する場合)
-- LocalStorageManager.SKIP_SECOND_CALENDAR_PEACOCK_KEY
-- LocalStorageManager.skipSecondCalendarPeacock: boolean
-- fetchTodoTasksFromGoogleCalendar() で、対象 calendarId と colorId を比較して除外する
-
-5. 画面・UIフロー (該当する場合)
-- 設定画面で「表示カレンダー2」を選択する
-- チェックボックス ON を選択して保存する
-- 次回の TODO 読み込みから、2 つ目のカレンダーのピーコック色イベントが非表示になる
-
-6. 未決定事項・今後の課題
-- 今後は 3 つ目以降のカレンダーでも同じ UX を拡張できるように整理する余地がある
-- Google カレンダーの colorId 定義が将来変わった場合は、判定基準を再確認する必要がある
-
-エリスの胸はパッド入り！
-
-1. 概要 / 目的
-- タスク一覧で表示する Google Calendar を 1 件ではなく 2 件まで設定できるようにする。
-- 既存の単一カレンダー設定を壊さず、互換性を保ちながら複数カレンダーのイベントをまとめて取得・表示する。
-- 追加で選択したカレンダーのイベントも、TODO カレンダーとして同じ一覧に混在して扱う。
-
-2. 機能要件 (できること、入力、出力)
-- できること
-  - 設定画面から「表示カレンダー1」「表示カレンダー2」を個別に選択できる
-  - 2 つのカレンダーのイベントをまとめて取得し、タスク一覧に表示する
-  - どちらか一方だけでも設定可能とし、既存の 1 カレンダー設定をそのまま利用できる
-  - 保存時に複数のカレンダー ID を暗号化済みで localStorage に保持する
-- 入力
-  - Google カレンダー一覧取得後の select 値
-  - 手入力または UI で選択したカレンダー ID
-- 出力
-  - 2 件の TODO カレンダーから取得したイベントの統合一覧
-  - 各イベントには元の calendarId を保持し、更新対象のカレンダーを識別できる
-  - Google Calendar API からの取得失敗時でも、成功したカレンダー分だけ表示を継続する
-
-3. 非機能要件 / 技術スタック (使用言語、ライブラリ、制約事項など)
-- TypeScript + Vite のブラウザアプリ
-- Google Calendar API v3 を利用したイベント取得
-- localStorage に暗号化した設定を保存
-- 既存の単一カレンダー設定形式との後方互換を維持する
-- 選択肢は 2 つまでに制限し、未選択時は無視する
-
-4. データ構造 / API設計 (該当する場合)
-- LocalStorageManager.googleTodoCalendarIdsEncrypted: string[]
-- 互換レイヤーとして googleTodoCalendarIdEncrypted は先頭要素だけを返す
-- saveCalendarSettings({ clientId, todoCalendarIds, doneCalendarId }) で複数 ID を保存
-- loadCalendarSettings() で todoCalendarIds 配列と todoCalendarId 互換値を返す
-- fetchTodoTasksFromGoogleCalendar() は各 ID からイベントを取得し、配列へ連結して返す
-
-5. 画面・UIフロー (該当する場合)
-- 設定画面で「カレンダー一覧取得」を実行
-- 表示用カレンダー 1 と 2 の選択欄に候補が入る
-- どちらかまたは両方を選択して保存する
-- メイン画面の読込時に両方の設定をまとめて取得し、TODO カレンダー表示として反映する
-
-6. 未決定事項・今後の課題
-- 3 件以上の表示カレンダーを同時に管理する要望が出た場合の拡張 UX を検討する余地がある
-- カレンダーごとの表示色分けや「どのカレンダー由来か」の見えやすい表示は今後の改善対象
-
-1. 概要 / 目的
-- ビルド時に現在の Git コミット短縮 SHA をアプリへ注入し、フッターなどでバージョン情報として表示できるようにする。
-- Git リポジトリ外などで SHA を取得できない環境では、開発用フォールバック値 `dev` を使用する。
-
-2. 機能要件 (できること、入力、出力)
-- 入力: ビルド実行ディレクトリの Git HEAD。
-- 出力: `globalThis.__APP_GIT_COMMIT_SHA__` を参照するアプリコードへ注入された短縮 SHA。
-- Git コマンドが失敗した場合は `dev` を出力する。
-
-3. 非機能要件 / 技術スタック (使用言語、ライブラリ、制約事項など)
-- TypeScript と Vite を使用する。
-- Vite の `define` 設定では、アプリケーションが実際に参照する `globalThis.__APP_GIT_COMMIT_SHA__` を置換対象とする。
-- ESM/CJS の設定評価差異に影響されないよう、Git コマンドの作業ディレクトリは `import.meta.url` から導出する。
-
-4. データ構造 / API設計 (該当する場合)
-- ビルド時定数: `globalThis.__APP_GIT_COMMIT_SHA__: string`。
-- 通常値は `git rev-parse --short HEAD` の出力、フォールバック値は `dev`。
-
-5. 画面・UIフロー (該当する場合)
-- アプリをビルドする。
-- フッターがビルド時に注入されたコミット SHA を表示する。
-
-6. 未決定事項・今後の課題
-- Git の浅いクローンやリポジトリ外でのビルド時に、表示する代替バージョン情報を追加するかは未決定とする。
-
-# Google Drive 連続操作時のレート制限対策
-
-1. 概要 / 目的
-- 短時間にタスク操作を連続して行った場合、Google Drive API の一時的なレート制限で同期が失敗し続けないようにする。
-- 認証失効による拒否とレート制限による拒否を区別し、必要な場合だけ再ログインを要求する。
-
-2. 機能要件 (できること、入力、出力)
-- できること
-  - HTTP 429 を一時的なレート制限として自動再試行する。
-  - HTTP 403 の `rateLimitExceeded`、`userRateLimitExceeded`、`quotaExceeded`、`backendError` などをレート制限系の一時エラーとして自動再試行する。
-  - `Retry-After` ヘッダーがある場合はその待機時間を優先し、ない場合は指数バックオフで待機する。
-  - Drive のファイル検索、ファイル情報取得、本文取得、multipart 保存の各通信に同じ再試行を適用する。
-- 入力
-  - Google Drive API の HTTP ステータス、エラー理由、`Retry-After` ヘッダー。
-  - 連続したローカルタスク操作による Drive 同期要求。
-- 出力
-  - 一時的なレート制限が解除された場合は、通常どおり同期を完了する。
-  - 再試行上限を超えた場合は同期失敗として既存のエラー表示へ渡す。
-
-3. 非機能要件 / 技術スタック (使用言語、ライブラリ、制約事項など)
-- TypeScript + Vite のブラウザアプリとして実装する。
-- 再試行は最大3回、待機時間は指数バックオフとし、`Retry-After` の値を優先する。
-- 既存の400ms操作集約、Drive同期の直列キュー、競合マージを維持する。
-- 401 および認証系403では既存の再ログイン処理を行い、アクセストークンを破棄する。
-- レート制限系403ではアクセストークンを破棄しない。
-
-4. データ構造 / API設計 (該当する場合)
-- `fetchWithDriveRateLimitRetry()` が Drive の `fetch` をラップし、一時的エラーだけを再試行する。
-- Google API エラーの `error.reason` および `error.errors[].reason` をレート制限判定に利用する。
-- 同期データ形式および localStorage の同期状態データ構造は変更しない。
-
-5. 画面・UIフロー (該当する場合)
-- ユーザーが完了、キャンセル、取り消しなどの操作を連続して行う。
-- 400ms以内の操作は既存仕様どおり最新状態に集約される。
-- Drive がレート制限を返した場合はバックグラウンドで再試行する。
-- 再試行中に成功すれば同期完了を表示し、上限超過時のみ同期失敗を表示する。
-
-6. 未決定事項・今後の課題
-- Google Calendar API のレート制限再試行は今回のDrive対策の対象外であり、必要性が確認された場合に別途検討する。
-- 実際の利用環境でのレート制限発生頻度に応じて、再試行回数と最大待機時間を調整する可能性がある。
+- Drive保存直前の厳密な同時更新防止に `If-Match` を導入するか検討する。
+- Calendar APIの大量データ取得で必要になった場合、ページング処理をさらに細かく制御する。
+- Google APIを含むE2Eテストを追加する。
+- Google Calendarの色ID定義が変更された場合は、完了・キャンセル・除外判定を再確認する。

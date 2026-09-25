@@ -147,33 +147,10 @@ function parseDrivePayload(
   };
 }
 
-async function loadFileInfo(fileId: string): Promise<DriveFileInfo> {
-  const token = await getGoogleAccessToken(GOOGLE_DRIVE_SCOPE);
-  const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,version`;
-  logGoogleRequest('Drive', 'GET', url);
-  const response = await fetchWithDriveRateLimitRetry(() =>
-    fetch(url, {headers: {Authorization: `Bearer ${token}`}}),
-  );
-  await logGoogleResponse('Drive', 'GET', url, response);
-  if (response.status === 401 || response.status === 403) {
-    clearGoogleToken();
-    throw createGoogleReloginRequiredError();
-  }
-  if (!response.ok) {
-    throw new Error(`Google Drive file lookup failed (${response.status})`);
-  }
-  const payload = (await response.json()) as {version?: string};
-  const version = typeof payload.version === 'string' ? payload.version : '';
-  if (!version) {
-    throw new Error('Google Drive file version is unavailable');
-  }
-  return {fileId, version};
-}
-
 async function loadSnapshotByFileId(
   fileId: string,
 ): Promise<GoogleDriveTaskSnapshot | null> {
-  const fileInfo = await loadFileInfo(fileId);
+  const fileInfo: DriveFileInfo = {fileId, version: ''};
   const token = await getGoogleAccessToken(GOOGLE_DRIVE_SCOPE);
   const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`;
   logGoogleRequest('Drive', 'GET', url);
@@ -270,15 +247,14 @@ export async function syncTasksToGoogleDrive(
   const knownFileId = LocalStorageManager.taskSyncState?.fileId || '';
   const fileId = knownFileId || (await findBackupFileId());
   let remoteSnapshot: GoogleDriveTaskSnapshot | null = null;
-  if (fileId) {
+  if (fileId && !options.forceOverwrite) {
     remoteSnapshot = await loadSnapshotByFileId(fileId);
     const syncState = LocalStorageManager.taskSyncState;
     if (
       !options.forceOverwrite &&
       (!syncState ||
         syncState.fileId !== fileId ||
-        syncState.baseRevision !== remoteSnapshot?.revision ||
-        syncState.baseDriveVersion !== remoteSnapshot?.version)
+        syncState.baseRevision !== remoteSnapshot?.revision)
     ) {
       return {
         uploaded: false,
