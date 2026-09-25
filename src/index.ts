@@ -31,12 +31,14 @@ import GoogleAuthAlertController, {
 } from './google-auth-alert';
 
 class Index extends HTMLElement {
+  private static readonly PAGE_ACTIVATION_REFRESH_COOLDOWN_MS = 3 * 60 * 1000;
   private _mode: DoneSwitchViewMode = 'card';
   private _theme: DoneTheme = 'system';
   private _taskRepository: TaskRepository = new TaskRepository();
   private _sortManager: SortManager = new SortManager();
   private _tableManager: TableManager = new TableManager();
   private _isLoading = false;
+  private _lastPageActivationRefreshAt = 0;
   private _googleAuthAlertController: GoogleAuthAlertController | null = null;
 
   private static readonly TODO_CHECKBOX_LINE_RE =
@@ -1168,7 +1170,23 @@ class Index extends HTMLElement {
         if (this._isLoading) {
           return;
         }
-        void this.refreshCloudTasksWithLoading(true).then(() => {
+        if (LocalStorageManager.taskSyncDirty) {
+          this.setLoading(true);
+          void this._taskRepository
+            .saveTasksWithSync()
+            .then(() => this.renderCards())
+            .finally(() => this.setLoading(false));
+          return;
+        }
+        const now = Date.now();
+        if (
+          now - this._lastPageActivationRefreshAt <
+          Index.PAGE_ACTIVATION_REFRESH_COOLDOWN_MS
+        ) {
+          return;
+        }
+        this._lastPageActivationRefreshAt = now;
+        void this.refreshCloudTasksWithLoading(false).then(() => {
           this.renderCards();
         });
       });
