@@ -91,6 +91,7 @@ class Index extends HTMLElement {
     const task = this._taskRepository.tasks[taskIndex]!;
 
     task.history[targetDateKey] = isCancel ? 'cancelled' : 'completed';
+    this._taskRepository.recordTaskMutation();
     const calendarTask = new DoneTask(task);
     this.renderCards();
 
@@ -166,6 +167,7 @@ class Index extends HTMLElement {
     const history = this._taskRepository.tasks[taskIndex]!.history;
     if (history[targetDateKey]) {
       delete history[targetDateKey];
+      this._taskRepository.recordTaskMutation();
       this.renderCards();
 
       const task = new DoneTask(this._taskRepository.tasks[taskIndex]!);

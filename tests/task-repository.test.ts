@@ -67,6 +67,117 @@ void test('Drive本文取得後の空versionでも同期基準を保持する', 
   }
 });
 
+void test('操作中に完了したタスクを進行中のDrive読込で巻き戻さない', async () => {
+  const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'window',
+  );
+  const originalDocumentDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'document',
+  );
+  const originalFetchDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'fetch',
+  );
+  const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'localStorage',
+  );
+  const originalSessionStorageDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'sessionStorage',
+  );
+  const originalCustomEventDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'CustomEvent',
+  );
+
+  try {
+    Object.defineProperty(globalThis, 'window', {
+      value: {setTimeout: () => 0, clearTimeout: () => undefined},
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'document', {
+      value: {dispatchEvent: () => undefined},
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: createLocalStorage(),
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: createLocalStorage(),
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'CustomEvent', {
+      value: class {
+        constructor(
+          public type: string,
+          public init: {detail?: unknown} = {},
+        ) {}
+      },
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'fetch', {
+      value: async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          schemaVersion: 2,
+          revision: 'remote-revision',
+          updatedAt: '2026-09-26T00:00:00.000Z',
+          tasks: [{id: 'task-1', text: 'タスク', history: {}}],
+        }),
+      }),
+      configurable: true,
+    });
+
+    const {
+      default: LocalStorageManager,
+    } = require('../src/local-storage-manager');
+    const {default: TaskRepository} = require('../src/task-repository');
+    const localTask = {id: 'task-1', text: 'タスク', history: {}};
+    LocalStorageManager.tasks = [localTask];
+    LocalStorageManager.taskSyncState = {
+      baseRevision: 'remote-revision',
+      baseDriveVersion: '1',
+      fileId: 'drive-file-id',
+      dirty: false,
+      baseTasks: [localTask],
+    };
+    localStorage.setItem('done_google_access_token_v1', 'token');
+    localStorage.setItem(
+      'done_google_access_token_expiry_v1',
+      String(Date.now() + 60_000),
+    );
+
+    const repository = new TaskRepository();
+    repository.hydrateFromLocal();
+    const refresh = repository.refreshFromCloudIfNeeded(true, 'drive');
+    repository.tasks[0]!.history['2026-09-26'] = 'completed';
+    repository.recordTaskMutation();
+
+    assert.equal(await refresh, false);
+    assert.equal(repository.tasks[0]!.history['2026-09-26'], 'completed');
+  } finally {
+    for (const [name, descriptor] of [
+      ['window', originalWindowDescriptor],
+      ['document', originalDocumentDescriptor],
+      ['fetch', originalFetchDescriptor],
+      ['localStorage', originalLocalStorageDescriptor],
+      ['sessionStorage', originalSessionStorageDescriptor],
+      ['CustomEvent', originalCustomEventDescriptor],
+    ] as const) {
+      if (descriptor) {
+        Object.defineProperty(globalThis, name, descriptor);
+      } else {
+        Reflect.deleteProperty(globalThis as Record<string, unknown>, name);
+      }
+    }
+  }
+});
+
 test('表示カレンダー2のピーコック色タスクをスルー設定できる', async () => {
   const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
     globalThis,

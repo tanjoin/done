@@ -468,6 +468,11 @@ export default class TaskRepository {
     this._tasks = this.hydrateTasks(localOnly);
   }
 
+  recordTaskMutation(): void {
+    this.localMutationVersion++;
+    this.setSessionCache(this._tasks);
+  }
+
   private readSessionCache(): DoneTaskData[] | null {
     try {
       const rawTasks = sessionStorage.getItem(TaskRepository.CLOUD_CACHE_KEY);
