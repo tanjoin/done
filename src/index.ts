@@ -78,11 +78,74 @@ class Index extends HTMLElement {
     return this._taskRepository.tasks.findIndex(task => task.id === taskId);
   }
 
+  private runAfterNextPaint(callback: () => void): void {
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => window.setTimeout(callback, 0));
+      return;
+    }
+    window.setTimeout(callback, 0);
+  }
+
+  private updatePressedTaskItem(
+    actionButton: HTMLButtonElement | undefined,
+    task: DoneTask,
+    isUndo: boolean,
+  ): void {
+    if (!actionButton) {
+      return;
+    }
+
+    const card = actionButton.closest('.card');
+    const row = actionButton.closest('tr');
+    const item = card || row;
+    if (!item) {
+      return;
+    }
+
+    const statusInfo = task.statusInfo;
+    if (isUndo) {
+      item.removeAttribute('data-done');
+    } else {
+      item.setAttribute('data-done', 'true');
+      item.removeAttribute('data-overdue');
+    }
+
+    if (card) {
+      const badge = card.querySelector('.status-badge');
+      if (badge) {
+        badge.className = 'status-badge';
+        if (statusInfo.className === 'chip-status-done') {
+          badge.classList.add('status-completed');
+        } else if (statusInfo.className === 'chip-status-cancel') {
+          badge.classList.add('status-cancelled');
+        } else if (statusInfo.className === 'chip-status-todo') {
+          badge.classList.add('status-todo');
+        } else if (statusInfo.className === 'chip-status-reminder') {
+          badge.classList.add('status-reminder');
+        }
+        badge.textContent = statusInfo.label;
+      }
+    } else if (row) {
+      const status = row.querySelector('td:nth-child(5) .chip');
+      if (status) {
+        status.className = `chip ${statusInfo.className}`;
+        status.textContent = statusInfo.label;
+      }
+    }
+
+    item
+      .querySelectorAll<HTMLButtonElement>('button[data-task-action]')
+      .forEach(button => {
+        button.disabled = true;
+      });
+  }
+
   private executeTask(
     taskId: string,
     isCancel: boolean,
     primaryAction: 'complete' | 'add' | 'append' = 'complete',
     targetDateKey = DateHelper.today,
+    actionButton?: HTMLButtonElement,
   ): void {
     const taskIndex = this.findTaskIndexById(taskId);
     if (taskIndex < 0) {
@@ -93,10 +156,11 @@ class Index extends HTMLElement {
     task.history[targetDateKey] = isCancel ? 'cancelled' : 'completed';
     this._taskRepository.recordTaskMutation();
     const calendarTask = new DoneTask(task);
-    this.renderCards();
+    this.updatePressedTaskItem(actionButton, calendarTask, false);
+    this.runAfterNextPaint(() => this.renderCards());
 
     if (!calendarTask.isGoogleTodoTask()) {
-      window.setTimeout(() => {
+      this.runAfterNextPaint(() => {
         void this._taskRepository.saveTasksWithSync().catch(error => {
           if (isGoogleReloginRequiredError(error)) {
             this.notifyGoogleReloginRequired();
@@ -104,7 +168,7 @@ class Index extends HTMLElement {
           }
           alert('Google Drive への同期に失敗しました。');
         });
-      }, 0);
+      });
     }
 
     void (async () => {
@@ -158,7 +222,11 @@ class Index extends HTMLElement {
     })();
   }
 
-  private undoTask(taskId: string, targetDateKey = DateHelper.today): void {
+  private undoTask(
+    taskId: string,
+    targetDateKey = DateHelper.today,
+    actionButton?: HTMLButtonElement,
+  ): void {
     const taskIndex = this.findTaskIndexById(taskId);
     if (taskIndex < 0) {
       return;
@@ -168,11 +236,12 @@ class Index extends HTMLElement {
     if (history[targetDateKey]) {
       delete history[targetDateKey];
       this._taskRepository.recordTaskMutation();
-      this.renderCards();
-
       const task = new DoneTask(this._taskRepository.tasks[taskIndex]!);
+      this.updatePressedTaskItem(actionButton, task, true);
+      this.runAfterNextPaint(() => this.renderCards());
+
       if (!task.isGoogleTodoTask()) {
-        window.setTimeout(() => {
+        this.runAfterNextPaint(() => {
           void this._taskRepository.saveTasksWithSync().catch(error => {
             if (isGoogleReloginRequiredError(error)) {
               this.notifyGoogleReloginRequired();
@@ -180,7 +249,7 @@ class Index extends HTMLElement {
             }
             alert('Google Drive への同期に失敗しました。');
           });
-        }, 0);
+        });
       }
     }
   }
@@ -201,6 +270,7 @@ class Index extends HTMLElement {
     action: string,
     taskId: string,
     targetDateKey?: string,
+    actionButton?: HTMLButtonElement,
   ): void {
     if (action === 'complete' || action === 'add' || action === 'append') {
       this.executeTask(
@@ -208,15 +278,16 @@ class Index extends HTMLElement {
         false,
         action as 'complete' | 'add' | 'append',
         targetDateKey,
+        actionButton,
       );
       return;
     }
     if (action === 'cancel') {
-      this.executeTask(taskId, true, 'complete', targetDateKey);
+      this.executeTask(taskId, true, 'complete', targetDateKey, actionButton);
       return;
     }
     if (action === 'undo') {
-      this.undoTask(taskId, targetDateKey);
+      this.undoTask(taskId, targetDateKey, actionButton);
       return;
     }
     if (action === 'delete') {
@@ -1217,7 +1288,7 @@ class Index extends HTMLElement {
           const targetDate =
             actionButton.getAttribute('data-task-date') || undefined;
           if (action && taskId) {
-            this.handleTaskAction(action, taskId, targetDate);
+            this.handleTaskAction(action, taskId, targetDate, actionButton);
           }
           return;
         }

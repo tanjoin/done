@@ -470,7 +470,7 @@ export default class TaskRepository {
 
   recordTaskMutation(): void {
     this.localMutationVersion++;
-    this.setSessionCache(this._tasks);
+    this.clearSessionCache();
   }
 
   private readSessionCache(): DoneTaskData[] | null {
