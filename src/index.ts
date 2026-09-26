@@ -201,7 +201,6 @@ class Index extends HTMLElement {
         ? LocalStorageManager.filterHideCancelled
         : LocalStorageManager.filterHideCompleted,
     );
-    this.runAfterNextPaint(() => this.renderCards());
 
     if (!calendarTask.isGoogleTodoTask()) {
       this.runAfterNextPaint(() => {
@@ -328,7 +327,6 @@ class Index extends HTMLElement {
       this._taskRepository.recordTaskMutation();
       const task = new DoneTask(this._taskRepository.tasks[taskIndex]!);
       this.updatePressedTaskItem(actionButton, task, true);
-      this.runAfterNextPaint(() => this.renderCards());
 
       if (!task.isGoogleTodoTask()) {
         this.runAfterNextPaint(() => {
