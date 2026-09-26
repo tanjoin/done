@@ -42,6 +42,7 @@ done は、日次タスク管理と Google Calendar / Google Drive 連携を行�
 - OAuth Client ID でログイン・ログアウトする。
 - TODO カレンダーを最大2件まで設定し、予定をタスクとして取得する。
 - 複数カレンダーのイベント取得は並列に行う。
+- Google Calendar の誕生日予定（`eventType=birthday` またはタイトルに「誕生日」「birthday」を含む予定）はタスクとして表示しない。
 - Google Calendar API の `nextPageToken` を使い、イベントを全ページ取得する。
 - 2件目のカレンダーで `colorId=7` のイベントを除外する設定を持つ。
 - 2件目の期間予定を長期タスクとして扱う設定を持つ。単発予定は通常の未完了判定を行う。

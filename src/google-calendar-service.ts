@@ -20,6 +20,7 @@ export type GoogleCalendarSummary = {
 type GoogleCalendarEvent = {
   id: string;
   summary?: string;
+  eventType?: string;
   description?: string;
   location?: string;
   htmlLink?: string;
@@ -160,6 +161,13 @@ function resolveTodoStatusFromColor(
     return 'cancelled';
   }
   return null;
+}
+
+function isBirthdayEvent(event: GoogleCalendarEvent): boolean {
+  return (
+    event.eventType === 'birthday' ||
+    /(?:誕生日|birthday)/i.test(event.summary || '')
+  );
 }
 
 function formatDateKey(date: Date): string {
@@ -377,7 +385,7 @@ export async function fetchTodoTasksFromGoogleCalendar(): Promise<
             ? events.filter(event => event.colorId !== '7')
             : events;
         return peacockFilteredEvents
-          .filter(event => Boolean(event.id))
+          .filter(event => Boolean(event.id) && !isBirthdayEvent(event))
           .map(event =>
             toTaskDataFromEvent(
               event,

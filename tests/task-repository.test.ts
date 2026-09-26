@@ -390,7 +390,10 @@ test('表示カレンダー2のピーコック色タスクをスルー設定で�
           return {
             ok: true,
             json: async () => ({
-              items: [{id: 'event-1', summary: 'A', colorId: '1'}],
+              items: [
+                {id: 'event-1', summary: 'A', colorId: '1'},
+                {id: 'birthday-1', summary: '〇〇さんの誕生日'},
+              ],
             }),
           } as Response;
         }
