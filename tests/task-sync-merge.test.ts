@@ -14,9 +14,7 @@ function task(overrides: Partial<DoneTaskData> = {}): DoneTaskData {
 
 test('異なるフィールドの変更は自動マージする', () => {
   const base = [task({group: '趣味'})];
-  const local = [
-    task({group: '趣味', history: {'2026-08-15': 'completed'}}),
-  ];
+  const local = [task({group: '趣味', history: {'2026-08-15': 'completed'}})];
   const remote = [task({group: '学習'})];
 
   const result = mergeTaskSyncData(base, local, remote);
@@ -47,8 +45,8 @@ test('別々に追加したタスクはどちらも残す', () => {
   );
 
   assert.equal(result.conflicts.length, 0);
-  assert.deepEqual(
-    result.tasks.map(item => item.id).sort(),
-    ['local-task', 'remote-task'],
-  );
+  assert.deepEqual(result.tasks.map(item => item.id).sort(), [
+    'local-task',
+    'remote-task',
+  ]);
 });

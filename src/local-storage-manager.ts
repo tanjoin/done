@@ -56,7 +56,9 @@ export default class LocalStorageManager {
     return sorted;
   }
 
-  private static normalizeTasksForStorage(tasks: DoneTaskData[]): DoneTaskData[] {
+  private static normalizeTasksForStorage(
+    tasks: DoneTaskData[],
+  ): DoneTaskData[] {
     return tasks.map(task => ({
       ...task,
       history: LocalStorageManager.sortHistoryByDate(task.history),
@@ -126,8 +128,9 @@ export default class LocalStorageManager {
 
   static get googleClientIdEncrypted(): string {
     return (
-      localStorage.getItem(LocalStorageManager.GOOGLE_CLIENT_ID_ENCRYPTED_KEY) ||
-      ''
+      localStorage.getItem(
+        LocalStorageManager.GOOGLE_CLIENT_ID_ENCRYPTED_KEY,
+      ) || ''
     );
   }
 
@@ -151,9 +154,7 @@ export default class LocalStorageManager {
   }
 
   static set googleTodoCalendarIdEncrypted(value: string) {
-    LocalStorageManager.googleTodoCalendarIdsEncrypted = value
-      ? [value]
-      : [];
+    LocalStorageManager.googleTodoCalendarIdsEncrypted = value ? [value] : [];
   }
 
   static get googleTodoCalendarIdsEncrypted(): string[] {
@@ -178,23 +179,24 @@ export default class LocalStorageManager {
     }
 
     const legacy =
-      localStorage.getItem(LocalStorageManager.GOOGLE_TODO_CALENDAR_ID_ENCRYPTED_KEY) ||
-      '';
+      localStorage.getItem(
+        LocalStorageManager.GOOGLE_TODO_CALENDAR_ID_ENCRYPTED_KEY,
+      ) || '';
     return legacy ? [legacy] : [];
   }
 
   static set googleTodoCalendarIdsEncrypted(value: string[]) {
     const normalized = Array.from(
-      new Set(
-        value
-          .map(item => item.trim())
-          .filter(Boolean),
-      ),
+      new Set(value.map(item => item.trim()).filter(Boolean)),
     );
 
     if (normalized.length === 0) {
-      localStorage.removeItem(LocalStorageManager.GOOGLE_TODO_CALENDAR_IDS_ENCRYPTED_KEY);
-      localStorage.removeItem(LocalStorageManager.GOOGLE_TODO_CALENDAR_ID_ENCRYPTED_KEY);
+      localStorage.removeItem(
+        LocalStorageManager.GOOGLE_TODO_CALENDAR_IDS_ENCRYPTED_KEY,
+      );
+      localStorage.removeItem(
+        LocalStorageManager.GOOGLE_TODO_CALENDAR_ID_ENCRYPTED_KEY,
+      );
       return;
     }
 
@@ -299,7 +301,9 @@ export default class LocalStorageManager {
   }
 
   static get taskSyncDirty(): boolean {
-    return localStorage.getItem(LocalStorageManager.TASK_SYNC_DIRTY_KEY) === '1';
+    return (
+      localStorage.getItem(LocalStorageManager.TASK_SYNC_DIRTY_KEY) === '1'
+    );
   }
 
   static get taskSyncState(): DoneTaskSyncState | null {
@@ -409,8 +413,7 @@ export default class LocalStorageManager {
         updatedAt?: string;
       };
       const parsed = JSON.parse(tasksJson) as
-        | DoneTaskData[]
-        | StoredTasksPayload;
+        DoneTaskData[] | StoredTasksPayload;
       if (Array.isArray(parsed)) {
         return parsed;
       }
@@ -420,9 +423,7 @@ export default class LocalStorageManager {
           return [];
         }
         const updatedAt =
-          typeof payload.updatedAt === 'string'
-            ? payload.updatedAt.trim()
-            : '';
+          typeof payload.updatedAt === 'string' ? payload.updatedAt.trim() : '';
         if (updatedAt) {
           LocalStorageManager.tasksLastUpdatedAt = updatedAt;
         }
@@ -540,7 +541,10 @@ export default class LocalStorageManager {
   }
 
   static get filterHideGoogleTodo(): boolean {
-    return this.getFilter(LocalStorageManager.FILTER_HIDE_GOOGLE_TODO_KEY, false);
+    return this.getFilter(
+      LocalStorageManager.FILTER_HIDE_GOOGLE_TODO_KEY,
+      false,
+    );
   }
 
   static set filterHideGoogleTodo(value: boolean) {

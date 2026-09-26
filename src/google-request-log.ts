@@ -32,6 +32,9 @@ export async function logGoogleResponse(
   });
 }
 
-export function logGoogleAuth(event: string, detail?: Record<string, unknown>): void {
+export function logGoogleAuth(
+  event: string,
+  detail?: Record<string, unknown>,
+): void {
   console.info(`[Google Auth] ${event}`, detail || {});
 }

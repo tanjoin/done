@@ -4,7 +4,11 @@ import Header from './header';
 import LocalStorageManager from './local-storage-manager';
 import DoneTask from './done-task';
 import {DoneTaskData} from './types';
-import {hasValidGoogleToken, isGoogleReloginRequiredError, handleGoogleAuthRedirect} from './google-auth';
+import {
+  hasValidGoogleToken,
+  isGoogleReloginRequiredError,
+  handleGoogleAuthRedirect,
+} from './google-auth';
 import {syncTasksToGoogleDrive} from './google-drive-service';
 import SessionManager from './session-manager';
 import GoogleAuthAlertController, {
@@ -179,7 +183,9 @@ class JsonOrganizer extends HTMLElement {
           return;
         }
 
-        const ok = confirm(`このタスクを削除しますか？\n[${target.group || 'その他'}] ${target.text}`);
+        const ok = confirm(
+          `このタスクを削除しますか？\n[${target.group || 'その他'}] ${target.text}`,
+        );
         if (!ok) {
           return;
         }
@@ -187,7 +193,9 @@ class JsonOrganizer extends HTMLElement {
         this._tasks.splice(selectedIndex, 1);
         this.renderTaskSelectOptions();
         this.renderSelectedTaskJson();
-        this.setStatus('選択タスクを削除しました。保存ボタンで確定してください。');
+        this.setStatus(
+          '選択タスクを削除しました。保存ボタンで確定してください。',
+        );
       },
     );
 
@@ -221,14 +229,19 @@ class JsonOrganizer extends HTMLElement {
           return;
         }
         if (!this.isDoneTaskLike(parsed)) {
-          this.setStatus('タスク形式ではありません（id, text, history は必須）。', true);
+          this.setStatus(
+            'タスク形式ではありません（id, text, history は必須）。',
+            true,
+          );
           return;
         }
         const prevId = this._tasks[selectedIndex]?.id || '';
         this._tasks[selectedIndex] = parsed;
         this.renderTaskSelectOptions(parsed.id || prevId);
         this.setTaskEditorJson(this._tasks[selectedIndex]);
-        this.setStatus('選択タスクに反映しました。保存ボタンで確定してください。');
+        this.setStatus(
+          '選択タスクに反映しました。保存ボタンで確定してください。',
+        );
       },
     );
   }
@@ -257,12 +270,17 @@ class JsonOrganizer extends HTMLElement {
         );
         return;
       }
-      this.setStatus('done_tasks は保存しましたが、Google Drive同期に失敗しました。', true);
+      this.setStatus(
+        'done_tasks は保存しましたが、Google Drive同期に失敗しました。',
+        true,
+      );
     }
   }
 
   private loadTasks(): void {
-    this._tasks = JsonOrganizer.excludeGoogleTodoTasks(LocalStorageManager.tasks);
+    this._tasks = JsonOrganizer.excludeGoogleTodoTasks(
+      LocalStorageManager.tasks,
+    );
     this.renderTaskSelectOptions();
     this.renderSelectedTaskJson();
   }
@@ -298,7 +316,11 @@ class JsonOrganizer extends HTMLElement {
       return;
     }
 
-    if (currentValue && Number(currentValue) >= 0 && Number(currentValue) < this._tasks.length) {
+    if (
+      currentValue &&
+      Number(currentValue) >= 0 &&
+      Number(currentValue) < this._tasks.length
+    ) {
       select.value = currentValue;
       return;
     }
@@ -361,7 +383,10 @@ class JsonOrganizer extends HTMLElement {
     return new Promise(resolve => {
       const handleClose = () => {
         dialog.removeEventListener('close', handleClose);
-        if (dialog.returnValue === 'normal' || dialog.returnValue === 'temporary') {
+        if (
+          dialog.returnValue === 'normal' ||
+          dialog.returnValue === 'temporary'
+        ) {
           resolve(dialog.returnValue);
           return;
         }
@@ -372,7 +397,8 @@ class JsonOrganizer extends HTMLElement {
   }
 
   private readTaskEditorJson(): DoneTaskData | null {
-    const source = this.getElement<HTMLTextAreaElement>('jsonTaskEditor').value.trim();
+    const source =
+      this.getElement<HTMLTextAreaElement>('jsonTaskEditor').value.trim();
     if (!source) {
       this.setStatus('タスク JSON が空です。', true);
       return null;
@@ -380,7 +406,10 @@ class JsonOrganizer extends HTMLElement {
     try {
       const parsed = JSON.parse(source) as unknown;
       if (!this.isDoneTaskLike(parsed)) {
-        this.setStatus('タスク形式ではありません（id, text, history は必須）。', true);
+        this.setStatus(
+          'タスク形式ではありません（id, text, history は必須）。',
+          true,
+        );
         return null;
       }
       return parsed;
@@ -434,7 +463,7 @@ if (!customElements.get(JsonOrganizer.NAME)) {
 document.addEventListener('DOMContentLoaded', () => {
   // Google認証のリダイレクトパラメータ処理を実行
   handleGoogleAuthRedirect();
-  
+
   SessionManager.startGoogleSessionKeepAlive();
   const container = document.querySelector('.container');
   if (!container) {

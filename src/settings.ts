@@ -1,5 +1,5 @@
 import './style.css';
-import { handleGoogleAuthRedirect } from './google-auth';
+import {handleGoogleAuthRedirect} from './google-auth';
 import Footer from './footer';
 import Header from './header';
 import TaskRepository from './task-repository';

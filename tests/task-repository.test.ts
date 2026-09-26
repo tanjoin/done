@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type {DoneTaskData} from '../src/types';
+import type {DoneOverdueTask, DoneTaskData} from '../src/types';
 
 function createLocalStorage(): Storage {
   const store = new Map<string, string>();
@@ -389,13 +389,17 @@ test('表示カレンダー2のピーコック色タスクをスルー設定で�
         if (url.includes('calendar1')) {
           return {
             ok: true,
-            json: async () => ({items: [{id: 'event-1', summary: 'A', colorId: '1'}]}),
+            json: async () => ({
+              items: [{id: 'event-1', summary: 'A', colorId: '1'}],
+            }),
           } as Response;
         }
         if (url.includes('calendar2')) {
           return {
             ok: true,
-            json: async () => ({items: [{id: 'event-2', summary: 'B', colorId: '7'}]}),
+            json: async () => ({
+              items: [{id: 'event-2', summary: 'B', colorId: '7'}],
+            }),
           } as Response;
         }
         throw new Error(`unexpected url: ${url}`);
@@ -403,8 +407,13 @@ test('表示カレンダー2のピーコック色タスクをスルー設定で�
       configurable: true,
     });
 
-    const {default: LocalStorageManager} = require('../src/local-storage-manager');
-    const {saveCalendarSettings, fetchTodoTasksFromGoogleCalendar} = require('../src/google-calendar-service');
+    const {
+      default: LocalStorageManager,
+    } = require('../src/local-storage-manager');
+    const {
+      saveCalendarSettings,
+      fetchTodoTasksFromGoogleCalendar,
+    } = require('../src/google-calendar-service');
 
     const future = Date.now() + 60_000;
     LocalStorageManager.googleClientIdEncrypted = 'xxx';
@@ -446,7 +455,10 @@ test('表示カレンダー2のピーコック色タスクをスルー設定で�
         originalLocalStorageDescriptor,
       );
     } else {
-      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'localStorage');
+      Reflect.deleteProperty(
+        globalThis as Record<string, unknown>,
+        'localStorage',
+      );
     }
   }
 });
@@ -510,7 +522,9 @@ test('複数の表示カレンダーを保存して取得できる', async () =>
       configurable: true,
     });
 
-    const {default: LocalStorageManager} = require('../src/local-storage-manager');
+    const {
+      default: LocalStorageManager,
+    } = require('../src/local-storage-manager');
     const {
       saveCalendarSettings,
       loadCalendarSettings,
@@ -532,10 +546,10 @@ test('複数の表示カレンダーを保存して取得できる', async () =>
     assert.deepEqual(settings.todoCalendarIds, ['calendar1', 'calendar2']);
     const tasks = await fetchTodoTasksFromGoogleCalendar();
     assert.equal(tasks.length, 2);
-    assert.deepEqual(
-      tasks.map((task: {text: string}) => task.text).sort(),
-      ['A', 'B'],
-    );
+    assert.deepEqual(tasks.map((task: {text: string}) => task.text).sort(), [
+      'A',
+      'B',
+    ]);
   } finally {
     if (originalWindowDescriptor) {
       Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
@@ -559,7 +573,10 @@ test('複数の表示カレンダーを保存して取得できる', async () =>
         originalLocalStorageDescriptor,
       );
     } else {
-      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'localStorage');
+      Reflect.deleteProperty(
+        globalThis as Record<string, unknown>,
+        'localStorage',
+      );
     }
   }
 });
@@ -642,7 +659,10 @@ test('表示カレンダー2の単発予定は未完了一覧に表示する', (
         originalLocalStorageDescriptor,
       );
     } else {
-      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'localStorage');
+      Reflect.deleteProperty(
+        globalThis as Record<string, unknown>,
+        'localStorage',
+      );
     }
   }
 });
@@ -677,11 +697,29 @@ test('overdueTasks もソートされる', () => {
     sortManager.updateSortState('task');
 
     const overdueTasks = [
-      {task: {text: 'zzz', group: 'A', history: {}, startTime: '', endTime: ''}, dateKey: '2026-09-11'},
-      {task: {text: 'aaa', group: 'A', history: {}, startTime: '', endTime: ''}, dateKey: '2026-09-10'},
+      {
+        task: {
+          text: 'zzz',
+          group: 'A',
+          history: {},
+          startTime: '',
+          endTime: '',
+        },
+        dateKey: '2026-09-11',
+      },
+      {
+        task: {
+          text: 'aaa',
+          group: 'A',
+          history: {},
+          startTime: '',
+          endTime: '',
+        },
+        dateKey: '2026-09-10',
+      },
     ];
 
-    sortManager.sortOverdueTasks(overdueTasks as any);
+    sortManager.sortOverdueTasks(overdueTasks as DoneOverdueTask[]);
     assert.deepEqual(
       overdueTasks.map(({task}) => task.text),
       ['aaa', 'zzz'],
@@ -759,7 +797,9 @@ test('resetToDefault は Drive 同期を OFF にしない', async () => {
       configurable: true,
     });
 
-    const {default: LocalStorageManager} = require('../src/local-storage-manager');
+    const {
+      default: LocalStorageManager,
+    } = require('../src/local-storage-manager');
     const {default: TaskRepository} = require('../src/task-repository');
 
     LocalStorageManager.googleDriveSyncEnabled = true;
@@ -787,7 +827,10 @@ test('resetToDefault は Drive 同期を OFF にしない', async () => {
         originalLocalStorageDescriptor,
       );
     } else {
-      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'localStorage');
+      Reflect.deleteProperty(
+        globalThis as Record<string, unknown>,
+        'localStorage',
+      );
     }
     if (originalFetchDescriptor) {
       Object.defineProperty(globalThis, 'fetch', originalFetchDescriptor);
@@ -801,7 +844,10 @@ test('resetToDefault は Drive 同期を OFF にしない', async () => {
         originalCustomEventDescriptor,
       );
     } else {
-      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'CustomEvent');
+      Reflect.deleteProperty(
+        globalThis as Record<string, unknown>,
+        'CustomEvent',
+      );
     }
   }
 });

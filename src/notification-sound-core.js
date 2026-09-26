@@ -1044,12 +1044,12 @@ export default class NotificationSound {
       // 少し歪み(Drive)のような効果を出すため波形をシェイピング
       const distortion = ctx.createWaveShaper();
       function makeDistortionCurve(amount) {
-        let k = typeof amount === 'number' ? amount : 50,
-          n_samples = 44100,
-          curve = new Float32Array(n_samples),
-          deg = Math.PI / 180,
-          i = 0,
-          x;
+        const k = typeof amount === 'number' ? amount : 50;
+        const n_samples = 44100;
+        const curve = new Float32Array(n_samples);
+        const deg = Math.PI / 180;
+        let i = 0;
+        let x;
         for (; i < n_samples; ++i) {
           x = (i * 2) / n_samples - 1;
           curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));

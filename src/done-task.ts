@@ -175,7 +175,9 @@ export default class DoneTask implements DoneTaskData {
     return this.normalizeRemindMinutesBefore() !== null;
   }
 
-  getActiveReminderCandidate(now: Date = new Date()): DoneReminderCandidate | null {
+  getActiveReminderCandidate(
+    now: Date = new Date(),
+  ): DoneReminderCandidate | null {
     for (const offset of [0, 1]) {
       const scheduledDate = new Date(
         now.getFullYear(),
@@ -187,7 +189,11 @@ export default class DoneTask implements DoneTaskData {
         0,
       );
       const candidate = this.toReminderCandidate(scheduledDate);
-      if (!candidate || candidate.leadMinutes === null || candidate.leadMinutes <= 0) {
+      if (
+        !candidate ||
+        candidate.leadMinutes === null ||
+        candidate.leadMinutes <= 0
+      ) {
         continue;
       }
       const startAt = new Date(
@@ -308,17 +314,17 @@ export default class DoneTask implements DoneTaskData {
       this.isGoogleTodoTask() &&
       this.isSecondCalendarTodo === true &&
       this.treatAsLongTermTask === true &&
-      Boolean(this.specificDate && this.endDate && this.endDate > this.specificDate)
+      Boolean(
+        this.specificDate && this.endDate && this.endDate > this.specificDate,
+      )
     );
   }
 
-  shouldHideFromRegularListAsLongTermOverdue(
-    now: Date = new Date(),
-  ): boolean {
+  shouldHideFromRegularListAsLongTermOverdue(now: Date = new Date()): boolean {
     return Boolean(
       this.isSecondCalendarLongTermTask() &&
-        this.endDate &&
-        this.toKebabCase(now) > this.endDate,
+      this.endDate &&
+      this.toKebabCase(now) > this.endDate,
     );
   }
 
@@ -457,7 +463,10 @@ export default class DoneTask implements DoneTaskData {
     return dateKey >= this.specificDate && dateKey <= this.endDate;
   }
 
-  private getNormalizedWindowTimes(): {startNorm: string; endNorm: string} | null {
+  private getNormalizedWindowTimes(): {
+    startNorm: string;
+    endNorm: string;
+  } | null {
     const startNorm = DateHelper.normalizeTime(this.startTime || '00:00');
     const endNorm = DateHelper.normalizeTime(this.endTime || '23:59');
     if (!startNorm || !endNorm) {
@@ -521,7 +530,9 @@ export default class DoneTask implements DoneTaskData {
     return false;
   }
 
-  private shouldHideOvernightByYesterdayHistory(now: Date = new Date()): boolean {
+  private shouldHideOvernightByYesterdayHistory(
+    now: Date = new Date(),
+  ): boolean {
     if (!this.isInOvernightNextDaySlot(now)) {
       return false;
     }
@@ -546,7 +557,10 @@ export default class DoneTask implements DoneTaskData {
     }
 
     const yesterday = DateHelper.yesterdayDate;
-    if (this.isInOvernightNextDaySlot(now) && this.isTaskScheduledOnDate(yesterday)) {
+    if (
+      this.isInOvernightNextDaySlot(now) &&
+      this.isTaskScheduledOnDate(yesterday)
+    ) {
       return this.toKebabCase(yesterday);
     }
 
@@ -970,7 +984,10 @@ export default class DoneTask implements DoneTaskData {
     return {startAt, endAt};
   }
 
-  hasExecutionWindowEndedOnDate(scheduleDate: Date, now: Date = new Date()): boolean {
+  hasExecutionWindowEndedOnDate(
+    scheduleDate: Date,
+    now: Date = new Date(),
+  ): boolean {
     const bounds = this.getExecutionWindowBoundsOnDate(scheduleDate);
     if (!bounds) {
       return false;

@@ -340,7 +340,9 @@ async function fetchCalendarEvents(
   return events;
 }
 
-export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]> {
+export async function fetchTodoTasksFromGoogleCalendar(): Promise<
+  DoneTaskData[]
+> {
   const calendarIds = await Promise.all(
     LocalStorageManager.googleTodoCalendarIdsEncrypted.map(async encryptedId =>
       resolveCalendarId(encryptedId),
@@ -397,7 +399,9 @@ export async function fetchTodoTasksFromGoogleCalendar(): Promise<DoneTaskData[]
   return tasksByCalendar.flat();
 }
 
-export async function addEventToDoneCalendarFromTask(task: DoneTask): Promise<void> {
+export async function addEventToDoneCalendarFromTask(
+  task: DoneTask,
+): Promise<void> {
   const calendarId = await resolveCalendarId(
     LocalStorageManager.googleDoneCalendarIdEncrypted,
   );
@@ -481,7 +485,9 @@ export async function saveCalendarSettings(options: {
     new Set(
       (options.todoCalendarIds ?? [options.todoCalendarId ?? ''])
         .flatMap(entry =>
-          typeof entry === 'string' ? entry.split(',').map(item => item.trim()) : [],
+          typeof entry === 'string'
+            ? entry.split(',').map(item => item.trim())
+            : [],
         )
         .filter(Boolean),
     ),
@@ -517,8 +523,8 @@ export async function loadCalendarSettings(): Promise<{
     await Promise.all([
       resolveCalendarId(LocalStorageManager.googleClientIdEncrypted),
       Promise.all(
-        LocalStorageManager.googleTodoCalendarIdsEncrypted.map(async encryptedId =>
-          resolveCalendarId(encryptedId),
+        LocalStorageManager.googleTodoCalendarIdsEncrypted.map(
+          async encryptedId => resolveCalendarId(encryptedId),
         ),
       ),
       resolveCalendarId(LocalStorageManager.googleDoneCalendarIdEncrypted),

@@ -12,4 +12,34 @@ if (hasIgnoresFile) {
   customConfig = [{ignores}];
 }
 
-module.exports = [...customConfig, ...require('gts')];
+module.exports = [
+  ...customConfig,
+  ...require('gts'),
+  {
+    files: ['src/notification-sound-core.js'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        window: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['tools/**/*.js'],
+    languageOptions: {
+      globals: {
+        __dirname: 'readonly',
+        console: 'readonly',
+        module: 'readonly',
+        process: 'readonly',
+        require: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['tests/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'off',
+    },
+  },
+];

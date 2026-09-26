@@ -1,6 +1,5 @@
 import {DoneOverdueTask, TargetDayMap} from './types';
 import DoneTask from './done-task';
-import DateHelper from './date-helper';
 
 export default class TableManager {
   get headers(): Record<string, string>[] {
@@ -38,22 +37,12 @@ export default class TableManager {
     table.appendChild(thead);
     const tbody = this.createTableBody();
     table.appendChild(tbody);
-    this.insertTasks(
-      tasks,
-      tbody,
-      DateHelper.todayDate,
-      DateHelper.yesterdayDate,
-    );
+    this.insertTasks(tasks, tbody);
     this.insertOverdueTasks(overdueTasks, tbody);
     return tableWrapper;
   }
 
-  insertTasks(
-    tasks: DoneTask[],
-    tbody: HTMLElement,
-    today: Date,
-    yesterday: Date,
-  ): void {
+  insertTasks(tasks: DoneTask[], tbody: HTMLElement): void {
     tasks.forEach(task => {
       const row = document.createElement('tr');
       const currentTask = new DoneTask(task);
@@ -67,77 +56,78 @@ export default class TableManager {
     tbody: HTMLElement,
   ): void {
     overdueTasks.forEach(overdue => {
-        const task = new DoneTask(overdue.task);
-        const row = document.createElement('tr');
-        row.setAttribute('data-overdue', 'true');
+      const task = new DoneTask(overdue.task);
+      const row = document.createElement('tr');
+      row.setAttribute('data-overdue', 'true');
 
-        const groupTd = document.createElement('td');
-        groupTd.appendChild(task.groupChip);
-        row.appendChild(groupTd);
+      const groupTd = document.createElement('td');
+      groupTd.appendChild(task.groupChip);
+      row.appendChild(groupTd);
 
-        const taskNameTd = document.createElement('td');
-        taskNameTd.className = 'task-name';
-        taskNameTd.appendChild(task.taskNameElement);
-        row.appendChild(taskNameTd);
+      const taskNameTd = document.createElement('td');
+      taskNameTd.className = 'task-name';
+      taskNameTd.appendChild(task.taskNameElement);
+      row.appendChild(taskNameTd);
 
-        const timeTd = document.createElement('td');
-        timeTd.textContent = task.timeLabel;
-        row.appendChild(timeTd);
+      const timeTd = document.createElement('td');
+      timeTd.textContent = task.timeLabel;
+      row.appendChild(timeTd);
 
-        const dateTd = document.createElement('td');
-        if (task.isSecondCalendarLongTermTask()) {
-          dateTd.textContent = `予定日: ${task.scheduleLabel}`;
-        } else if (task.isGoogleTodoTask() && task.specificDate) {
-          dateTd.textContent = task.specificDate === overdue.dateKey
+      const dateTd = document.createElement('td');
+      if (task.isSecondCalendarLongTermTask()) {
+        dateTd.textContent = `予定日: ${task.scheduleLabel}`;
+      } else if (task.isGoogleTodoTask() && task.specificDate) {
+        dateTd.textContent =
+          task.specificDate === overdue.dateKey
             ? `未完了日: ${overdue.dateKey}`
             : `予定日: ${task.scheduleLabel} / 未完了日: ${overdue.dateKey}`;
-        } else {
-          dateTd.textContent = `未完了日: ${overdue.dateKey}`;
-        }
-        row.appendChild(dateTd);
+      } else {
+        dateTd.textContent = `未完了日: ${overdue.dateKey}`;
+      }
+      row.appendChild(dateTd);
 
-        const statusTd = document.createElement('td');
-        const statusSpan = document.createElement('span');
-        statusSpan.className = 'chip chip-status-todo';
-        statusSpan.textContent = '未実施';
-        statusTd.appendChild(statusSpan);
-        row.appendChild(statusTd);
+      const statusTd = document.createElement('td');
+      const statusSpan = document.createElement('span');
+      statusSpan.className = 'chip chip-status-todo';
+      statusSpan.textContent = '未実施';
+      statusTd.appendChild(statusSpan);
+      row.appendChild(statusTd);
 
-        const actionTd = document.createElement('td');
-        const actionContainer = document.createElement('div');
-        actionContainer.className = 'table-actions';
+      const actionTd = document.createElement('td');
+      const actionContainer = document.createElement('div');
+      actionContainer.className = 'table-actions';
 
-        const completeBtn = document.createElement('button');
-        completeBtn.className = task.getPrimaryActionClassName();
-        completeBtn.textContent = task.getPrimaryActionLabel();
-        completeBtn.setAttribute('data-task-action', task.getPrimaryActionType());
-        completeBtn.setAttribute('data-task-id', task.id);
-        completeBtn.setAttribute('data-task-date', overdue.dateKey);
-        completeBtn.setAttribute('data-task-overdue', 'true');
-        actionContainer.appendChild(completeBtn);
+      const completeBtn = document.createElement('button');
+      completeBtn.className = task.getPrimaryActionClassName();
+      completeBtn.textContent = task.getPrimaryActionLabel();
+      completeBtn.setAttribute('data-task-action', task.getPrimaryActionType());
+      completeBtn.setAttribute('data-task-id', task.id);
+      completeBtn.setAttribute('data-task-date', overdue.dateKey);
+      completeBtn.setAttribute('data-task-overdue', 'true');
+      actionContainer.appendChild(completeBtn);
 
-        const secondaryBtn = document.createElement('button');
-        const isDeleteAction = Boolean(
-          task.specificDate && !task.isGoogleTodoTask(),
-        );
-        secondaryBtn.className = isDeleteAction
-          ? 'table-btn table-btn-danger'
-          : 'table-btn';
-        secondaryBtn.textContent = isDeleteAction ? '削除' : 'キャンセル';
-        secondaryBtn.setAttribute(
-          'data-task-action',
-          isDeleteAction ? 'delete' : 'cancel',
-        );
-        secondaryBtn.setAttribute('data-task-id', task.id);
-        secondaryBtn.setAttribute('data-task-date', overdue.dateKey);
-        secondaryBtn.setAttribute('data-task-overdue', 'true');
-        actionContainer.appendChild(secondaryBtn);
+      const secondaryBtn = document.createElement('button');
+      const isDeleteAction = Boolean(
+        task.specificDate && !task.isGoogleTodoTask(),
+      );
+      secondaryBtn.className = isDeleteAction
+        ? 'table-btn table-btn-danger'
+        : 'table-btn';
+      secondaryBtn.textContent = isDeleteAction ? '削除' : 'キャンセル';
+      secondaryBtn.setAttribute(
+        'data-task-action',
+        isDeleteAction ? 'delete' : 'cancel',
+      );
+      secondaryBtn.setAttribute('data-task-id', task.id);
+      secondaryBtn.setAttribute('data-task-date', overdue.dateKey);
+      secondaryBtn.setAttribute('data-task-overdue', 'true');
+      actionContainer.appendChild(secondaryBtn);
 
-        actionTd.appendChild(actionContainer);
-        row.appendChild(actionTd);
+      actionTd.appendChild(actionContainer);
+      row.appendChild(actionTd);
 
-        tbody.appendChild(row);
-  });
+      tbody.appendChild(row);
+    });
   }
 
   private createTableBody() {

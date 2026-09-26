@@ -49,7 +49,10 @@ async function importOrCreateKey(): Promise<CryptoKey | null> {
     ['encrypt', 'decrypt'],
   );
   const exported = await cryptoObj.subtle.exportKey('raw', key);
-  localStorage.setItem(CRYPTO_KEY_STORAGE, bytesToBase64(new Uint8Array(exported)));
+  localStorage.setItem(
+    CRYPTO_KEY_STORAGE,
+    bytesToBase64(new Uint8Array(exported)),
+  );
   return key;
 }
 

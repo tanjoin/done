@@ -115,7 +115,12 @@ export function mergeTaskSyncData(
         return;
       }
       if (equal(remoteTask, baseTask)) return;
-      conflicts.push({taskId, field: 'task', localValue: null, remoteValue: remoteTask});
+      conflicts.push({
+        taskId,
+        field: 'task',
+        localValue: null,
+        remoteValue: remoteTask,
+      });
       tasks.push(remoteTask!);
       return;
     }
@@ -125,13 +130,23 @@ export function mergeTaskSyncData(
         return;
       }
       if (equal(localTask, baseTask)) return;
-      conflicts.push({taskId, field: 'task', localValue: localTask, remoteValue: null});
+      conflicts.push({
+        taskId,
+        field: 'task',
+        localValue: localTask,
+        remoteValue: null,
+      });
       tasks.push(localTask);
       return;
     }
     if (!baseTask) {
       if (!equal(localTask, remoteTask)) {
-        conflicts.push({taskId, field: 'task', localValue: localTask, remoteValue: remoteTask});
+        conflicts.push({
+          taskId,
+          field: 'task',
+          localValue: localTask,
+          remoteValue: remoteTask,
+        });
       }
       tasks.push(localTask);
       return;

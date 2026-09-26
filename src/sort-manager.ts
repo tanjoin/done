@@ -69,8 +69,10 @@ export default class SortManager {
           valB = b.dateKey;
           break;
         case 'status':
-          valA = taskA.history && taskA.history[TODAY] ? taskA.history[TODAY] : '';
-          valB = taskB.history && taskB.history[TODAY] ? taskB.history[TODAY] : '';
+          valA =
+            taskA.history && taskA.history[TODAY] ? taskA.history[TODAY] : '';
+          valB =
+            taskB.history && taskB.history[TODAY] ? taskB.history[TODAY] : '';
           break;
         default:
           return 0;

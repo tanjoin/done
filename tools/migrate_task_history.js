@@ -33,7 +33,7 @@ function migrate() {
         if (Array.isArray(existingData)) {
           existingTasks = existingData;
         }
-      } catch (e) {
+      } catch {
         console.warn(
           '警告: 既存の履歴ファイルが壊れているか空です。新規作成として処理します。',
         );

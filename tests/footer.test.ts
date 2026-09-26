@@ -46,7 +46,10 @@ test('Footer はコミットハッシュを最下部に表示する', () => {
         originalCustomElementsDescriptor,
       );
     } else {
-      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'customElements');
+      Reflect.deleteProperty(
+        globalThis as Record<string, unknown>,
+        'customElements',
+      );
     }
   }
 });

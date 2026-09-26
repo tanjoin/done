@@ -80,11 +80,7 @@ export default class SessionManager {
 
     SessionManager._refreshInFlight = true;
     try {
-      await getGoogleAccessToken(
-        GOOGLE_APP_SCOPES,
-        false,
-        true,
-      );
+      await getGoogleAccessToken(GOOGLE_APP_SCOPES, false, true);
     } catch (error) {
       if (isGoogleReloginRequiredError(error)) {
         SessionManager._reloginNoticeSent = true;

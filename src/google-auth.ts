@@ -17,9 +17,7 @@ declare global {
               expires_in?: number;
             }) => void;
           }) => {
-            requestAccessToken: (options?: {
-              prompt?: string;
-            }) => void;
+            requestAccessToken: (options?: {prompt?: string}) => void;
           };
         };
       };
@@ -50,9 +48,7 @@ export const GOOGLE_APP_SCOPES = [
 ];
 
 type TokenClient = {
-  requestAccessToken: (options?: {
-    prompt?: string;
-  }) => void;
+  requestAccessToken: (options?: {prompt?: string}) => void;
 };
 
 type GoogleTokenResponse = {
@@ -271,7 +267,9 @@ export async function getGoogleAccessToken(
             return;
           }
           if (!response.access_token) {
-            logGoogleAuth('token request failed', {error: 'access_token is missing'});
+            logGoogleAuth('token request failed', {
+              error: 'access_token is missing',
+            });
             reject(new Error('アクセストークン取得に失敗しました。'));
             return;
           }
@@ -330,7 +328,11 @@ export function handleGoogleAuthRedirect(): boolean {
   if (accessTokenParam || errorParam) {
     const expectedState = sessionStorage.getItem(GOOGLE_AUTH_STATE_KEY);
     sessionStorage.removeItem(GOOGLE_AUTH_STATE_KEY);
-    history.replaceState(null, '', window.location.pathname + window.location.search);
+    history.replaceState(
+      null,
+      '',
+      window.location.pathname + window.location.search,
+    );
     if (!expectedState || stateParam !== expectedState) {
       sessionStorage.removeItem(GOOGLE_AUTH_RETURN_URL_KEY);
       return false;

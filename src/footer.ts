@@ -1,5 +1,5 @@
 const COMMIT_SHA =
-  (globalThis as { __APP_GIT_COMMIT_SHA__?: string }).__APP_GIT_COMMIT_SHA__ ||
+  (globalThis as {__APP_GIT_COMMIT_SHA__?: string}).__APP_GIT_COMMIT_SHA__ ||
   'dev';
 
 export default class Footer extends HTMLElement {
@@ -16,7 +16,8 @@ export default class Footer extends HTMLElement {
   }
 
   private render(): void {
-    const shortSha = COMMIT_SHA.length > 7 ? COMMIT_SHA.slice(0, 7) : COMMIT_SHA;
+    const shortSha =
+      COMMIT_SHA.length > 7 ? COMMIT_SHA.slice(0, 7) : COMMIT_SHA;
     const commitUrl = `https://github.com/tanjoin/done/commit/${COMMIT_SHA}`;
     this.innerHTML = `
       <footer class="app-footer">

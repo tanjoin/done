@@ -10,10 +10,7 @@ import {
 } from './google-drive-service';
 import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
 import type {DoneOverdueTask, DoneTaskData} from './types';
-import {
-  mergeTaskSyncData,
-  type TaskSyncConflict,
-} from './task-sync-merge';
+import {mergeTaskSyncData, type TaskSyncConflict} from './task-sync-merge';
 
 type CloudRefreshTarget = 'all' | 'drive' | 'calendar';
 
@@ -25,8 +22,7 @@ export default class TaskRepository {
   private static readonly NAV_FROM_SETTINGS_KEY =
     'done_nav_from_settings_to_index_v1';
   private static readonly NAV_HINT_TTL_MS = 30 * 1000;
-  static readonly EVENT_TODO_CALENDAR_STATUS =
-    'done-todo-calendar-load-status';
+  static readonly EVENT_TODO_CALENDAR_STATUS = 'done-todo-calendar-load-status';
   static readonly EVENT_GOOGLE_DRIVE_STATUS = 'done-google-drive-status';
   static readonly EVENT_GOOGLE_RELOGIN_NOTICE = 'done-google-relogin-notice';
   private static mapSyncSkippedReasonToMessage(
@@ -88,7 +84,10 @@ export default class TaskRepository {
     }
 
     const referrer = document.referrer || '';
-    if (navType === 'navigate' && /\/settings\.html([?#].*)?$/i.test(referrer)) {
+    if (
+      navType === 'navigate' &&
+      /\/settings\.html([?#].*)?$/i.test(referrer)
+    ) {
       return false;
     }
 
@@ -283,8 +282,14 @@ export default class TaskRepository {
       return false;
     }
     const baseTasks = LocalStorageManager.taskSyncState?.baseTasks || [];
-    const merged = mergeTaskSyncData(baseTasks, localTasks, remoteSnapshot.tasks);
-    const resolvedTasks = JSON.parse(JSON.stringify(merged.tasks)) as DoneTaskData[];
+    const merged = mergeTaskSyncData(
+      baseTasks,
+      localTasks,
+      remoteSnapshot.tasks,
+    );
+    const resolvedTasks = JSON.parse(
+      JSON.stringify(merged.tasks),
+    ) as DoneTaskData[];
 
     for (const conflict of merged.conflicts) {
       if (!this.chooseConflictResolution(conflict)) {
@@ -318,7 +323,8 @@ export default class TaskRepository {
       }
       this.emitGoogleDriveStatus({
         state: 'error',
-        message: 'Google Drive: 他端末で更新が続いているため、同期を保留しました',
+        message:
+          'Google Drive: 他端末で更新が続いているため、同期を保留しました',
       });
       return false;
     }
@@ -399,7 +405,7 @@ export default class TaskRepository {
     const endNorm = task.normalizeEndTime();
     const now = new Date();
 
-    let loopStart = new Date(referenceDate);
+    const loopStart = new Date(referenceDate);
     if (startNorm > endNorm) {
       loopStart.setDate(loopStart.getDate() - 1);
     }

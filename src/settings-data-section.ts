@@ -112,9 +112,7 @@ export default class SettingsDataSection {
     return formatToggle.checked ? 'drive' : 'array';
   }
 
-  private static extractTasksFromJson(
-    parsed: unknown,
-  ): DoneTaskData[] | null {
+  private static extractTasksFromJson(parsed: unknown): DoneTaskData[] | null {
     if (Array.isArray(parsed)) {
       return parsed as DoneTaskData[];
     }
@@ -186,10 +184,7 @@ export default class SettingsDataSection {
       const text = await navigator.clipboard.readText();
       const parsed = JSON.parse(text);
       if (
-          !(await SettingsDataSection.updateTasksFromJson(
-          parsed,
-          taskRepository,
-        ))
+        !(await SettingsDataSection.updateTasksFromJson(parsed, taskRepository))
       ) {
         alert('無効なJSONフォーマットです。');
         return;

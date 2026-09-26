@@ -4,7 +4,6 @@ import {
   DoneTheme,
   TargetDayMap,
   DoneGroups as DoneGroups,
-  DoneOverdueTask,
 } from './types';
 import DoneTask from './done-task';
 import Footer from './footer';
@@ -25,7 +24,11 @@ import {
   updateTodoEventDescription,
   updateTodoEventColor,
 } from './google-calendar-service';
-import {hasValidGoogleToken, isGoogleReloginRequiredError, handleGoogleAuthRedirect} from './google-auth';
+import {
+  hasValidGoogleToken,
+  isGoogleReloginRequiredError,
+  handleGoogleAuthRedirect,
+} from './google-auth';
 import GoogleAuthAlertController, {
   renderGoogleAuthAlert,
 } from './google-auth-alert';
@@ -47,12 +50,10 @@ class Index extends HTMLElement {
   private _googleAuthAlertController: GoogleAuthAlertController | null = null;
   private _taskActionVersions = new Map<string, number>();
 
-  private static readonly TODO_CHECKBOX_LINE_RE =
-    /^\s*-\s*\[( |x|X)\]\s*(.*)$/;
+  private static readonly TODO_CHECKBOX_LINE_RE = /^\s*-\s*\[( |x|X)\]\s*(.*)$/;
 
   private notifyGoogleReloginRequired(
-    message =
-      'Google認証の有効期限が切れました。再ログインするにはここを押してください。',
+    message = 'Google認証の有効期限が切れました。再ログインするにはここを押してください。',
   ): void {
     if (!LocalStorageManager.googleClientIdEncrypted.trim()) {
       return;
@@ -823,7 +824,6 @@ class Index extends HTMLElement {
 
     container.innerHTML = '';
 
-    const TODAY = DateHelper.today;
     const YESTERDAY = DateHelper.yesterday;
 
     // // ソート条件が設定されていれば、描画の直前にデータをソート
@@ -1103,7 +1103,9 @@ class Index extends HTMLElement {
           actionContainer.appendChild(mainButton);
 
           const secondaryButton = document.createElement('button');
-          const isDeleteAction = Boolean(task.specificDate && !task.isGoogleTodoTask());
+          const isDeleteAction = Boolean(
+            task.specificDate && !task.isGoogleTodoTask(),
+          );
           secondaryButton.className = isDeleteAction ? 'btn' : 'btn btn-cancel';
           secondaryButton.textContent = isDeleteAction ? '削除' : 'キャンセル';
           secondaryButton.setAttribute(
@@ -1153,11 +1155,14 @@ class Index extends HTMLElement {
           if (task.isSecondCalendarLongTermTask()) {
             overdueDate.textContent = `予定日: ${task.scheduleLabel}`;
           } else if (task.isGoogleTodoTask() && task.specificDate) {
-            overdueDate.textContent = task.specificDate === overdue.dateKey
-              ? task.formatUnfinishedDateLabel(overdue.dateKey)
-              : `予定日: ${task.scheduleLabel} / ${task.formatUnfinishedDateLabel(overdue.dateKey)}`;
+            overdueDate.textContent =
+              task.specificDate === overdue.dateKey
+                ? task.formatUnfinishedDateLabel(overdue.dateKey)
+                : `予定日: ${task.scheduleLabel} / ${task.formatUnfinishedDateLabel(overdue.dateKey)}`;
           } else {
-            overdueDate.textContent = task.formatUnfinishedDateLabel(overdue.dateKey);
+            overdueDate.textContent = task.formatUnfinishedDateLabel(
+              overdue.dateKey,
+            );
           }
           content.appendChild(overdueDate);
 
@@ -1276,7 +1281,6 @@ class Index extends HTMLElement {
 
   setupPageSpecifics(): void {
     const taskContainer = document.getElementById('taskContainer');
-    const todoCalendarLoadStatus = document.getElementById('todoCalendarLoadStatus');
     if (taskContainer) {
       document.addEventListener(
         TaskRepository.EVENT_TODO_CALENDAR_STATUS,
@@ -1384,7 +1388,11 @@ class Index extends HTMLElement {
           const colName = th.getAttribute('data-sort-col');
           if (colName) {
             const overdueTasks = this._taskRepository.getOverdueTasks();
-            this._sortManager.handleSort(colName, this._taskRepository, overdueTasks);
+            this._sortManager.handleSort(
+              colName,
+              this._taskRepository,
+              overdueTasks,
+            );
             this.renderCards();
           }
         }
@@ -1479,7 +1487,10 @@ class Index extends HTMLElement {
       this._activeCloudRefreshes++;
       this.setLoading(true);
       try {
-        await this._taskRepository.refreshFromCloudIfNeeded(forceRefresh, target);
+        await this._taskRepository.refreshFromCloudIfNeeded(
+          forceRefresh,
+          target,
+        );
       } finally {
         this._activeCloudRefreshes--;
         this.setLoading(this._activeCloudRefreshes > 0);
@@ -1552,7 +1563,8 @@ class Index extends HTMLElement {
     this.setupPageSpecifics();
 
     // リロード時のみ強制再取得し、設定画面から戻った直後はセッションキャッシュを優先する。
-    const forceCloudRefresh = TaskRepository.shouldForceCloudRefreshOnIndexInit();
+    const forceCloudRefresh =
+      TaskRepository.shouldForceCloudRefreshOnIndexInit();
     void this.refreshCloudTasksWithLoading(forceCloudRefresh).then(() => {
       this.renderCards();
     });
