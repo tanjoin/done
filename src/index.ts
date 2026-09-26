@@ -38,9 +38,14 @@ class Index extends HTMLElement {
   private _sortManager: SortManager = new SortManager();
   private _tableManager: TableManager = new TableManager();
   private _isLoading = false;
-  private _cloudRefreshPromise: Promise<void> | null = null;
+  private _cloudRefreshPromises = new Map<
+    'all' | 'drive' | 'calendar',
+    Promise<void>
+  >();
+  private _activeCloudRefreshes = 0;
   private _lastPageActivationRefreshAt = 0;
   private _googleAuthAlertController: GoogleAuthAlertController | null = null;
+  private _taskActionVersions = new Map<string, number>();
 
   private static readonly TODO_CHECKBOX_LINE_RE =
     /^\s*-\s*\[( |x|X)\]\s*(.*)$/;
@@ -78,6 +83,34 @@ class Index extends HTMLElement {
     return this._taskRepository.tasks.findIndex(task => task.id === taskId);
   }
 
+  private restoreFailedTaskAction(
+    taskId: string,
+    targetDateKey: string,
+    previousStatus: 'completed' | 'cancelled' | undefined,
+    currentStatus: 'completed' | 'cancelled',
+    version: number,
+  ): void {
+    const actionKey = `${taskId}:${targetDateKey}`;
+    const task = this._taskRepository.tasks.find(item => item.id === taskId);
+    if (
+      this._taskActionVersions.get(actionKey) !== version ||
+      !task ||
+      task.history[targetDateKey] !== currentStatus
+    ) {
+      return;
+    }
+    if (previousStatus) {
+      task.history[targetDateKey] = previousStatus;
+    } else {
+      delete task.history[targetDateKey];
+    }
+    this._taskRepository.recordTaskMutation();
+    if (!task.isGoogleTodoTask()) {
+      this._taskRepository.saveTasks();
+    }
+    this.renderCards();
+  }
+
   private runAfterNextPaint(callback: () => void): void {
     if (typeof window.requestAnimationFrame === 'function') {
       window.requestAnimationFrame(() => window.setTimeout(callback, 0));
@@ -90,6 +123,7 @@ class Index extends HTMLElement {
     actionButton: HTMLButtonElement | undefined,
     task: DoneTask,
     isUndo: boolean,
+    hideRow = false,
   ): void {
     if (!actionButton) {
       return;
@@ -133,11 +167,9 @@ class Index extends HTMLElement {
       }
     }
 
-    item
-      .querySelectorAll<HTMLButtonElement>('button[data-task-action]')
-      .forEach(button => {
-        button.disabled = true;
-      });
+    if (row && hideRow) {
+      row.remove();
+    }
   }
 
   private executeTask(
@@ -153,15 +185,34 @@ class Index extends HTMLElement {
     }
     const task = this._taskRepository.tasks[taskIndex]!;
 
-    task.history[targetDateKey] = isCancel ? 'cancelled' : 'completed';
+    const previousStatus = task.history[targetDateKey];
+    const currentStatus = isCancel ? 'cancelled' : 'completed';
+    const actionKey = `${taskId}:${targetDateKey}`;
+    const version = (this._taskActionVersions.get(actionKey) || 0) + 1;
+    this._taskActionVersions.set(actionKey, version);
+    task.history[targetDateKey] = currentStatus;
     this._taskRepository.recordTaskMutation();
     const calendarTask = new DoneTask(task);
-    this.updatePressedTaskItem(actionButton, calendarTask, false);
+    this.updatePressedTaskItem(
+      actionButton,
+      calendarTask,
+      false,
+      isCancel
+        ? LocalStorageManager.filterHideCancelled
+        : LocalStorageManager.filterHideCompleted,
+    );
     this.runAfterNextPaint(() => this.renderCards());
 
     if (!calendarTask.isGoogleTodoTask()) {
       this.runAfterNextPaint(() => {
         void this._taskRepository.saveTasksWithSync().catch(error => {
+          this.restoreFailedTaskAction(
+            taskId,
+            targetDateKey,
+            previousStatus,
+            currentStatus,
+            version,
+          );
           if (isGoogleReloginRequiredError(error)) {
             this.notifyGoogleReloginRequired();
             return;
@@ -184,6 +235,13 @@ class Index extends HTMLElement {
       if (isCancel) {
         if (calendarTask.isGoogleTodoTask()) {
           void updateTodoEventColor(calendarTask, '4').catch(error => {
+            this.restoreFailedTaskAction(
+              taskId,
+              targetDateKey,
+              previousStatus,
+              currentStatus,
+              version,
+            );
             if (isGoogleReloginRequiredError(error)) {
               this.notifyGoogleReloginRequired();
               return;
@@ -196,6 +254,13 @@ class Index extends HTMLElement {
 
       if (calendarTask.isGoogleTodoTask()) {
         void updateTodoEventColor(calendarTask, '8').catch(error => {
+          this.restoreFailedTaskAction(
+            taskId,
+            targetDateKey,
+            previousStatus,
+            currentStatus,
+            version,
+          );
           if (isGoogleReloginRequiredError(error)) {
             this.notifyGoogleReloginRequired();
             return;
@@ -207,6 +272,13 @@ class Index extends HTMLElement {
 
       if (primaryAction === 'add') {
         void addEventToDoneCalendarFromTask(calendarTask).catch(error => {
+          this.restoreFailedTaskAction(
+            taskId,
+            targetDateKey,
+            previousStatus,
+            currentStatus,
+            version,
+          );
           if (isGoogleReloginRequiredError(error)) {
             this.notifyGoogleReloginRequired();
             return;
@@ -219,7 +291,20 @@ class Index extends HTMLElement {
       if (primaryAction === 'append') {
         await IndexCalendarEvent.open(calendarTask, false);
       }
-    })();
+    })().catch(error => {
+      this.restoreFailedTaskAction(
+        taskId,
+        targetDateKey,
+        previousStatus,
+        currentStatus,
+        version,
+      );
+      if (isGoogleReloginRequiredError(error)) {
+        this.notifyGoogleReloginRequired();
+        return;
+      }
+      alert('カレンダーを開けませんでした。');
+    });
   }
 
   private undoTask(
@@ -234,6 +319,11 @@ class Index extends HTMLElement {
 
     const history = this._taskRepository.tasks[taskIndex]!.history;
     if (history[targetDateKey]) {
+      const actionKey = `${taskId}:${targetDateKey}`;
+      this._taskActionVersions.set(
+        actionKey,
+        (this._taskActionVersions.get(actionKey) || 0) + 1,
+      );
       delete history[targetDateKey];
       this._taskRepository.recordTaskMutation();
       const task = new DoneTask(this._taskRepository.tasks[taskIndex]!);
@@ -675,7 +765,6 @@ class Index extends HTMLElement {
     }
 
     statusBtn.textContent = message;
-    statusBtn.disabled = state === 'loading';
     status.classList.remove('is-error', 'is-loading');
     if (state === 'error') {
       status.classList.add('is-error');
@@ -707,7 +796,6 @@ class Index extends HTMLElement {
     }
 
     statusBtn.textContent = message;
-    statusBtn.disabled = state === 'loading';
     status.classList.remove('is-error', 'is-loading');
     if (state === 'error') {
       status.classList.add('is-error');
@@ -1337,9 +1425,6 @@ class Index extends HTMLElement {
     ) as HTMLButtonElement | null;
     if (todoCalendarLoadStatusBtn) {
       todoCalendarLoadStatusBtn.addEventListener('click', () => {
-        if (this._isLoading) {
-          return;
-        }
         this.setTodoCalendarLoadStatus(
           'TODOカレンダー: 再読み込み中...',
           'loading',
@@ -1355,9 +1440,6 @@ class Index extends HTMLElement {
     ) as HTMLButtonElement | null;
     if (googleDriveStatusBtn) {
       googleDriveStatusBtn.addEventListener('click', () => {
-        if (this._isLoading) {
-          return;
-        }
         this.setGoogleDriveStatus('Google Drive: 再読み込み中...', 'loading');
         void this.refreshCloudTasksWithLoading(true, 'drive').then(() => {
           this.renderCards();
@@ -1390,24 +1472,27 @@ class Index extends HTMLElement {
     forceRefresh = false,
     target: 'all' | 'drive' | 'calendar' = 'all',
   ): Promise<void> {
-    if (this._cloudRefreshPromise) {
-      return this._cloudRefreshPromise;
+    const inProgress = this._cloudRefreshPromises.get(target);
+    if (inProgress) {
+      return inProgress;
     }
 
     const refreshPromise = (async () => {
+      this._activeCloudRefreshes++;
       this.setLoading(true);
       try {
         await this._taskRepository.refreshFromCloudIfNeeded(forceRefresh, target);
       } finally {
-        this.setLoading(false);
+        this._activeCloudRefreshes--;
+        this.setLoading(this._activeCloudRefreshes > 0);
       }
     })();
-    this._cloudRefreshPromise = refreshPromise;
+    this._cloudRefreshPromises.set(target, refreshPromise);
     try {
       await refreshPromise;
     } finally {
-      if (this._cloudRefreshPromise === refreshPromise) {
-        this._cloudRefreshPromise = null;
+      if (this._cloudRefreshPromises.get(target) === refreshPromise) {
+        this._cloudRefreshPromises.delete(target);
       }
     }
   }

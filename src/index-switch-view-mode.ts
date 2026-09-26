@@ -42,7 +42,7 @@ export default class IndexSwitchViewMode extends HTMLElement {
     if (!viewModeToggle) return;
 
     // 1. データの初期同期
-    const savedViewMode = LocalStorageManager.taskViewMode || 'card';
+    const savedViewMode = LocalStorageManager.taskViewMode;
     viewModeToggle.checked = savedViewMode === 'table';
 
     // 2. イベントリスナーの設定

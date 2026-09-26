@@ -106,6 +106,8 @@ export default class TaskRepository {
     }>;
   } | null = null;
   private localMutationVersion = 0;
+  private cloudRefreshVersion = 0;
+  private appliedCloudRefreshVersion = {drive: 0, calendar: 0};
 
   private countGoogleTodoTasks(tasks: DoneTaskData[]): number {
     return tasks.filter(task => task.sourceType === 'google-todo').length;
@@ -263,14 +265,14 @@ export default class TaskRepository {
   private async mergeDriveConflict(
     localTasks: DoneTaskData[],
     attempt = 0,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const remoteSnapshot = await loadTasksFromGoogleDrive();
     if (!remoteSnapshot) {
       this.emitGoogleDriveStatus({
         state: 'error',
         message: 'Google Drive: 競合データを取得できませんでした',
       });
-      return;
+      return false;
     }
     const baseTasks = LocalStorageManager.taskSyncState?.baseTasks || [];
     const merged = mergeTaskSyncData(baseTasks, localTasks, remoteSnapshot.tasks);
@@ -304,14 +306,13 @@ export default class TaskRepository {
     const result = await this.enqueueDriveSync(resolvedTasks, false);
     if (!result.uploaded) {
       if (result.skippedReason === 'conflict' && attempt < 2) {
-        await this.mergeDriveConflict(resolvedTasks, attempt + 1);
-        return;
+        return this.mergeDriveConflict(resolvedTasks, attempt + 1);
       }
       this.emitGoogleDriveStatus({
         state: 'error',
         message: 'Google Drive: 他端末で更新が続いているため、同期を保留しました',
       });
-      return;
+      return false;
     }
     this.setSessionCache(this._tasks);
     this.emitGoogleDriveStatus({
@@ -321,6 +322,7 @@ export default class TaskRepository {
           ? `Google Drive: 競合を解消して同期完了${TaskRepository.formatDriveVersion(result.updatedAt || '')}`
           : `Google Drive: 自動マージして同期完了${TaskRepository.formatDriveVersion(result.updatedAt || '')}`,
     });
+    return true;
   }
 
   private parseDateKey(dateKey: string): Date | null {
@@ -663,26 +665,43 @@ export default class TaskRepository {
     const hasPendingLocalChanges = LocalStorageManager.taskSyncDirty;
     const sourceTasks =
       target === 'all' ? LocalStorageManager.tasks || [] : this._tasks;
+    const refreshVersion = ++this.cloudRefreshVersion;
     const fetched = await this.fetchCloudMergedTasks(sourceTasks, target);
     const canApplyCloudResult =
       mutationVersionAtFetchStart === this.localMutationVersion;
     if (canApplyCloudResult) {
+      const applyDrive =
+        target !== 'calendar' &&
+        !fetched.driveLoadFailed &&
+        refreshVersion > this.appliedCloudRefreshVersion.drive;
+      const applyCalendar =
+        target !== 'drive' &&
+        !fetched.todoFetchFailed &&
+        refreshVersion > this.appliedCloudRefreshVersion.calendar;
+      const mergedTasks = [
+        ...this.stripGoogleTodoTasks(
+          applyDrive ? fetched.mergedTasks : this._tasks,
+        ),
+        ...(applyCalendar
+          ? fetched.mergedTasks.filter(
+              task => task.sourceType === 'google-todo',
+            )
+          : this._tasks.filter(task => task.isGoogleTodoTask())),
+      ];
       if (hasPendingLocalChanges) {
         const localOnly = this.stripGoogleTodoTasks(this._tasks);
         this._tasks = this.hydrateTasks([
           ...localOnly,
-          ...fetched.mergedTasks.filter(
-            task => task.sourceType === 'google-todo',
-          ),
+          ...mergedTasks.filter(task => task.sourceType === 'google-todo'),
         ]);
       } else {
-        const localOnly = this.stripGoogleTodoTasks(fetched.mergedTasks);
-        this._tasks = this.hydrateTasks(fetched.mergedTasks);
+        const localOnly = this.stripGoogleTodoTasks(mergedTasks);
+        this._tasks = this.hydrateTasks(mergedTasks);
         LocalStorageManager.tasks = localOnly;
-        if (fetched.driveUpdatedAt) {
+        if (applyDrive && fetched.driveUpdatedAt) {
           LocalStorageManager.tasksLastUpdatedAt = fetched.driveUpdatedAt;
         }
-        if (fetched.driveRevision && fetched.driveFileId) {
+        if (applyDrive && fetched.driveRevision && fetched.driveFileId) {
           LocalStorageManager.taskSyncState = {
             baseRevision: fetched.driveRevision,
             baseDriveVersion: fetched.driveVersion,
@@ -691,7 +710,13 @@ export default class TaskRepository {
             baseTasks: localOnly,
           };
         }
-        this.setSessionCache(fetched.mergedTasks);
+        this.setSessionCache(mergedTasks);
+      }
+      if (applyDrive) {
+        this.appliedCloudRefreshVersion.drive = refreshVersion;
+      }
+      if (applyCalendar) {
+        this.appliedCloudRefreshVersion.calendar = refreshVersion;
       }
     }
 
@@ -816,7 +841,9 @@ export default class TaskRepository {
       );
       if (!result.uploaded && result.skippedReason) {
         if (result.skippedReason === 'conflict') {
-          await this.mergeDriveConflict(persistableTasks);
+          if (!(await this.mergeDriveConflict(persistableTasks))) {
+            throw new Error('Google Drive の競合を解消できませんでした');
+          }
           return;
         }
         this.emitGoogleDriveStatus({

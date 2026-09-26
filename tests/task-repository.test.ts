@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import type {DoneTaskData} from '../src/types';
 
 function createLocalStorage(): Storage {
   const store = new Map<string, string>();
@@ -24,6 +25,40 @@ function createLocalStorage(): Storage {
     },
   };
 }
+
+void test('表示モード未保存時は一覧、カード選択時はカードを維持する', () => {
+  const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'localStorage',
+  );
+
+  try {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: createLocalStorage(),
+      configurable: true,
+    });
+    const {
+      default: LocalStorageManager,
+    } = require('../src/local-storage-manager');
+
+    assert.equal(LocalStorageManager.taskViewMode, 'table');
+    LocalStorageManager.taskViewMode = 'card';
+    assert.equal(LocalStorageManager.taskViewMode, 'card');
+  } finally {
+    if (originalLocalStorageDescriptor) {
+      Object.defineProperty(
+        globalThis,
+        'localStorage',
+        originalLocalStorageDescriptor,
+      );
+    } else {
+      Reflect.deleteProperty(
+        globalThis as Record<string, unknown>,
+        'localStorage',
+      );
+    }
+  }
+});
 
 void test('Drive本文取得後の空versionでも同期基準を保持する', () => {
   const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(
@@ -168,6 +203,137 @@ void test('操作中に完了したタスクを進行中のDrive読込で巻き�
       ['localStorage', originalLocalStorageDescriptor],
       ['sessionStorage', originalSessionStorageDescriptor],
       ['CustomEvent', originalCustomEventDescriptor],
+    ] as const) {
+      if (descriptor) {
+        Object.defineProperty(globalThis, name, descriptor);
+      } else {
+        Reflect.deleteProperty(globalThis as Record<string, unknown>, name);
+      }
+    }
+  }
+});
+
+void test('Calendar と Drive の並行更新は到着順に関係なく両方残す', async () => {
+  const originalLocalStorage = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'localStorage',
+  );
+  const originalSessionStorage = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'sessionStorage',
+  );
+  const originalDocument = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'document',
+  );
+  const originalCustomEvent = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'CustomEvent',
+  );
+
+  try {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: createLocalStorage(),
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: createLocalStorage(),
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'document', {
+      value: {dispatchEvent: () => undefined},
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'CustomEvent', {
+      value: class {
+        constructor(
+          public type: string,
+          public init: {detail?: unknown} = {},
+        ) {}
+      },
+      configurable: true,
+    });
+    const {
+      default: LocalStorageManager,
+    } = require('../src/local-storage-manager');
+    const {default: TaskRepository} = require('../src/task-repository');
+    localStorage.setItem('done_google_access_token_v1', 'test-token');
+    localStorage.setItem(
+      'done_google_access_token_expiry_v1',
+      String(Date.now() + 60_000),
+    );
+
+    const localTask: DoneTaskData = {
+      id: 'local-one',
+      text: 'Local',
+      history: {},
+    };
+    const driveTask: DoneTaskData = {
+      id: 'drive-one',
+      text: 'Drive',
+      history: {},
+    };
+    const calendarTask: DoneTaskData = {
+      id: 'todo-one',
+      text: 'Calendar',
+      history: {},
+      sourceType: 'google-todo',
+    };
+    const fetched = {
+      mergedTasks: [] as DoneTaskData[],
+      todoCount: 1,
+      todoFetchFailed: false,
+      todoFetchAuthExpired: false,
+      driveLoadFailed: false,
+      driveLoadAuthExpired: false,
+      driveUpdatedAt: '',
+      driveRevision: '',
+      driveVersion: '',
+      driveFileId: '',
+    };
+
+    for (const order of [
+      ['calendar', 'drive'],
+      ['drive', 'calendar'],
+      ['drive', 'all'],
+    ] as const) {
+      LocalStorageManager.tasks = [localTask];
+      LocalStorageManager.taskSyncState = null;
+      const repository = new TaskRepository();
+      repository.hydrateFromLocal();
+      const pending = new Map<string, (value: typeof fetched) => void>();
+      Reflect.set(
+        repository,
+        'fetchCloudMergedTasks',
+        (_tasks: DoneTaskData[], target: string) =>
+          new Promise<typeof fetched>(resolve => pending.set(target, resolve)),
+      );
+      const calendarTarget = order[1] === 'all' ? 'all' : 'calendar';
+      const calendarRefresh = repository.refreshFromCloudIfNeeded(
+        true,
+        calendarTarget,
+      );
+      const driveRefresh = repository.refreshFromCloudIfNeeded(true, 'drive');
+
+      for (const target of order) {
+        pending.get(target)!({
+          ...fetched,
+          mergedTasks:
+            target === 'drive' ? [driveTask] : [localTask, calendarTask],
+        });
+        await (target === 'drive' ? driveRefresh : calendarRefresh);
+      }
+      assert.deepEqual(
+        repository.tasks.map((task: DoneTaskData) => task.id),
+        [driveTask.id, calendarTask.id],
+      );
+    }
+  } finally {
+    for (const [name, descriptor] of [
+      ['localStorage', originalLocalStorage],
+      ['sessionStorage', originalSessionStorage],
+      ['document', originalDocument],
+      ['CustomEvent', originalCustomEvent],
     ] as const) {
       if (descriptor) {
         Object.defineProperty(globalThis, name, descriptor);

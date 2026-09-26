@@ -459,7 +459,7 @@ export default class LocalStorageManager {
     if (savedViewMode === 'card' || savedViewMode === 'table') {
       return savedViewMode;
     }
-    return 'card';
+    return 'table';
   }
 
   static set taskViewMode(mode: DoneSwitchViewMode) {
