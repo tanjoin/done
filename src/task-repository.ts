@@ -1,4 +1,5 @@
 import DoneTask from './done-task';
+import DateHelper from './date-helper';
 import LocalStorageManager from './local-storage-manager';
 import {fetchTodoTasksFromGoogleCalendar} from './google-calendar-service';
 import {
@@ -108,6 +109,13 @@ export default class TaskRepository {
   private localMutationVersion = 0;
   private cloudRefreshVersion = 0;
   private appliedCloudRefreshVersion = {drive: 0, calendar: 0};
+  private overdueGroupsCache: {
+    tasks: DoneTask[];
+    mutationVersion: number;
+    referenceDate: string;
+    today: string;
+    groups: Record<string, DoneOverdueTask[]>;
+  } | null = null;
 
   private countGoogleTodoTasks(tasks: DoneTaskData[]): number {
     return tasks.filter(task => task.sourceType === 'google-todo').length;
@@ -418,24 +426,41 @@ export default class TaskRepository {
 
   collectOverdueGroups(): Record<string, DoneOverdueTask[]> {
     const overdueGroups: Record<string, DoneOverdueTask[]> = {};
-    const forceShowOverdue = LocalStorageManager.filterForceShowOverdue;
-
-    if (!forceShowOverdue) {
+    if (!LocalStorageManager.filterForceShowOverdue) {
       return overdueGroups;
     }
 
+    const referenceDate = LocalStorageManager.overdueReferenceDate;
+    const today = DateHelper.today;
+    const cache = this.overdueGroupsCache;
+    if (
+      cache?.tasks === this._tasks &&
+      cache.mutationVersion === this.localMutationVersion &&
+      cache.referenceDate === referenceDate &&
+      cache.today === today
+    ) {
+      return cache.groups;
+    }
+
     this._tasks.forEach((task: DoneTask) => {
-      const overdueTasks = this.collectOverdueTasks(new DoneTask(task));
+      const overdueTasks = this.collectOverdueTasks(task);
       if (overdueTasks.length === 0) {
         return;
       }
-      const overdueGroup = new DoneTask(task).normalizeGroup();
+      const overdueGroup = task.normalizeGroup();
       if (!overdueGroups[overdueGroup]) {
         overdueGroups[overdueGroup] = [];
       }
       overdueGroups[overdueGroup]?.push(...overdueTasks);
     });
 
+    this.overdueGroupsCache = {
+      tasks: this._tasks,
+      mutationVersion: this.localMutationVersion,
+      referenceDate,
+      today,
+      groups: overdueGroups,
+    };
     return overdueGroups;
   }
 

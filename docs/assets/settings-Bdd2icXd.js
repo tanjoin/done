@@ -1,4 +1,4 @@
-import{A as e,L as t,M as n,N as r,P as i,R as a,S as o,a as s,b as c,d as l,f as u,g as d,h as f,i as p,j as m,k as h,m as g,n as _,o as v,p as y,r as b,s as x,t as S,v as C,x as w,y as T,z as E}from"./google-auth-alert-hZStxMOU.js";import{a as D,c as O,d as k,i as A,l as j,n as M,o as N,r as P,t as F,u as I}from"./task-repository-I6YjIbm8.js";var L,R=E((()=>{e(),w(),v(),O(),g(),L=class{static render(){return`
+import{A as e,L as t,M as n,N as r,P as i,R as a,S as o,a as s,b as c,d as l,f as u,g as d,h as f,i as p,j as m,k as h,m as g,n as _,o as v,p as y,r as b,s as x,t as S,v as C,x as w,y as T,z as E}from"./google-auth-alert-2p7r_ttV.js";import{a as D,c as O,d as k,i as A,l as j,n as M,o as N,r as P,t as F,u as I}from"./task-repository-BZ-Wxajg.js";var L,R=E((()=>{e(),w(),v(),O(),g(),L=class{static render(){return`
       <div class="data-box" id="calendarSection">
         <h3 class="group-title">設定・データ管理</h3>
         <p class="setting-desc">
