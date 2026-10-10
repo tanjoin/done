@@ -33,6 +33,7 @@ export default defineConfig({
       input: {
         // バニラ環境で複数のHTML（複数ページ）を管理する場合は、ここにファイルを並べます
         main: resolve(__dirname, 'index.html'),
+        contributions: resolve(__dirname, 'contributions.html'),
         settings: resolve(__dirname, 'settings.html'),
         jsonOrganizer: resolve(__dirname, 'json-organizer.html'),
       },
