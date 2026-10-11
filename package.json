@@ -28,9 +28,8 @@
     "posttest": "echo \"posttest skipped\""
   },
   "devDependencies": {
-    "@types/node": "^26.0.1",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.16",
-    "gts": "^7.0.0"
+    "@types/node": "^26.0.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
   }
 }
