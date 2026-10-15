@@ -105,6 +105,7 @@ export default class TaskRepository {
       reject: (reason: unknown) => void;
     }>;
   } | null = null;
+  private inFlightDriveSyncs = 0;
   private localMutationVersion = 0;
   private cloudRefreshVersion = 0;
   private appliedCloudRefreshVersion = {drive: 0, calendar: 0};
@@ -193,6 +194,10 @@ export default class TaskRepository {
     });
   }
 
+  get hasPendingDriveSync(): boolean {
+    return this.pendingDriveSync !== null || this.inFlightDriveSyncs > 0;
+  }
+
   private flushPendingDriveSync(): void {
     const pending = this.pendingDriveSync;
     this.pendingDriveSync = null;
@@ -201,13 +206,17 @@ export default class TaskRepository {
       return;
     }
 
+    this.inFlightDriveSyncs++;
     const sync = this.driveSyncQueue
       .catch(() => undefined)
       .then(() =>
         syncTasksToGoogleDrive(pending.tasks, {
           forceOverwrite: pending.forceOverwrite,
         }),
-      );
+      )
+      .finally(() => {
+        this.inFlightDriveSyncs--;
+      });
     this.driveSyncQueue = sync.then(
       () => undefined,
       () => undefined,
@@ -830,6 +839,7 @@ export default class TaskRepository {
             });
             return;
           }
+          this.setSessionCache(this._tasks);
           this.emitGoogleDriveStatus({
             state: 'success',
             message: `Google Drive: 同期完了${TaskRepository.formatDriveVersion(result.updatedAt || '')}`,
@@ -886,6 +896,7 @@ export default class TaskRepository {
         });
         return;
       }
+      this.setSessionCache(this._tasks);
       this.emitGoogleDriveStatus({
         state: 'success',
         message: `Google Drive: 同期完了${TaskRepository.formatDriveVersion(result.updatedAt || '')}`,

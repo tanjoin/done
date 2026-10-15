@@ -1343,7 +1343,11 @@ class Index extends HTMLElement {
         if (this._isLoading) {
           return;
         }
+        if (this._taskRepository.hasPendingDriveSync) {
+          return;
+        }
         if (LocalStorageManager.taskSyncDirty) {
+          this._lastPageActivationRefreshAt = Date.now();
           this.setLoading(true);
           void this._taskRepository
             .saveTasksWithSync()
@@ -1358,7 +1362,6 @@ class Index extends HTMLElement {
         ) {
           return;
         }
-        this._lastPageActivationRefreshAt = now;
         void this.refreshCloudTasksWithLoading(false).then(() => {
           this.renderCards();
         });
@@ -1483,6 +1486,9 @@ class Index extends HTMLElement {
       return inProgress;
     }
 
+    if (target === 'all') {
+      this._lastPageActivationRefreshAt = Date.now();
+    }
     const refreshPromise = (async () => {
       this._activeCloudRefreshes++;
       this.setLoading(true);
