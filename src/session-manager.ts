@@ -35,9 +35,8 @@ export default class SessionManager {
       }
     });
 
-    // focus は DevTools 復帰やクリックでも発火するため、トークン更新のみに留める。
     window.addEventListener('focus', () => {
-      void SessionManager.refreshGoogleSessionIfNeeded();
+      void SessionManager.handlePageActivation();
     });
   }
 
