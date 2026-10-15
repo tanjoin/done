@@ -7,7 +7,10 @@ import {
   isGoogleReloginRequiredError,
 } from './google-auth';
 import {logGoogleRequest, logGoogleResponse} from './google-request-log';
-import {fetchWithDriveRateLimitRetry} from './google-drive-retry';
+import {
+  fetchWithDriveRateLimitRetry,
+  isGoogleAuthErrorResponse,
+} from './google-drive-retry';
 
 const GOOGLE_DRIVE_SCOPE = ['https://www.googleapis.com/auth/drive.file'];
 const FILE_NAME = 'tanjoin_done_task_sync_backup_v1.json';
@@ -78,7 +81,8 @@ async function fetchDriveApi<T>(
   await logGoogleResponse('Drive', method, url, response);
 
   if (!response.ok) {
-    if ((response.status === 401 || response.status === 403) && !retried) {
+    const isAuthError = await isGoogleAuthErrorResponse(response);
+    if (isAuthError && !retried) {
       clearGoogleToken();
       try {
         return await fetchDriveApi<T>(path, init, true);
@@ -89,7 +93,7 @@ async function fetchDriveApi<T>(
         throw createGoogleReloginRequiredError();
       }
     }
-    if (response.status === 401 || response.status === 403) {
+    if (isAuthError) {
       clearGoogleToken();
       throw createGoogleReloginRequiredError();
     }
@@ -163,7 +167,7 @@ async function loadSnapshotByFileId(
   );
   await logGoogleResponse('Drive', 'GET', url, response);
 
-  if (response.status === 401 || response.status === 403) {
+  if (await isGoogleAuthErrorResponse(response)) {
     clearGoogleToken();
     throw createGoogleReloginRequiredError();
   }
@@ -212,7 +216,8 @@ async function uploadMultipart(
   await logGoogleResponse('Drive', method, endpoint, response);
 
   if (!response.ok) {
-    if ((response.status === 401 || response.status === 403) && !retried) {
+    const isAuthError = await isGoogleAuthErrorResponse(response);
+    if (isAuthError && !retried) {
       clearGoogleToken();
       try {
         return await uploadMultipart(metadata, content, fileId, true);
@@ -223,7 +228,7 @@ async function uploadMultipart(
         throw createGoogleReloginRequiredError();
       }
     }
-    if (response.status === 401 || response.status === 403) {
+    if (isAuthError) {
       clearGoogleToken();
       throw createGoogleReloginRequiredError();
     }

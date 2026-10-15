@@ -9,6 +9,12 @@ const RATE_LIMIT_REASONS = new Set([
   'sharingRateLimitExceeded',
   'userRateLimitExceeded',
 ]);
+const AUTH_ERROR_REASONS = new Set([
+  'authError',
+  'invalidCredentials',
+  'insufficientPermissions',
+  'loginRequired',
+]);
 
 type GoogleErrorPayload = {
   error?: {
@@ -38,6 +44,22 @@ async function hasRateLimitReason(response: Response): Promise<boolean> {
     const payload = (await response.clone().json()) as GoogleErrorPayload;
     return collectReasons(payload).some(reason =>
       RATE_LIMIT_REASONS.has(reason),
+    );
+  } catch {
+    return false;
+  }
+}
+
+export async function isGoogleAuthErrorResponse(
+  response: Response,
+): Promise<boolean> {
+  if (response.status === 401) return true;
+  if (response.status !== 403) return false;
+
+  try {
+    const payload = (await response.clone().json()) as GoogleErrorPayload;
+    return collectReasons(payload).some(reason =>
+      AUTH_ERROR_REASONS.has(reason),
     );
   } catch {
     return false;

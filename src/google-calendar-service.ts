@@ -10,7 +10,10 @@ import {
 } from './google-auth';
 import DateHelper from './date-helper';
 import {logGoogleRequest, logGoogleResponse} from './google-request-log';
-import {fetchWithDriveRateLimitRetry} from './google-drive-retry';
+import {
+  fetchWithDriveRateLimitRetry,
+  isGoogleAuthErrorResponse,
+} from './google-drive-retry';
 
 export type GoogleCalendarSummary = {
   id: string;
@@ -71,7 +74,8 @@ async function fetchCalendarApi<T>(
   await logGoogleResponse('Calendar', method, url, response);
 
   if (!response.ok) {
-    if ((response.status === 401 || response.status === 403) && !retried) {
+    const isAuthError = await isGoogleAuthErrorResponse(response);
+    if (isAuthError && !retried) {
       clearGoogleToken();
       try {
         return await fetchCalendarApi<T>(path, init, true);
@@ -82,7 +86,7 @@ async function fetchCalendarApi<T>(
         throw createGoogleReloginRequiredError();
       }
     }
-    if (response.status === 401 || response.status === 403) {
+    if (isAuthError) {
       clearGoogleToken();
       throw createGoogleReloginRequiredError();
     }

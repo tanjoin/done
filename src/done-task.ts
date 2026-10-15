@@ -856,7 +856,6 @@ export default class DoneTask implements DoneTaskData {
         continue;
       }
 
-      console.log(`${this.notifiedDate} === ${candidate.scheduleDateKey} ?`);
       if (this.notifiedDate === candidate.scheduleDateKey) {
         continue;
       }

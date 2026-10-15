@@ -79,7 +79,7 @@ done は、日次タスク管理と Google Calendar / Google Drive 連携を行�
 レート制限・認証
 - HTTP 429 とレート制限系403（`rateLimitExceeded`、`userRateLimitExceeded`、`quotaExceeded`、`backendError` など）は自動再試行する。
 - `Retry-After` を優先し、未指定時は指数バックオフを使用する。再試行は最大3回とする。
-- 401 と認証系403は再ログイン要求として扱い、レート制限系403ではトークンを破棄しない。
+- 401 と認証理由（`authError`、`invalidCredentials`、`loginRequired`、`insufficientPermissions`）を含む403だけを再ログイン要求として扱う。それ以外の403ではトークンを破棄しない。
 
 ## 2.4 認証・キャッシュ・通知
 

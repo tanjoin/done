@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {fetchWithDriveRateLimitRetry} from '../src/google-drive-retry';
+import {
+  fetchWithDriveRateLimitRetry,
+  isGoogleAuthErrorResponse,
+} from '../src/google-drive-retry';
 
 void test('Drive の429は成功するまで再試行する', async () => {
   let attempts = 0;
@@ -45,6 +48,24 @@ void test('認証系403は再試行しない', async () => {
 
   assert.equal(response.status, 403);
   assert.equal(attempts, 1);
+});
+
+void test('認証理由のある403だけを再ログイン対象にする', async () => {
+  const authError = new Response(
+    JSON.stringify({error: {errors: [{reason: 'invalidCredentials'}]}}),
+    {status: 403},
+  );
+  const permissionError = new Response(
+    JSON.stringify({error: {errors: [{reason: 'forbidden'}]}}),
+    {status: 403},
+  );
+
+  assert.equal(await isGoogleAuthErrorResponse(authError), true);
+  assert.equal(await isGoogleAuthErrorResponse(permissionError), false);
+  assert.equal(
+    await isGoogleAuthErrorResponse(new Response('{}', {status: 401})),
+    true,
+  );
 });
 
 void test('Retry-Afterの秒数を指数バックオフより優先する', async () => {
