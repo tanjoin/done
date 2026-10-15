@@ -35,8 +35,6 @@ import GoogleAuthAlertController, {
 
 class Index extends HTMLElement {
   private static readonly PAGE_ACTIVATION_REFRESH_COOLDOWN_MS = 3 * 60 * 1000;
-  private static readonly PAGE_ACTIVATION_REFRESH_AT_KEY =
-    'done_page_activation_refresh_at_v1';
   private _mode: DoneSwitchViewMode = 'card';
   private _theme: DoneTheme = 'system';
   private _taskRepository: TaskRepository = new TaskRepository();
@@ -815,32 +813,6 @@ class Index extends HTMLElement {
     }
   }
 
-  private getLastPageActivationRefreshAt(): number {
-    try {
-      const storedAt = Number(
-        localStorage.getItem(Index.PAGE_ACTIVATION_REFRESH_AT_KEY),
-      );
-      return Number.isFinite(storedAt)
-        ? storedAt
-        : this._lastPageActivationRefreshAt;
-    } catch {
-      return this._lastPageActivationRefreshAt;
-    }
-  }
-
-  private markPageActivationRefresh(): void {
-    const refreshedAt = Date.now();
-    this._lastPageActivationRefreshAt = refreshedAt;
-    try {
-      localStorage.setItem(
-        Index.PAGE_ACTIVATION_REFRESH_AT_KEY,
-        String(refreshedAt),
-      );
-    } catch {
-      // localStorage が使えない場合はタブ内の時刻で判定する
-    }
-  }
-
   renderCards(): void {
     const container = document.getElementById('taskContainer');
     if (!container) return;
@@ -1371,20 +1343,20 @@ class Index extends HTMLElement {
         if (this._taskRepository.hasPendingDriveSync) {
           return;
         }
-        if (LocalStorageManager.taskSyncDirty) {
-          this._lastPageActivationRefreshAt = Date.now();
-          this.setLoading(true);
-          void this._taskRepository
-            .saveTasksWithSync()
-            .then(() => this.renderCards())
-            .finally(() => this.setLoading(false));
-          return;
-        }
         const now = Date.now();
         if (
           now - this._lastPageActivationRefreshAt <
           Index.PAGE_ACTIVATION_REFRESH_COOLDOWN_MS
         ) {
+          return;
+        }
+        if (LocalStorageManager.taskSyncDirty) {
+          this._lastPageActivationRefreshAt = now;
+          this.setLoading(true);
+          void this._taskRepository
+            .saveTasksWithSync()
+            .then(() => this.renderCards())
+            .finally(() => this.setLoading(false));
           return;
         }
         void this.refreshCloudTasksWithLoading(false).then(() => {
