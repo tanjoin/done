@@ -1,4 +1,4 @@
-import{C as e,S as t,T as n,a as r,b as i,c as a,d as o,f as s,i as c,l,n as u,o as d,r as f,t as p,u as m,w as h,x as g,y as _}from"./header-Cop1j-MJ.js";import{a as v,d as y,f as b,i as x,n as S,o as C,r as w,s as T,t as E}from"./google-auth-alert-ERPqcc1s.js";import{a as D,c as O,d as k,i as A,l as j,n as M,o as N,r as P,t as F,u as I}from"./task-repository-BKpykj7D.js";var L,R=n((()=>{i(),o(),C(),O(),c(),L=class{static render(){return`
+import{C as e,S as t,T as n,a as r,b as i,c as a,d as o,f as s,i as c,l,n as u,o as d,r as f,t as p,u as m,w as h,x as g,y as _}from"./header-chTGKH0k.js";import{a as v,d as y,f as b,i as x,n as S,o as C,r as w,s as T,t as E}from"./google-auth-alert-KEY8-jog.js";import{a as D,c as O,d as k,i as A,l as j,n as M,o as N,r as P,t as F,u as I}from"./task-repository-C5dHCq1w.js";var L,R=n((()=>{i(),o(),C(),O(),c(),L=class{static render(){return`
       <div class="data-box" id="calendarSection">
         <h3 class="group-title">設定・データ管理</h3>
         <p class="setting-desc">

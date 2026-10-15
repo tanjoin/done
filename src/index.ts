@@ -35,6 +35,8 @@ import GoogleAuthAlertController, {
 
 class Index extends HTMLElement {
   private static readonly PAGE_ACTIVATION_REFRESH_COOLDOWN_MS = 3 * 60 * 1000;
+  private static readonly PAGE_ACTIVATION_REFRESH_AT_KEY =
+    'done_page_activation_refresh_at_v1';
   private _mode: DoneSwitchViewMode = 'card';
   private _theme: DoneTheme = 'system';
   private _taskRepository: TaskRepository = new TaskRepository();
@@ -813,14 +815,35 @@ class Index extends HTMLElement {
     }
   }
 
+  private getLastPageActivationRefreshAt(): number {
+    try {
+      const storedAt = Number(
+        localStorage.getItem(Index.PAGE_ACTIVATION_REFRESH_AT_KEY),
+      );
+      return Number.isFinite(storedAt)
+        ? storedAt
+        : this._lastPageActivationRefreshAt;
+    } catch {
+      return this._lastPageActivationRefreshAt;
+    }
+  }
+
+  private markPageActivationRefresh(): void {
+    const refreshedAt = Date.now();
+    this._lastPageActivationRefreshAt = refreshedAt;
+    try {
+      localStorage.setItem(
+        Index.PAGE_ACTIVATION_REFRESH_AT_KEY,
+        String(refreshedAt),
+      );
+    } catch {
+      // localStorage が使えない場合はタブ内の時刻で判定する
+    }
+  }
+
   renderCards(): void {
     const container = document.getElementById('taskContainer');
     if (!container) return;
-
-    if (this._isLoading && this._taskRepository.tasks.length === 0) {
-      container.innerHTML = '';
-      return;
-    }
 
     container.innerHTML = '';
 
@@ -905,8 +928,10 @@ class Index extends HTMLElement {
       0,
     );
     if (filteredTasks.length === 0 && overdueCount === 0) {
-      container.innerHTML =
-        '<p class="empty-task-msg">表示するタスクがありません。</p>';
+      const emptyMessage = this._isLoading
+        ? 'タスクを読み込み中です。'
+        : '表示するタスクがありません。';
+      container.innerHTML = `<p class="empty-task-msg">${emptyMessage}</p>`;
       return;
     }
 
