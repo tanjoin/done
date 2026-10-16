@@ -1135,3 +1135,21 @@ a:not(.nav-link):hover {
 .task-type-dialog__actions--cancel .btn {
     width: 100%;
 }
+
+.task-add-memo-dialog__label {
+    display: grid;
+    gap: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.task-add-memo-dialog__input {
+    width: 100%;
+    min-height: 120px;
+    resize: vertical;
+}
+
+.task-add-memo-dialog__actions {
+    justify-content: flex-end;
+    margin-top: 16px;
+}

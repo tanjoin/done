@@ -11,6 +11,7 @@ import Header from './header';
 import IndexSwitchViewMode from './index-switch-view-mode';
 import IndexFilterControls from './index-filter-controls';
 import IndexCalendarEvent from './index-calendar-event';
+import promptForCalendarMemo from './task-add-memo-dialog';
 import LocalStorageManager from './local-storage-manager';
 import NotificationManager from './notification-manager';
 import RequestNotification from './request-notification';
@@ -179,6 +180,7 @@ class Index extends HTMLElement {
     primaryAction: 'complete' | 'add' | 'append' = 'complete',
     targetDateKey = DateHelper.today,
     actionButton?: HTMLButtonElement,
+    memo = '',
   ): void {
     const taskIndex = this.findTaskIndexById(taskId);
     if (taskIndex < 0) {
@@ -227,7 +229,7 @@ class Index extends HTMLElement {
 
       if (!googleEnabled) {
         if (!isCancel && calendarTask.skipCalendarOnComplete !== true) {
-          await IndexCalendarEvent.open(calendarTask, false);
+          await IndexCalendarEvent.open(calendarTask, false, memo);
         }
         return;
       }
@@ -271,7 +273,7 @@ class Index extends HTMLElement {
       }
 
       if (primaryAction === 'add') {
-        void addEventToDoneCalendarFromTask(calendarTask).catch(error => {
+        void addEventToDoneCalendarFromTask(calendarTask, memo).catch(error => {
           this.restoreFailedTaskAction(
             taskId,
             targetDateKey,
@@ -289,7 +291,7 @@ class Index extends HTMLElement {
       }
 
       if (primaryAction === 'append') {
-        await IndexCalendarEvent.open(calendarTask, false);
+        await IndexCalendarEvent.open(calendarTask, false, memo);
       }
     })().catch(error => {
       this.restoreFailedTaskAction(
@@ -362,6 +364,24 @@ class Index extends HTMLElement {
     actionButton?: HTMLButtonElement,
   ): void {
     if (action === 'complete' || action === 'add' || action === 'append') {
+      const taskIndex = this.findTaskIndexById(taskId);
+      const task = taskIndex >= 0 ? this._taskRepository.tasks[taskIndex] : null;
+      if (action === 'add' && task?.promptAddMemo === true) {
+        void promptForCalendarMemo(task.text).then(memo => {
+          if (memo === null) {
+            return;
+          }
+          this.executeTask(
+            taskId,
+            false,
+            'add',
+            targetDateKey,
+            actionButton,
+            memo,
+          );
+        });
+        return;
+      }
       this.executeTask(
         taskId,
         false,

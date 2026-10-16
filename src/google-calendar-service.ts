@@ -413,6 +413,7 @@ export async function fetchTodoTasksFromGoogleCalendar(): Promise<
 
 export async function addEventToDoneCalendarFromTask(
   task: DoneTask,
+  memo = '',
 ): Promise<void> {
   const calendarId = await resolveCalendarId(
     LocalStorageManager.googleDoneCalendarIdEncrypted,
@@ -427,6 +428,9 @@ export async function addEventToDoneCalendarFromTask(
   }
   if (task.link) {
     descriptionLines.push(task.link);
+  }
+  if (memo) {
+    descriptionLines.push(memo);
   }
   descriptionLines.push('追加元: Done アプリ');
 

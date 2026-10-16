@@ -5,7 +5,11 @@ import {loadCalendarSettings} from './google-calendar-service';
 import {hasValidGoogleToken} from './google-auth';
 
 export default class IndexCalendarEvent {
-  static async open(task: DoneTask, isCancel: boolean): Promise<void> {
+  static async open(
+    task: DoneTask,
+    isCancel: boolean,
+    memo = '',
+  ): Promise<void> {
     const startTime = DateHelper.todayUTC;
     const endTime = startTime;
 
@@ -18,6 +22,9 @@ export default class IndexCalendarEvent {
     }
     if (task.link) {
       details += `${task.link}\n`;
+    }
+    if (memo) {
+      details += `${memo}\n`;
     }
 
     if (isCancel) {

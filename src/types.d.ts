@@ -55,6 +55,7 @@ export type DoneTaskData = {
   skipCalendarOnComplete?: boolean | null;
   strictMode?: boolean | null;
   createTaskViaUrl?: boolean | null;
+  promptAddMemo?: boolean | null;
   specificDate?: string | null;
   endDate?: string | null;
   sourceType?: DoneTaskSourceType;

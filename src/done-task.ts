@@ -27,6 +27,7 @@ export default class DoneTask implements DoneTaskData {
   skipCalendarOnComplete?: boolean | null;
   strictMode?: boolean | null;
   createTaskViaUrl?: boolean | null;
+  promptAddMemo?: boolean | null;
   specificDate?: string | null;
   endDate?: string | null;
   sourceType?: DoneTaskSourceType;
@@ -55,6 +56,7 @@ export default class DoneTask implements DoneTaskData {
     );
     this.strictMode = normalizeBoolean(task.strictMode, false);
     this.createTaskViaUrl = normalizeBoolean(task.createTaskViaUrl, false);
+    this.promptAddMemo = normalizeBoolean(task.promptAddMemo, false);
     this.specificDate = task.specificDate || null;
     this.endDate = task.endDate || null;
     this.sourceType = task.sourceType || 'local';

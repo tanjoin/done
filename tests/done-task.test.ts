@@ -42,6 +42,23 @@ function createDailyTask(startTime: string, endTime: string): DoneTask {
   return new DoneTask(task);
 }
 
+test('追加時メモ入力フラグはJSONのtrueだけ有効になる', () => {
+  const enabledTask = new DoneTask({
+    id: 'memo-task',
+    text: 'メモ入力タスク',
+    promptAddMemo: true,
+    history: {},
+  });
+  const defaultTask = new DoneTask({
+    id: 'default-task',
+    text: '通常タスク',
+    history: {},
+  });
+
+  assert.equal(enabledTask.promptAddMemo, true);
+  assert.equal(defaultTask.promptAddMemo, false);
+});
+
 test('当日の終了時刻を過ぎたタスクは未実施になる', () => {
   withMockedNow('2026-07-28T12:00:00+09:00', () => {
     const task = createDailyTask('07:00', '11:00');
