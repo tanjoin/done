@@ -58,6 +58,7 @@ export type DoneTaskData = {
   promptAddMemo?: boolean | null;
   specificDate?: string | null;
   endDate?: string | null;
+  displayEndDate?: string | null;
   sourceType?: DoneTaskSourceType;
   externalCalendarId?: string | null;
   externalEventId?: string | null;

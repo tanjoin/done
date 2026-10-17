@@ -12,6 +12,7 @@ import IndexSwitchViewMode from './index-switch-view-mode';
 import IndexFilterControls from './index-filter-controls';
 import IndexCalendarEvent from './index-calendar-event';
 import promptForCalendarMemo from './task-add-memo-dialog';
+import {isTaskExpired} from './task-expiration';
 import LocalStorageManager from './local-storage-manager';
 import NotificationManager from './notification-manager';
 import RequestNotification from './request-notification';
@@ -855,6 +856,7 @@ class Index extends HTMLElement {
       task = new DoneTask(task);
 
       if (
+        isTaskExpired(task) ||
         task.shouldHidePastDoneGoogleTodo() ||
         task.shouldHideFromRegularListAsLongTermOverdue()
       ) {
@@ -1593,8 +1595,11 @@ class Index extends HTMLElement {
     });
 
     this.registerNotification();
+    let lastTaskDate = DateHelper.today;
     setInterval(() => {
-      if (this.registerNotification()) {
+      const today = DateHelper.today;
+      if (this.registerNotification() || today !== lastTaskDate) {
+        lastTaskDate = today;
         this.renderCards();
       }
     }, 60 * 1000);

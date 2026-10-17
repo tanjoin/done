@@ -366,6 +366,7 @@ class JsonOrganizer extends HTMLElement {
       createTaskViaUrl: false,
       specificDate: isTemporaryTask ? today : '',
       endDate: '',
+      displayEndDate: '',
       sourceType: 'google-done',
     };
   }

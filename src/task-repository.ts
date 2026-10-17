@@ -11,6 +11,7 @@ import {
 import {hasValidGoogleToken, isGoogleReloginRequiredError} from './google-auth';
 import type {DoneOverdueTask, DoneTaskData} from './types';
 import {mergeTaskSyncData, type TaskSyncConflict} from './task-sync-merge';
+import {isTaskExpired} from './task-expiration';
 
 type CloudRefreshTarget = 'all' | 'drive' | 'calendar';
 
@@ -360,6 +361,9 @@ export default class TaskRepository {
   }
 
   collectOverdueTasks(task: DoneTask): DoneOverdueTask[] {
+    if (isTaskExpired(task)) {
+      return [];
+    }
     if (task.isSecondCalendarLongTermTask()) {
       const scheduledStatus = task.specificDate
         ? task.history[task.specificDate]

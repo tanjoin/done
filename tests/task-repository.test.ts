@@ -584,6 +584,73 @@ test('複数の表示カレンダーを保存して取得できる', async () =>
   }
 });
 
+test('表示期限当日は未完了の強制表示と前日のキャッシュから除外し保存データは残す', () => {
+  const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'localStorage',
+  );
+  const RealDate = Date;
+  let currentTime = new RealDate(2026, 9, 19, 23, 59, 59).getTime();
+  class MockDate extends RealDate {
+    constructor(...args: unknown[]) {
+      if (args.length === 0) {
+        super(currentTime);
+        return;
+      }
+      super(...(args as [string | number | Date]));
+    }
+    static now(): number {
+      return currentTime;
+    }
+  }
+
+  try {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: createLocalStorage(),
+      configurable: true,
+    });
+    globalThis.Date = MockDate as unknown as DateConstructor;
+    const {default: DoneTask} = require('../src/done-task');
+    const {default: TaskRepository} = require('../src/task-repository');
+    const {default: LocalStorageManager} = require('../src/local-storage-manager');
+    LocalStorageManager.filterForceShowOverdue = true;
+    LocalStorageManager.overdueReferenceDate = '2026-10-17';
+    LocalStorageManager.tasks = [{
+      id: 'expiring-task',
+      text: '期限付きタスク',
+      displayEndDate: '2026-10-20',
+      history: {'2026-10-17': 'completed'},
+    }];
+    const repository = new TaskRepository();
+    repository.hydrateFromLocal();
+    assert.equal(repository.getOverdueTasks().length, 1);
+    assert.equal(repository.getOverdueTasks().length, 1);
+
+    currentTime = new RealDate(2026, 9, 20, 0, 0, 0).getTime();
+    assert.deepEqual(repository.getOverdueTasks(), []);
+    assert.deepEqual(repository.collectOverdueTasks(new DoneTask({
+      id: 'expired-temporary',
+      text: '期限切れ一時タスク',
+      specificDate: '2026-10-17',
+      endDate: '2026-10-18',
+      displayEndDate: '2026-10-20',
+      history: {},
+    })), []);
+    assert.equal(repository.tasks.length, 1);
+    assert.equal(LocalStorageManager.tasks[0]?.displayEndDate, '2026-10-20');
+    assert.deepEqual(LocalStorageManager.tasks[0]?.history, {
+      '2026-10-17': 'completed',
+    });
+  } finally {
+    globalThis.Date = RealDate;
+    if (originalLocalStorageDescriptor) {
+      Object.defineProperty(globalThis, 'localStorage', originalLocalStorageDescriptor);
+    } else {
+      Reflect.deleteProperty(globalThis as Record<string, unknown>, 'localStorage');
+    }
+  }
+});
+
 test('終了済みの表示カレンダー2長期タスクは未完了一覧に1件だけ表示する', () => {
   const {default: DoneTask} = require('../src/done-task');
   const {default: TaskRepository} = require('../src/task-repository');

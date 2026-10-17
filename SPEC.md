@@ -20,6 +20,10 @@ done は、日次タスク管理と Google Calendar / Google Drive 連携を行�
 - タスクを完了、追加、追記、キャンセル、取り消し、削除する。
 - タスクJSONの `promptAddMemo` が `true` のタスクは、追加前にメモ入力ダイアログを表示し、入力内容をカレンダー予定の説明へ追記する。キャンセル時は登録しない。
 - 日跨ぎタスク、リマインド時間帯、一時タスクの対象日と未完了日を正しく判定する。
+- タスクJSONの `displayEndDate` を実質的な有効期限として扱う。端末のローカル日付が指定日以上の場合、そのタスクは通常一覧・未完了一覧・通知の対象として存在しないものとする。指定日当日を含めて除外し、日跨ぎの前日分や未完了の強制表示、表示フィルター解除でも表示しない。
+- `displayEndDate` より前は既存の曜日・日付・時刻・履歴の条件どおりに扱う。期限当日以降の予定は前日リマインダーの対象にもしない。未指定・`null`・空文字列の場合は有効期限を設けない。
+- 期限切れは保存データの削除を意味しない。JSON、localStorage、Drive同期にタスク定義と期限・履歴を保持し、過去の実施ログは引き続き参照できる。
+- 開いたまま日付が変わった場合も既存の毎分チェックで一覧を再描画し、期限切れタスクと前日の未完了集計キャッシュを表示対象から除外する。
 - `specificDate` と `endDate` を持つローカル一時タスクは期間中に未完了扱いにせず、期間終了後に未処理なら1件だけ未完了表示する。
 - タスク操作後は画面へ先に反映する。ローカルタスクの保存と、ログイン中の Drive 同期は画面反映を妨げない非同期処理で行う。
 - 表示モードやフィルタを切り替える際、未完了日付の全件集計はタスク・履歴・基準日・当日が変わらない限り再利用する。変更があれば再計算し、Calendar 由来タスクの表示も更新する。
@@ -130,6 +134,7 @@ done は、日次タスク管理と Google Calendar / Google Drive 連携を行�
 - `promptAddMemo?: boolean | null`
 - `specificDate?: string | null`
 - `endDate?: string | null`
+- `displayEndDate?: string | null`: `YYYY-MM-DD` 形式の有効期限。例: `"displayEndDate": "2026-10-20"` は10月19日まで有効、10月20日0時以降は一覧・通知から除外する。実施期間の終端である `endDate` とは独立して扱う。
 - `sourceType?: 'local' | 'google-todo' | 'google-done'`
 - `externalCalendarId?: string | null`
 - `externalEventId?: string | null`
@@ -198,6 +203,7 @@ done は、日次タスク管理と Google Calendar / Google Drive 連携を行�
 2. 配列形式またはDrive同期形式で読み込み・出力する。
 3. 保存時はTODO Calendar由来タスクを除外する。
 4. Drive同期ONかつログイン中は、明示的な全体保存でDriveへ反映する。
+5. 新規タスクのJSON雛形に `displayEndDate: ""` を含める。有効期限を設定する場合は `YYYY-MM-DD` 形式で入力する。既存タスクの読み込み・編集・出力でも項目を保持する。
 
 ## 5.4 実施ログ
 

@@ -2,6 +2,76 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import DoneTask from '../src/done-task';
 import type {DoneTaskData} from '../src/types';
+import {isTaskExpired} from '../src/task-expiration';
+
+test('表示期限はローカル日付の当日0時から有効期限切れになる', () => {
+  const task = {displayEndDate: '2026-10-20'};
+  assert.equal(isTaskExpired(task, new Date(2026, 9, 19, 23, 59, 59)), false);
+  assert.equal(isTaskExpired(task, new Date(2026, 9, 20, 0, 0, 0)), true);
+  assert.equal(isTaskExpired(task, new Date(2026, 9, 21, 12)), true);
+  assert.equal(isTaskExpired({}, new Date(2026, 9, 20)), false);
+  assert.equal(isTaskExpired({displayEndDate: null}), false);
+  assert.equal(isTaskExpired({displayEndDate: ''}), false);
+});
+
+test('表示期限と過去の履歴はJSONの読み込みと保存で維持される', () => {
+  const task = new DoneTask({
+    id: 'expired-task',
+    text: '期限付きタスク',
+    displayEndDate: '2026-10-20',
+    history: {'2026-10-19': 'completed'},
+  });
+  const restored = new DoneTask(JSON.parse(JSON.stringify(task)));
+  assert.equal(restored.displayEndDate, '2026-10-20');
+  assert.deepEqual(restored.history, {'2026-10-19': 'completed'});
+});
+
+test('表示期限より前は通常どおり表示・通知され、当日以降は対象外になる', () => {
+  const task = new DoneTask({
+    id: 'expiring-daily-task',
+    text: '期限付き日次タスク',
+    displayEndDate: '2026-10-20',
+    startTime: '09:00',
+    history: {},
+  });
+  withMockedNow('2026-10-19T09:00:00', () => {
+    assert.equal(task.shouldShowTask(), true);
+    assert.notEqual(task.toNotificationCandidate(new Date()), null);
+  });
+  withMockedNow('2026-10-20T09:00:00', () => {
+    assert.equal(task.shouldShowTask(), false);
+    assert.equal(task.toNotificationCandidate(new Date()), null);
+    assert.equal(task.isReminderWindowActive(), false);
+    assert.equal(task.isTaskScheduledOnDate(new Date(2026, 9, 19)), true);
+    assert.equal(task.isTaskScheduledOnDate(new Date()), false);
+  });
+});
+
+test('表示期限を跨いだ日跨ぎタスクは前日の予定があっても表示しない', () => {
+  withMockedNow('2026-10-20T00:00:00', () => {
+    const task = createDailyTask('22:00', '02:00');
+    task.displayEndDate = '2026-10-20';
+    assert.equal(task.isTaskScheduledOnDate(new Date(2026, 9, 19)), true);
+    assert.equal(task.shouldShowTask(), false);
+  });
+});
+
+test('表示期限当日の予定は前日のリマインダーにも出現しない', () => {
+  withMockedNow('2026-10-19T23:45:00', () => {
+    const task = new DoneTask({
+      id: 'expired-reminder-task',
+      text: '期限当日の予定',
+      specificDate: '2026-10-20',
+      displayEndDate: '2026-10-20',
+      startTime: '00:30',
+      remindMinutesBefore: 60,
+      history: {},
+    });
+    assert.equal(task.shouldShowTask(), false);
+    assert.equal(task.isReminderWindowActive(), false);
+    assert.equal(task.toNotificationCandidate(new Date()), null);
+  });
+});
 
 function withMockedNow(nowIso: string, run: () => void): void {
   const RealDate = Date;

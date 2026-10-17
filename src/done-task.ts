@@ -9,6 +9,7 @@ import type {
 } from './types';
 import DateHelper from './date-helper';
 import {normalizeBoolean} from './boolean-helper';
+import {isTaskExpired} from './task-expiration';
 
 export default class DoneTask implements DoneTaskData {
   id: string;
@@ -30,6 +31,7 @@ export default class DoneTask implements DoneTaskData {
   promptAddMemo?: boolean | null;
   specificDate?: string | null;
   endDate?: string | null;
+  displayEndDate?: string | null;
   sourceType?: DoneTaskSourceType;
   externalCalendarId?: string | null;
   externalEventId?: string | null;
@@ -59,6 +61,7 @@ export default class DoneTask implements DoneTaskData {
     this.promptAddMemo = normalizeBoolean(task.promptAddMemo, false);
     this.specificDate = task.specificDate || null;
     this.endDate = task.endDate || null;
+    this.displayEndDate = task.displayEndDate || null;
     this.sourceType = task.sourceType || 'local';
     this.externalCalendarId = task.externalCalendarId || null;
     this.externalEventId = task.externalEventId || null;
@@ -180,6 +183,9 @@ export default class DoneTask implements DoneTaskData {
   getActiveReminderCandidate(
     now: Date = new Date(),
   ): DoneReminderCandidate | null {
+    if (isTaskExpired(this, now)) {
+      return null;
+    }
     for (const offset of [0, 1]) {
       const scheduledDate = new Date(
         now.getFullYear(),
@@ -678,6 +684,9 @@ export default class DoneTask implements DoneTaskData {
 
   // 指定された日付に対して、タスクがスケジュールされているかどうかを判定する
   isTaskScheduledOnDate(targetDate: Date): boolean {
+    if (isTaskExpired(this, targetDate)) {
+      return false;
+    }
     if (this.specificDate) {
       // 特定の日付が指定されている場合、その日付と比較する
       const dStr = this.toKebabCase(targetDate);
@@ -785,6 +794,9 @@ export default class DoneTask implements DoneTaskData {
 
   shouldShowTask(): boolean {
     const now = new Date();
+    if (isTaskExpired(this, now)) {
+      return false;
+    }
     if (this.isOvernightTask()) {
       const yesterday = DateHelper.yesterdayDate;
       const today = DateHelper.todayDate;
@@ -837,6 +849,9 @@ export default class DoneTask implements DoneTaskData {
   }
 
   toNotificationCandidate(now: Date): DoneReminderCandidate | null {
+    if (isTaskExpired(this, now)) {
+      return null;
+    }
     const dateOffsets = [0, 1];
 
     for (const offset of dateOffsets) {
@@ -874,7 +889,7 @@ export default class DoneTask implements DoneTaskData {
 
   // 指定された日付に対して、リマインド候補を生成する
   toReminderCandidate(scheduledDate: Date): DoneReminderCandidate | null {
-    if (!this.startTime) {
+    if (isTaskExpired(this, scheduledDate) || !this.startTime) {
       return null;
     }
     const normalizedStartTime = this.validateAndNormalizeStartTime();
