@@ -1,4 +1,4 @@
-import{A as e,D as t,L as n,M as r,O as i,R as a,_ as o,b as s,d as c,f as l,g as u,i as d,j as f,k as p,l as m,m as h,n as g,p as _,r as v,t as y,u as b,v as x,y as S,z as C}from"./google-drive-service-BG6YhD5w.js";import{a as w,i as T,n as E,o as D,s as O,t as k}from"./task-repository-Dtg1dmJe.js";import{i as A,n as j,r as M,t as N}from"./notification-manager-B5iO53gY.js";import{n as P,r as F,t as I}from"./google-auth-alert-CtXefi2x.js";var L,R=C((()=>{i(),S(),v(),T(),l(),L=class{static render(){return`
+import{A as e,D as t,L as n,M as r,O as i,R as a,_ as o,b as s,d as c,f as l,g as u,i as d,j as f,k as p,l as m,m as h,n as g,p as _,r as v,t as y,u as b,v as x,y as S,z as C}from"./google-drive-service-HPX7i4Bs.js";import{a as w,i as T,n as E,o as D,s as O,t as k}from"./task-repository-CRUVs5iP.js";import{i as A,n as j,r as M,t as N}from"./notification-manager-Cpx3b-6R.js";import{n as P,r as F,t as I}from"./google-auth-alert-DAUWRx3B.js";var L,R=C((()=>{i(),S(),v(),T(),l(),L=class{static render(){return`
       <div class="data-box" id="calendarSection">
         <h3 class="group-title">設定・データ管理</h3>
         <p class="setting-desc">

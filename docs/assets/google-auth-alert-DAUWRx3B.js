@@ -1,4 +1,4 @@
-import{z as e}from"./google-drive-service-BG6YhD5w.js";function t(e){return`
+import{z as e}from"./google-drive-service-HPX7i4Bs.js";function t(e){return`
     <div id="${e.statusId}" class="google-relogin-alert" role="alert" hidden>
       <span id="${e.messageId}"></span>
       <div class="google-relogin-alert-actions">

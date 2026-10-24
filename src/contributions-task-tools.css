@@ -23,6 +23,49 @@
   flex: 0 0 auto;
 }
 
+.selected-activity .activity-task-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+}
+
+.activity-task-main {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  text-align: left;
+}
+
+.activity-task-meta {
+  flex: none;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.activity-task-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.activity-task-status {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.activity-task-status.is-completed {
+  color: var(--activity-accent);
+}
+
+.activity-task-status.is-cancelled {
+  color: #a46b12;
+}
+
 .task-history-dialog {
   width: min(720px, calc(100vw - 32px));
   max-width: none;
@@ -248,5 +291,16 @@ button.task-history-cell:focus-visible {
 
   .task-history-save {
     grid-column: 1 / -1;
+  }
+
+  .selected-activity .activity-task-list li {
+    align-items: start;
+    gap: 10px;
+  }
+
+  .activity-task-controls {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
   }
 }

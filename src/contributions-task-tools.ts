@@ -1,7 +1,11 @@
 import './contributions-task-tools.css';
+import {handleGoogleAuthRedirect} from './google-auth';
 import LocalStorageManager from './local-storage-manager';
+import SessionManager from './session-manager';
 import TaskRepository from './task-repository';
 import type {DoneTaskData} from './types';
+
+handleGoogleAuthRedirect();
 
 function toDateKey(date: Date): string {
   const year = date.getFullYear();
@@ -38,6 +42,7 @@ class ContributionsTaskTools {
   private readonly observer: MutationObserver;
   private selectedTaskId = '';
   private selectedDate = '';
+  private selectedLogDate = '';
   private editDate = '';
   private year = new Date().getFullYear();
 
@@ -46,7 +51,7 @@ class ContributionsTaskTools {
     this.dialog.setAttribute('aria-labelledby', 'taskHistoryTitle');
     this.dialog.append(this.content);
     document.body.append(this.dialog);
-    this.observer = new MutationObserver(() => this.addTaskActions());
+    this.observer = new MutationObserver(() => this.renderSelectedActivity());
     this.observer.observe(page, {childList: true, subtree: true});
     page.addEventListener('click', event => this.handlePageClick(event));
     this.dialog.addEventListener('click', event => this.handleDialogClick(event));
@@ -56,39 +61,67 @@ class ContributionsTaskTools {
     this.dialog.addEventListener('close', () => {
       this.selectedTaskId = '';
     });
-    this.addTaskActions();
+    SessionManager.startGoogleSessionKeepAlive();
+    this.renderSelectedActivity();
   }
 
-  private addTaskActions(): void {
-    const selectedDate = this.page
+  private renderSelectedActivity(): void {
+    const section = this.page.querySelector<HTMLElement>('.selected-activity');
+    const activeDate = this.page
       .querySelector<HTMLButtonElement>('button[data-date][aria-pressed="true"]')
       ?.dataset.date;
-    if (!selectedDate) {
+    if (activeDate) {
+      this.selectedLogDate = activeDate;
+    }
+    const selectedDate = activeDate || this.selectedLogDate;
+    if (!section || !selectedDate || section.dataset.renderedDate === selectedDate) {
       return;
     }
-    const completedTasks = LocalStorageManager.tasks.filter(
-      task => task.history?.[selectedDate] === 'completed',
-    );
-    this.page
-      .querySelectorAll<HTMLLIElement>('.activity-task-list li')
-      .forEach((item, index) => {
-        if (item.querySelector('[data-task-history-open]')) {
-          return;
-        }
-        const task = completedTasks[index];
-        if (!task) {
-          return;
-        }
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'task-history-open';
-        button.textContent = '履歴・編集';
-        button.dataset.taskHistoryOpen = '';
-        button.dataset.taskId = task.id;
-        button.dataset.date = selectedDate;
-        button.setAttribute('aria-label', `${task.text}の履歴を表示・編集`);
-        item.append(button);
-      });
+    const dateTasks = LocalStorageManager.tasks.filter(task => {
+      const status = task.history?.[selectedDate];
+      return status === 'completed' || status === 'cancelled';
+    });
+    const completedCount = dateTasks.filter(
+      task => task.history[selectedDate] === 'completed',
+    ).length;
+    const cancelledCount = dateTasks.length - completedCount;
+    const list = dateTasks.length
+      ? `<ul class="activity-task-list">${dateTasks
+          .map(task => {
+            const status = task.history[selectedDate];
+            const statusLabel = status === 'completed' ? '完了' : 'キャンセル';
+            const statusClass = status === 'completed' ? 'is-completed' : 'is-cancelled';
+            const group = task.group?.trim();
+            return `<li data-history-task-id="${escapeHtml(task.id)}">
+              <div class="activity-task-main">
+                <span class="activity-task-name">${escapeHtml(task.text || '名称未設定')}</span>
+                ${group ? `<span class="activity-task-meta">${escapeHtml(group)}</span>` : ''}
+              </div>
+              <div class="activity-task-controls">
+                <span class="activity-task-status ${statusClass}">${statusLabel}</span>
+                <button type="button" class="task-history-open" data-task-history-open data-task-id="${escapeHtml(task.id)}" data-date="${selectedDate}" aria-label="${escapeHtml(task.text || '名称未設定')}のステータスを変更">ステータスを変更</button>
+              </div>
+            </li>`;
+          })
+          .join('')}</ul>`
+      : '<p class="activity-empty">この日の完了・キャンセル履歴はありません。</p>';
+
+    section.innerHTML = `
+      <div class="selected-activity__heading">
+        <div>
+          <p class="contributions-eyebrow">SELECTED DAY</p>
+          <h2>${new Intl.DateTimeFormat('ja-JP', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            weekday: 'long',
+          }).format(new Date(`${selectedDate}T00:00:00`))}</h2>
+        </div>
+        <strong>${completedCount}件完了 ・ ${cancelledCount}件キャンセル</strong>
+      </div>
+      ${list}
+    `;
+    section.dataset.renderedDate = selectedDate;
   }
 
   private handlePageClick(event: Event): void {
@@ -288,6 +321,8 @@ class ContributionsTaskTools {
     }
     try {
       await savePromise;
+      window.dispatchEvent(new Event('storage'));
+      this.renderDialog();
       const updatedMessage = this.dialog.querySelector<HTMLElement>(
         '.task-history-message',
       );
@@ -295,6 +330,8 @@ class ContributionsTaskTools {
         updatedMessage.textContent = `${this.editDate} の状態を保存しました。`;
       }
     } catch {
+      window.dispatchEvent(new Event('storage'));
+      this.renderDialog();
       const updatedMessage = this.dialog.querySelector<HTMLElement>(
         '.task-history-message',
       );

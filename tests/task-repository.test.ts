@@ -60,6 +60,50 @@ void test('表示モード未保存時は一覧、カード選択時はカード
   }
 });
 
+void test('オフラインでも実施ログのステータス変更を保存する', async () => {
+  const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'localStorage',
+  );
+
+  try {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: createLocalStorage(),
+      configurable: true,
+    });
+    const {default: LocalStorageManager} = require('../src/local-storage-manager');
+    const {default: TaskRepository} = require('../src/task-repository');
+    const dateKey = '2026-10-20';
+    LocalStorageManager.tasks = [
+      {id: 'history-edit-task', text: '履歴編集', history: {[dateKey]: 'completed'}},
+    ];
+
+    const repository = new TaskRepository();
+    repository.hydrateFromLocal();
+    repository.tasks[0]!.history[dateKey] = 'cancelled';
+    repository.recordTaskMutation();
+    await repository.saveTasksWithSync();
+
+    assert.equal(
+      LocalStorageManager.tasks[0]?.history[dateKey],
+      'cancelled',
+    );
+  } finally {
+    if (originalLocalStorageDescriptor) {
+      Object.defineProperty(
+        globalThis,
+        'localStorage',
+        originalLocalStorageDescriptor,
+      );
+    } else {
+      Reflect.deleteProperty(
+        globalThis as Record<string, unknown>,
+        'localStorage',
+      );
+    }
+  }
+});
+
 void test('Drive本文取得後の空versionでも同期基準を保持する', () => {
   const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(
     globalThis,
