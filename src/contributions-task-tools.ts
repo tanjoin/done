@@ -65,7 +65,7 @@ class ContributionsTaskTools {
     this.renderSelectedActivity();
   }
 
-  private renderSelectedActivity(): void {
+  private renderSelectedActivity(forceUpdate = false): void {
     const section = this.page.querySelector<HTMLElement>('.selected-activity');
     const activeDate = this.page
       .querySelector<HTMLButtonElement>('button[data-date][aria-pressed="true"]')
@@ -74,7 +74,11 @@ class ContributionsTaskTools {
       this.selectedLogDate = activeDate;
     }
     const selectedDate = activeDate || this.selectedLogDate;
-    if (!section || !selectedDate || section.dataset.renderedDate === selectedDate) {
+    if (
+      !section ||
+      !selectedDate ||
+      (!forceUpdate && section.dataset.renderedDate === selectedDate)
+    ) {
       return;
     }
     const dateTasks = LocalStorageManager.tasks.filter(task => {
@@ -221,7 +225,7 @@ class ContributionsTaskTools {
       </div>
       <div class="task-history-graph-wrap">${this.renderTaskGraph(task)}</div>
       <div class="task-history-legend" aria-label="ステータスの凡例">
-        <span><i class="task-history-cell"></i>未実施</span>
+        <span><i class="task-history-cell is-uncompleted"></i>未実施</span>
         <span><i class="task-history-cell is-completed"></i>完了</span>
         <span><i class="task-history-cell is-cancelled"></i>キャンセル</span>
       </div>
@@ -235,7 +239,7 @@ class ContributionsTaskTools {
             <option value="cancelled" ${status === 'cancelled' ? 'selected' : ''}>キャンセル</option>
           </select>
         </label>
-        <button type="button" class="task-history-save" data-action="save">保存</button>
+        <button type="button" class="task-history-save" data-action="save">ステータス変更</button>
         <p class="task-history-message" aria-live="polite">${this.editDate} の状態: ${statusLabel}</p>
       </section>
     `;
@@ -275,7 +279,7 @@ class ContributionsTaskTools {
               return '<span class="task-history-cell is-outside" aria-hidden="true"></span>';
             }
             const value = task.history?.[dateKey];
-            const statusClass = value === 'completed' ? ' is-completed' : value === 'cancelled' ? ' is-cancelled' : '';
+            const statusClass = value === 'completed' ? ' is-completed' : value === 'cancelled' ? ' is-cancelled' : ' is-uncompleted';
             const label = value === 'completed' ? '完了' : value === 'cancelled' ? 'キャンセル' : '未実施';
             return `<button type="button" class="task-history-cell${statusClass}${dateKey === this.editDate ? ' is-selected' : ''}" data-action="history-date" data-date="${dateKey}" aria-label="${dateKey}: ${label}" title="${dateKey}: ${label}"></button>`;
           })
@@ -315,6 +319,7 @@ class ContributionsTaskTools {
     const savePromise = this.repository.saveTasksWithSync();
     window.dispatchEvent(new Event('storage'));
     this.renderDialog();
+    this.renderSelectedActivity(true);
     const saveButton = this.dialog.querySelector<HTMLButtonElement>('[data-action="save"]');
     if (saveButton) {
       saveButton.disabled = true;
@@ -323,6 +328,7 @@ class ContributionsTaskTools {
       await savePromise;
       window.dispatchEvent(new Event('storage'));
       this.renderDialog();
+      this.renderSelectedActivity(true);
       const updatedMessage = this.dialog.querySelector<HTMLElement>(
         '.task-history-message',
       );
@@ -332,6 +338,7 @@ class ContributionsTaskTools {
     } catch {
       window.dispatchEvent(new Event('storage'));
       this.renderDialog();
+      this.renderSelectedActivity(true);
       const updatedMessage = this.dialog.querySelector<HTMLElement>(
         '.task-history-message',
       );

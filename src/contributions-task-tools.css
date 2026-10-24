@@ -62,6 +62,10 @@
   color: var(--activity-accent);
 }
 
+.activity-task-status.is-uncompleted {
+  color: var(--text-muted);
+}
+
 .activity-task-status.is-cancelled {
   color: #a46b12;
 }
@@ -189,6 +193,10 @@ button.task-history-cell:focus-visible {
 
 .task-history-cell.is-completed {
   background: var(--activity-3);
+}
+
+.task-history-cell.is-uncompleted {
+  background: var(--activity-0);
 }
 
 .task-history-cell.is-cancelled {
